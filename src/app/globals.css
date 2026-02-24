@@ -3,25 +3,53 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
+  --background: #f9fafb;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* FullCalendar overrides */
+.fc {
+  --fc-border-color: #e5e7eb;
+  --fc-today-bg-color: #fffbeb;
+}
+
+.fc .fc-button-primary {
+  background-color: #92400e;
+  border-color: #92400e;
+}
+
+.fc .fc-button-primary:hover {
+  background-color: #78350f;
+  border-color: #78350f;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: #78350f;
+  border-color: #78350f;
+}
+
+.fc .fc-event {
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.fc .fc-daygrid-event {
+  white-space: normal;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.gap-day {
+  font-weight: 600;
+  font-size: 0.7rem;
 }
