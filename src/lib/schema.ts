@@ -37,15 +37,6 @@ CREATE TABLE IF NOT EXISTS brews (
   rating REAL
 );
 
-CREATE TABLE IF NOT EXISTS splits (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  bean_id TEXT NOT NULL REFERENCES beans(id),
-  grams REAL NOT NULL,
-  recipient TEXT NOT NULL DEFAULT '',
-  split_date TEXT NOT NULL,
-  notes TEXT
-);
-
 CREATE TABLE IF NOT EXISTS roaster_defaults (
   roaster TEXT PRIMARY KEY,
   rest_days INTEGER NOT NULL
@@ -66,7 +57,6 @@ CREATE TABLE IF NOT EXISTS skip_days (
 );
 
 CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
-CREATE INDEX IF NOT EXISTS idx_splits_bean_id ON splits(bean_id);
 CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
 `;
 

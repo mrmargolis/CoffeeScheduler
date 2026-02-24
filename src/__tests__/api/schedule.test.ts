@@ -33,8 +33,7 @@ describe("schedule API integration", () => {
         `SELECT
           b.*,
           COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-          COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
         FROM beans b
         LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
         WHERE b.archived = 0`
@@ -48,7 +47,7 @@ describe("schedule API integration", () => {
       roast_date: row.roast_date,
       weight_grams: row.weight_grams,
       remaining_grams:
-        row.weight_grams - row.total_brewed_grams - row.total_split_grams,
+        row.weight_grams - row.total_brewed_grams,
       effective_rest_days: row.effective_rest_days,
       is_frozen: Boolean(row.is_frozen),
       planned_thaw_date: row.planned_thaw_date || null,
@@ -89,16 +88,6 @@ describe("schedule API integration", () => {
 
     const beans = getSchedulerBeans();
     expect(beans[0].effective_rest_days).toBe(14);
-  });
-
-  it("accounts for splits in remaining grams", () => {
-    insertBean("b1", "Ethiopia", "Square Mile", "2026-01-01", 250);
-    db.prepare(
-      "INSERT INTO splits (bean_id, grams, recipient, split_date) VALUES ('b1', 100, 'Friend', '2026-01-15')"
-    ).run();
-
-    const beans = getSchedulerBeans();
-    expect(beans[0].remaining_grams).toBe(150);
   });
 
   it("computes frozen days from freeze events", () => {
@@ -185,8 +174,7 @@ describe("schedule API integration", () => {
         `SELECT
           b.*,
           COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-          COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
         FROM beans b
         LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
         WHERE b.archived = 0`
@@ -204,7 +192,7 @@ describe("schedule API integration", () => {
       roaster: row.roaster,
       roast_date: row.roast_date,
       weight_grams: row.weight_grams,
-      remaining_grams: row.weight_grams - row.total_brewed_grams - row.total_split_grams,
+      remaining_grams: row.weight_grams - row.total_brewed_grams,
       effective_rest_days: row.effective_rest_days,
       is_frozen: Boolean(row.is_frozen),
       planned_thaw_date: row.planned_thaw_date || null,
@@ -241,8 +229,7 @@ describe("schedule API integration", () => {
         `SELECT
           b.*,
           COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-          COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
         FROM beans b
         LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster`
       )
@@ -254,7 +241,7 @@ describe("schedule API integration", () => {
       roaster: row.roaster,
       roast_date: row.roast_date,
       weight_grams: row.weight_grams,
-      remaining_grams: row.archived ? 0 : row.weight_grams - row.total_brewed_grams - row.total_split_grams,
+      remaining_grams: row.archived ? 0 : row.weight_grams - row.total_brewed_grams,
       effective_rest_days: row.effective_rest_days,
       is_frozen: Boolean(row.is_frozen),
       planned_thaw_date: row.planned_thaw_date || null,

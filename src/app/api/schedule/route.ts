@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
       `SELECT
         b.*,
         COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-        COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-        COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+        COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
       FROM beans b
       LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster`
     )
@@ -95,7 +94,7 @@ export async function GET(request: NextRequest) {
       weight_grams: row.weight_grams,
       remaining_grams: isArchived
         ? 0
-        : row.weight_grams - row.total_brewed_grams - row.total_split_grams,
+        : row.weight_grams - row.total_brewed_grams,
       effective_rest_days: row.effective_rest_days,
       is_frozen: Boolean(row.is_frozen),
       planned_thaw_date: row.planned_thaw_date || null,

@@ -16,8 +16,7 @@ export async function GET(
     SELECT
       b.*,
       COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-      COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-      COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+      COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
     FROM beans b
     LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
     WHERE b.id = ?
@@ -41,16 +40,12 @@ export async function GET(
     )
     .all(params.id);
 
-  const splits = db
-    .prepare("SELECT * FROM splits WHERE bean_id = ? ORDER BY split_date DESC")
-    .all(params.id);
-
   return NextResponse.json({
     ...bean,
     archived: Boolean(bean.archived),
     is_frozen: Boolean(bean.is_frozen),
     remaining_grams:
-      bean.weight_grams - bean.total_brewed_grams - bean.total_split_grams,
+      bean.weight_grams - bean.total_brewed_grams,
     ready_date: bean.roast_date
       ? (() => {
           const d = new Date(bean.roast_date);
@@ -60,7 +55,6 @@ export async function GET(
       : null,
     freeze_events: freezeEvents,
     recent_brews: recentBrews,
-    splits,
   });
 }
 

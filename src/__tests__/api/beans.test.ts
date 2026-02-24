@@ -37,8 +37,7 @@ describe("beans", () => {
     const beans = db
       .prepare(
         `SELECT b.*,
-          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams,
-          COALESCE((SELECT SUM(s.grams) FROM splits s WHERE s.bean_id = b.id), 0) as total_split_grams
+          COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
         FROM beans b WHERE b.archived = 0`
       )
       .all() as any[];
@@ -46,7 +45,7 @@ describe("beans", () => {
     expect(beans).toHaveLength(2);
     const eth = beans.find((b) => b.id === "bean-1");
     expect(eth.total_brewed_grams).toBe(30);
-    expect(eth.weight_grams - eth.total_brewed_grams - eth.total_split_grams).toBe(220);
+    expect(eth.weight_grams - eth.total_brewed_grams).toBe(220);
   });
 
   it("updates user-managed fields", () => {
@@ -59,19 +58,6 @@ describe("beans", () => {
       .get() as any;
     expect(bean.rest_days).toBe(21);
     expect(bean.notes).toBe("Great");
-  });
-
-  it("records splits and reduces remaining grams", () => {
-    db.prepare(
-      "INSERT INTO splits (bean_id, grams, recipient, split_date) VALUES ('bean-1', 100, 'Friend', '2026-02-01')"
-    ).run();
-
-    const totalSplit = db
-      .prepare(
-        "SELECT COALESCE(SUM(grams), 0) as total FROM splits WHERE bean_id = 'bean-1'"
-      )
-      .get() as any;
-    expect(totalSplit.total).toBe(100);
   });
 
   it("toggles freeze state and logs events", () => {

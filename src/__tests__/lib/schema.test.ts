@@ -23,7 +23,6 @@ describe("schema", () => {
     expect(tables).toContain("settings");
     expect(tables).toContain("beans");
     expect(tables).toContain("brews");
-    expect(tables).toContain("splits");
     expect(tables).toContain("roaster_defaults");
     expect(tables).toContain("freeze_events");
     expect(tables).toContain("skip_days");
@@ -60,7 +59,6 @@ describe("schema", () => {
       .map((r: any) => r.name);
 
     expect(indexes).toContain("idx_brews_bean_id");
-    expect(indexes).toContain("idx_splits_bean_id");
     expect(indexes).toContain("idx_freeze_events_bean_id");
   });
 

@@ -28,15 +28,6 @@ export interface Brew {
   rating: number | null;
 }
 
-export interface Split {
-  id?: number;
-  bean_id: string;
-  grams: number;
-  recipient: string;
-  split_date: string; // ISO 8601 date
-  notes: string | null;
-}
-
 export interface RoasterDefault {
   roaster: string;
   rest_days: number;
@@ -80,5 +71,4 @@ export interface BeanWithComputed extends Bean {
   ready_date: string | null;
   remaining_grams: number;
   total_brewed_grams: number;
-  total_split_grams: number;
 }

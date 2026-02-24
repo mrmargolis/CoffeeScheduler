@@ -15,8 +15,6 @@ export default function BeanDetail({
   const { data: bean, error } = useSWR(`/api/beans/${beanId}`, fetcher);
   const [restDays, setRestDays] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [splitGrams, setSplitGrams] = useState("");
-  const [splitRecipient, setSplitRecipient] = useState("");
   const [roastDate, setRoastDate] = useState("");
   const [plannedThawDate, setPlannedThawDate] = useState("");
 
@@ -60,22 +58,6 @@ export default function BeanDetail({
     });
   };
 
-  const handleSplit = async () => {
-    if (!splitGrams || Number(splitGrams) <= 0) return;
-    await fetch(`/api/beans/${beanId}/split`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grams: Number(splitGrams),
-        recipient: splitRecipient,
-      }),
-    });
-    setSplitGrams("");
-    setSplitRecipient("");
-    mutate(`/api/beans/${beanId}`);
-    mutate("/api/beans");
-  };
-
   return (
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-start">
@@ -103,8 +85,6 @@ export default function BeanDetail({
         <div className="text-gray-900">{bean.weight_grams}g</div>
         <div className="text-gray-500">Brewed</div>
         <div className="text-gray-900">{bean.total_brewed_grams}g</div>
-        <div className="text-gray-500">Split</div>
-        <div className="text-gray-900">{bean.total_split_grams}g</div>
         <div className="text-gray-500">Remaining</div>
         <div className="text-gray-900 font-medium">
           {Math.round(bean.remaining_grams)}g
@@ -226,34 +206,6 @@ export default function BeanDetail({
         {bean.is_frozen ? "Thaw Bean" : "Freeze Bean"}
       </button>
 
-      {/* Split form */}
-      <div className="border-t border-gray-200 pt-4">
-        <p className="text-sm font-medium text-gray-700 mb-2">Split Bag</p>
-        <div className="flex gap-2">
-          <input
-            type="number"
-            value={splitGrams}
-            onChange={(e) => setSplitGrams(e.target.value)}
-            placeholder="Grams"
-            className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-            min={1}
-          />
-          <input
-            type="text"
-            value={splitRecipient}
-            onChange={(e) => setSplitRecipient(e.target.value)}
-            placeholder="Recipient"
-            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-          />
-          <button
-            onClick={handleSplit}
-            className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 text-gray-900"
-          >
-            Split
-          </button>
-        </div>
-      </div>
-
       {/* Recent brews */}
       {bean.recent_brews?.length > 0 && (
         <div className="border-t border-gray-200 pt-4">
@@ -272,20 +224,6 @@ export default function BeanDetail({
         </div>
       )}
 
-      {/* Splits list */}
-      {bean.splits?.length > 0 && (
-        <div className="border-t border-gray-200 pt-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">Splits</p>
-          <div className="space-y-1">
-            {bean.splits.map((split: any, i: number) => (
-              <div key={i} className="flex justify-between text-xs text-gray-500">
-                <span>{split.split_date}</span>
-                <span>{split.grams}g → {split.recipient || "Unknown"}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
