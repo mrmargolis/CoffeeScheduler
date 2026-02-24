@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
-import { SkipDayRange } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -19,22 +18,11 @@ export default function SettingsPanel({
   onClose: () => void;
 }) {
   const { data } = useSWR(isOpen ? "/api/settings" : null, fetcher);
-  const { data: skipDayRanges, mutate: mutateSkipDays } = useSWR<SkipDayRange[]>(
-    isOpen ? "/api/skip-days" : null,
-    fetcher
-  );
   const [dailyGrams, setDailyGrams] = useState(45);
   const [defaultRestDays, setDefaultRestDays] = useState(30);
   const [roasterDefaults, setRoasterDefaults] = useState<RoasterDefault[]>([]);
   const [newRoaster, setNewRoaster] = useState("");
   const [newRestDays, setNewRestDays] = useState(30);
-  const [newSkipStart, setNewSkipStart] = useState("");
-  const [newSkipEnd, setNewSkipEnd] = useState("");
-  const [newSkipReason, setNewSkipReason] = useState("");
-  const [editingSkipId, setEditingSkipId] = useState<number | null>(null);
-  const [editSkipStart, setEditSkipStart] = useState("");
-  const [editSkipEnd, setEditSkipEnd] = useState("");
-  const [editSkipReason, setEditSkipReason] = useState("");
 
   useEffect(() => {
     if (data) {
@@ -74,58 +62,6 @@ export default function SettingsPanel({
     }
   };
 
-  const revalidateSchedule = () => {
-    mutate((key: string) => key?.startsWith("/api/schedule"), undefined, {
-      revalidate: true,
-    });
-  };
-
-  const addSkipDayRange = async () => {
-    if (!newSkipStart || !newSkipEnd) return;
-    await fetch("/api/skip-days", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        start_date: newSkipStart,
-        end_date: newSkipEnd,
-        reason: newSkipReason || null,
-      }),
-    });
-    setNewSkipStart("");
-    setNewSkipEnd("");
-    setNewSkipReason("");
-    mutateSkipDays();
-    revalidateSchedule();
-  };
-
-  const deleteSkipDayRange = async (id: number) => {
-    await fetch(`/api/skip-days/${id}`, { method: "DELETE" });
-    mutateSkipDays();
-    revalidateSchedule();
-  };
-
-  const startEditingSkip = (range: SkipDayRange) => {
-    setEditingSkipId(range.id!);
-    setEditSkipStart(range.start_date);
-    setEditSkipEnd(range.end_date);
-    setEditSkipReason(range.reason || "");
-  };
-
-  const saveEditSkip = async () => {
-    if (!editingSkipId || !editSkipStart || !editSkipEnd) return;
-    await fetch(`/api/skip-days/${editingSkipId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        start_date: editSkipStart,
-        end_date: editSkipEnd,
-        reason: editSkipReason || null,
-      }),
-    });
-    setEditingSkipId(null);
-    mutateSkipDays();
-    revalidateSchedule();
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -237,113 +173,6 @@ export default function SettingsPanel({
             </div>
           </div>
 
-          {/* Skip Days */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Skip days
-            </label>
-            {skipDayRanges && skipDayRanges.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {skipDayRanges.map((range) => (
-                  <div
-                    key={range.id}
-                    className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-                  >
-                    {editingSkipId === range.id ? (
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="date"
-                            value={editSkipStart}
-                            onChange={(e) => setEditSkipStart(e.target.value)}
-                            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-                          />
-                          <input
-                            type="date"
-                            value={editSkipEnd}
-                            onChange={(e) => setEditSkipEnd(e.target.value)}
-                            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editSkipReason}
-                            onChange={(e) => setEditSkipReason(e.target.value)}
-                            placeholder="Reason (optional)"
-                            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-                          />
-                          <button
-                            onClick={saveEditSkip}
-                            className="px-2 py-1 bg-amber-600 text-white rounded text-sm hover:bg-amber-700"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingSkipId(null)}
-                            className="px-2 py-1 text-gray-500 hover:text-gray-700 text-sm"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => startEditingSkip(range)}
-                          className="text-left flex-1"
-                        >
-                          <span className="text-sm text-amber-900 font-medium">
-                            {range.start_date} to {range.end_date}
-                          </span>
-                          {range.reason && (
-                            <span className="text-sm text-amber-700 ml-2">
-                              ({range.reason})
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => deleteSkipDayRange(range.id!)}
-                          className="text-red-400 hover:text-red-600 text-sm ml-2"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={newSkipStart}
-                onChange={(e) => setNewSkipStart(e.target.value)}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
-              />
-              <input
-                type="date"
-                value={newSkipEnd}
-                onChange={(e) => setNewSkipEnd(e.target.value)}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
-              />
-            </div>
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={newSkipReason}
-                onChange={(e) => setNewSkipReason(e.target.value)}
-                placeholder="Reason (optional)"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
-              />
-              <button
-                onClick={addSkipDayRange}
-                className="px-3 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300 text-gray-900"
-              >
-                Add
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">

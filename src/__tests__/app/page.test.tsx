@@ -113,7 +113,6 @@ describe("Home page", () => {
     await waitFor(() => {
       expect(screen.getByText("Daily consumption (grams)")).toBeInTheDocument();
       expect(screen.getByText("Default rest days")).toBeInTheDocument();
-      expect(screen.getByText("Skip days")).toBeInTheDocument();
     });
   });
 

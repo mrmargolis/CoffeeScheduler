@@ -13,6 +13,7 @@
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
     "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",

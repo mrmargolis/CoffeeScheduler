@@ -163,6 +163,137 @@ describe("skip-days CRUD", () => {
     expect(schedule.find((d) => d.date === "2026-02-05")?.is_skip).toBe(false);
   });
 
+  // --- Toggle logic tests ---
+
+  function addDays(iso: string, n: number): string {
+    const d = new Date(iso + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().split("T")[0];
+  }
+
+  /** Mimics the toggle endpoint logic directly against the DB. */
+  function toggleSkipDay(date: string): boolean {
+    const containingRange = db
+      .prepare("SELECT * FROM skip_days WHERE start_date <= ? AND end_date >= ?")
+      .get(date, date) as any | undefined;
+
+    if (containingRange) {
+      const { id, start_date, end_date, reason } = containingRange;
+      if (start_date === date && end_date === date) {
+        db.prepare("DELETE FROM skip_days WHERE id = ?").run(id);
+      } else if (start_date === date) {
+        db.prepare("UPDATE skip_days SET start_date = ? WHERE id = ?").run(addDays(date, 1), id);
+      } else if (end_date === date) {
+        db.prepare("UPDATE skip_days SET end_date = ? WHERE id = ?").run(addDays(date, -1), id);
+      } else {
+        const beforeEnd = addDays(date, -1);
+        const afterStart = addDays(date, 1);
+        db.prepare("DELETE FROM skip_days WHERE id = ?").run(id);
+        db.prepare("INSERT INTO skip_days (start_date, end_date, reason) VALUES (?, ?, ?)").run(start_date, beforeEnd, reason);
+        db.prepare("INSERT INTO skip_days (start_date, end_date, reason) VALUES (?, ?, ?)").run(afterStart, end_date, reason);
+      }
+      return false; // toggled off
+    }
+
+    const prevDay = addDays(date, -1);
+    const nextDay = addDays(date, 1);
+    const prevRange = db.prepare("SELECT * FROM skip_days WHERE end_date = ?").get(prevDay) as any | undefined;
+    const nextRange = db.prepare("SELECT * FROM skip_days WHERE start_date = ?").get(nextDay) as any | undefined;
+
+    if (prevRange && nextRange) {
+      db.prepare("UPDATE skip_days SET end_date = ? WHERE id = ?").run(nextRange.end_date, prevRange.id);
+      db.prepare("DELETE FROM skip_days WHERE id = ?").run(nextRange.id);
+    } else if (prevRange) {
+      db.prepare("UPDATE skip_days SET end_date = ? WHERE id = ?").run(date, prevRange.id);
+    } else if (nextRange) {
+      db.prepare("UPDATE skip_days SET start_date = ? WHERE id = ?").run(date, nextRange.id);
+    } else {
+      db.prepare("INSERT INTO skip_days (start_date, end_date, reason) VALUES (?, ?, ?)").run(date, date, null);
+    }
+    return true; // toggled on
+  }
+
+  it("toggle on: insert a single-day skip", () => {
+    const result = toggleSkipDay("2026-03-10");
+    expect(result).toBe(true);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-10");
+    expect(ranges[0].end_date).toBe("2026-03-10");
+  });
+
+  it("toggle off: remove a single-day skip", () => {
+    insertSkipRange("2026-03-10", "2026-03-10");
+    const result = toggleSkipDay("2026-03-10");
+    expect(result).toBe(false);
+    expect(getSkipRanges()).toHaveLength(0);
+  });
+
+  it("toggle off start of range: shrinks from start", () => {
+    insertSkipRange("2026-03-10", "2026-03-15", "Trip");
+    const result = toggleSkipDay("2026-03-10");
+    expect(result).toBe(false);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-11");
+    expect(ranges[0].end_date).toBe("2026-03-15");
+  });
+
+  it("toggle off end of range: shrinks from end", () => {
+    insertSkipRange("2026-03-10", "2026-03-15");
+    const result = toggleSkipDay("2026-03-15");
+    expect(result).toBe(false);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-10");
+    expect(ranges[0].end_date).toBe("2026-03-14");
+  });
+
+  it("toggle off middle of range: splits into two", () => {
+    insertSkipRange("2026-03-10", "2026-03-15", "Vacation");
+    const result = toggleSkipDay("2026-03-12");
+    expect(result).toBe(false);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(2);
+    expect(ranges[0].start_date).toBe("2026-03-10");
+    expect(ranges[0].end_date).toBe("2026-03-11");
+    expect(ranges[0].reason).toBe("Vacation");
+    expect(ranges[1].start_date).toBe("2026-03-13");
+    expect(ranges[1].end_date).toBe("2026-03-15");
+    expect(ranges[1].reason).toBe("Vacation");
+  });
+
+  it("toggle on adjacent to previous range: merges", () => {
+    insertSkipRange("2026-03-10", "2026-03-12");
+    const result = toggleSkipDay("2026-03-13");
+    expect(result).toBe(true);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-10");
+    expect(ranges[0].end_date).toBe("2026-03-13");
+  });
+
+  it("toggle on adjacent to next range: merges", () => {
+    insertSkipRange("2026-03-12", "2026-03-15");
+    const result = toggleSkipDay("2026-03-11");
+    expect(result).toBe(true);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-11");
+    expect(ranges[0].end_date).toBe("2026-03-15");
+  });
+
+  it("toggle on between two adjacent ranges: merges all three", () => {
+    insertSkipRange("2026-03-10", "2026-03-12");
+    insertSkipRange("2026-03-14", "2026-03-16");
+    const result = toggleSkipDay("2026-03-13");
+    expect(result).toBe(true);
+    const ranges = getSkipRanges();
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start_date).toBe("2026-03-10");
+    expect(ranges[0].end_date).toBe("2026-03-16");
+  });
+
   it("update dates: extend a vacation", () => {
     const bean = makeSchedulerBean({ remaining_grams: 250 });
 

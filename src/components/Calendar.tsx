@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import useSWR from "swr";
+import interactionPlugin from "@fullcalendar/interaction";
+import useSWR, { mutate } from "swr";
 import { ScheduleDay, SkipDayRange } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
 
@@ -40,7 +41,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
     fetcher
   );
 
-  const { data: skipDayRanges } = useSWR<SkipDayRange[]>(
+  const { data: skipDayRanges, mutate: mutateSkipDays } = useSWR<SkipDayRange[]>(
     "/api/skip-days",
     fetcher
   );
@@ -234,7 +235,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <FullCalendar
-          plugins={[dayGridPlugin]}
+          plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           events={events}
           headerToolbar={{
@@ -243,6 +244,19 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
             right: "dayGridMonth",
           }}
           height="auto"
+          dateClick={async (info) => {
+            await fetch("/api/skip-days/toggle", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: info.dateStr }),
+            });
+            mutateSkipDays();
+            mutate(
+              (key: string) => key?.startsWith("/api/schedule"),
+              undefined,
+              { revalidate: true }
+            );
+          }}
           eventClick={(info) => {
             const beanId = info.event.extendedProps?.beanId;
             if (beanId && onSelectBean) {

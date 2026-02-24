@@ -214,10 +214,10 @@ export default function BeanDetail({
           </p>
           <div className="space-y-1">
             {bean.recent_brews.map((brew: any, i: number) => (
-              <div key={i} className="flex justify-between text-xs text-gray-500">
-                <span>{brew.creation_date}</span>
-                <span>{brew.ground_coffee_grams}g</span>
-                {brew.rating && <span>★{brew.rating}</span>}
+              <div key={i} className="flex text-xs text-gray-500">
+                <span className="w-24">{brew.creation_date}</span>
+                <span className="flex-1 text-center">{brew.ground_coffee_grams}g</span>
+                <span className="w-10 text-right">{brew.rating ? `★${brew.rating}` : ""}</span>
               </div>
             ))}
           </div>

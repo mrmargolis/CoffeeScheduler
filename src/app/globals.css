@@ -53,3 +53,11 @@ body {
   font-weight: 600;
   font-size: 0.7rem;
 }
+
+.fc .fc-daygrid-day-number {
+  cursor: pointer;
+}
+
+.fc .fc-daygrid-day-number:hover {
+  text-decoration: underline;
+}
