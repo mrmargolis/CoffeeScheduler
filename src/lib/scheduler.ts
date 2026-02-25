@@ -1,4 +1,5 @@
 import { addDays, dateRange } from "./date-utils";
+import { ScheduleDay } from "./types";
 
 /** Minimum viable dose. Beans with less than this remaining are done. */
 const MIN_DOSE_GRAMS = 12;
@@ -27,20 +28,6 @@ export interface ActualBrew {
   bean_id: string;
   creation_date: string;
   ground_coffee_grams: number;
-}
-
-export interface ScheduleDay {
-  date: string;
-  consumptions: {
-    bean_id: string;
-    bean_name: string;
-    roaster: string;
-    grams: number;
-  }[];
-  is_gap: boolean;
-  is_surplus: boolean;
-  is_actual: boolean;
-  is_skip: boolean;
 }
 
 /**

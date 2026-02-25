@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { autoThawBeans } from "@/lib/auto-thaw";
+import { queryBean } from "@/lib/bean-queries";
 
 export async function GET(
   _request: NextRequest,
@@ -10,19 +11,7 @@ export async function GET(
   const today = new Date().toISOString().split("T")[0];
   autoThawBeans(db, today);
 
-  const bean = db
-    .prepare(
-      `
-    SELECT
-      b.*,
-      COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-      COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
-    FROM beans b
-    LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
-    WHERE b.id = ?
-  `
-    )
-    .get(params.id) as any;
+  const bean = queryBean(db, params.id);
 
   if (!bean) {
     return NextResponse.json({ error: "Bean not found" }, { status: 404 });
@@ -42,17 +31,6 @@ export async function GET(
 
   return NextResponse.json({
     ...bean,
-    archived: Boolean(bean.archived),
-    is_frozen: Boolean(bean.is_frozen),
-    remaining_grams:
-      bean.weight_grams - bean.total_brewed_grams,
-    ready_date: bean.roast_date
-      ? (() => {
-          const d = new Date(bean.roast_date);
-          d.setDate(d.getDate() + bean.effective_rest_days);
-          return d.toISOString().split("T")[0];
-        })()
-      : null,
     freeze_events: freezeEvents,
     recent_brews: recentBrews,
   });

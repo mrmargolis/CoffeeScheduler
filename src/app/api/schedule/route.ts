@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { computeSchedule, SchedulerBean } from "@/lib/scheduler";
 import { daysBetween, dateRange } from "@/lib/date-utils";
 import { autoThawBeans } from "@/lib/auto-thaw";
+import { queryBeanRowsRaw } from "@/lib/bean-queries";
 
 export async function GET(request: NextRequest) {
   const db = getDb();
@@ -32,16 +33,7 @@ export async function GET(request: NextRequest) {
 
   // Get all beans (including archived) so past brews can resolve names.
   // Archived beans get remaining_grams = 0 to exclude them from projections.
-  const beanRows = db
-    .prepare(
-      `SELECT
-        b.*,
-        COALESCE(b.rest_days, rd.rest_days, CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)) as effective_rest_days,
-        COALESCE((SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0) as total_brewed_grams
-      FROM beans b
-      LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster`
-    )
-    .all() as any[];
+  const beanRows = queryBeanRowsRaw(db);
 
   // Compute frozen days for each bean from freeze_events
   const freezeEvents = db
