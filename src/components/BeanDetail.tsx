@@ -28,8 +28,8 @@ export default function BeanDetail({
   }, [bean]);
 
   if (error)
-    return <div className="p-4 text-red-600">Failed to load bean details</div>;
-  if (!bean) return <div className="p-4 text-gray-500">Loading...</div>;
+    return <div className="p-4 text-red-400">Failed to load bean details</div>;
+  if (!bean) return <div className="p-4 text-gray-400">Loading...</div>;
 
   const handleSave = async () => {
     await fetch(`/api/beans/${beanId}`, {
@@ -62,12 +62,12 @@ export default function BeanDetail({
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-semibold text-gray-900">{bean.name}</h3>
-          <p className="text-sm text-gray-500">{bean.roaster}</p>
+          <h3 className="font-semibold text-gray-100">{bean.name}</h3>
+          <p className="text-sm text-gray-400">{bean.roaster}</p>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-500 hover:text-gray-300"
         >
           ✕
         </button>
@@ -75,56 +75,56 @@ export default function BeanDetail({
 
       {/* Info Grid */}
       <div className="grid grid-cols-2 gap-2 text-sm">
-        <div className="text-gray-500">Roast date</div>
-        <div className="text-gray-900">
+        <div className="text-gray-400">Roast date</div>
+        <div className="text-gray-100">
           {bean.roast_date || (
-            <span className="text-yellow-600">Not set</span>
+            <span className="text-yellow-400">Not set</span>
           )}
         </div>
-        <div className="text-gray-500">Weight</div>
-        <div className="text-gray-900">{bean.weight_grams}g</div>
-        <div className="text-gray-500">Brewed</div>
-        <div className="text-gray-900">{bean.total_brewed_grams}g</div>
-        <div className="text-gray-500">Remaining</div>
-        <div className="text-gray-900 font-medium">
+        <div className="text-gray-400">Weight</div>
+        <div className="text-gray-100">{bean.weight_grams}g</div>
+        <div className="text-gray-400">Brewed</div>
+        <div className="text-gray-100">{bean.total_brewed_grams}g</div>
+        <div className="text-gray-400">Remaining</div>
+        <div className="text-gray-100 font-medium">
           {Math.round(bean.remaining_grams)}g
         </div>
-        <div className="text-gray-500">Effective rest</div>
-        <div className="text-gray-900">{bean.effective_rest_days} days</div>
-        <div className="text-gray-500">Ready date</div>
-        <div className="text-gray-900">
-          {bean.ready_date || <span className="text-yellow-600">Unknown</span>}
+        <div className="text-gray-400">Effective rest</div>
+        <div className="text-gray-100">{bean.effective_rest_days} days</div>
+        <div className="text-gray-400">Ready date</div>
+        <div className="text-gray-100">
+          {bean.ready_date || <span className="text-yellow-400">Unknown</span>}
         </div>
         {bean.is_frozen && bean.planned_thaw_date && (
           <>
-            <div className="text-gray-500">Planned thaw</div>
-            <div className="text-gray-900">{bean.planned_thaw_date}</div>
+            <div className="text-gray-400">Planned thaw</div>
+            <div className="text-gray-100">{bean.planned_thaw_date}</div>
           </>
         )}
         {bean.flavour_profile && (
           <>
-            <div className="text-gray-500">Flavour</div>
-            <div className="text-gray-900">{bean.flavour_profile}</div>
+            <div className="text-gray-400">Flavour</div>
+            <div className="text-gray-100">{bean.flavour_profile}</div>
           </>
         )}
         {bean.country && (
           <>
-            <div className="text-gray-500">Origin</div>
-            <div className="text-gray-900">
+            <div className="text-gray-400">Origin</div>
+            <div className="text-gray-100">
               {[bean.country, bean.region].filter(Boolean).join(", ")}
             </div>
           </>
         )}
         {bean.variety && (
           <>
-            <div className="text-gray-500">Variety</div>
-            <div className="text-gray-900">{bean.variety}</div>
+            <div className="text-gray-400">Variety</div>
+            <div className="text-gray-100">{bean.variety}</div>
           </>
         )}
         {bean.processing && (
           <>
-            <div className="text-gray-500">Processing</div>
-            <div className="text-gray-900">{bean.processing}</div>
+            <div className="text-gray-400">Processing</div>
+            <div className="text-gray-100">{bean.processing}</div>
           </>
         )}
       </div>
@@ -132,14 +132,14 @@ export default function BeanDetail({
       {/* Roast date override (for beans without one) */}
       {!bean.roast_date && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
             Set roast date
           </label>
           <input
             type="date"
             value={roastDate}
             onChange={(e) => setRoastDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
           />
         </div>
       )}
@@ -147,21 +147,21 @@ export default function BeanDetail({
       {/* Planned thaw date (only when frozen) */}
       {bean.is_frozen && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
             Planned thaw date
           </label>
           <input
             type="date"
             value={plannedThawDate}
             onChange={(e) => setPlannedThawDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
           />
         </div>
       )}
 
       {/* Rest days override */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-300 mb-1">
           Rest days override
         </label>
         <input
@@ -169,21 +169,21 @@ export default function BeanDetail({
           value={restDays}
           onChange={(e) => setRestDays(e.target.value)}
           placeholder={`Default: ${bean.effective_rest_days}`}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
           min={0}
         />
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-300 mb-1">
           Notes
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
         />
       </div>
 
@@ -199,8 +199,8 @@ export default function BeanDetail({
         onClick={handleFreeze}
         className={`w-full px-4 py-2 rounded-lg text-sm ${
           bean.is_frozen
-            ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            ? "bg-blue-900/50 text-blue-300 hover:bg-blue-900"
+            : "bg-gray-800 text-gray-300 hover:bg-gray-700"
         }`}
       >
         {bean.is_frozen ? "Thaw Bean" : "Freeze Bean"}
@@ -208,13 +208,13 @@ export default function BeanDetail({
 
       {/* Recent brews */}
       {bean.recent_brews?.length > 0 && (
-        <div className="border-t border-gray-200 pt-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">
+        <div className="border-t border-gray-800 pt-4">
+          <p className="text-sm font-medium text-gray-300 mb-2">
             Recent Brews
           </p>
           <div className="space-y-1">
             {bean.recent_brews.map((brew: any, i: number) => (
-              <div key={i} className="flex text-xs text-gray-500">
+              <div key={i} className="flex text-xs text-gray-400">
                 <span className="w-24">{brew.creation_date}</span>
                 <span className="flex-1 text-center">{brew.ground_coffee_grams}g</span>
                 <span className="w-10 text-right">{brew.rating ? `★${brew.rating}` : ""}</span>

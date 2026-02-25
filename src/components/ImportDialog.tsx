@@ -83,9 +83,9 @@ export default function ImportDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+      <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-gray-100">
             Import BeanConqueror Export
           </h2>
           <button
@@ -93,7 +93,7 @@ export default function ImportDialog({
               setIsOpen(false);
               setResult(null);
             }}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-500 hover:text-gray-300"
           >
             ✕
           </button>
@@ -108,15 +108,15 @@ export default function ImportDialog({
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             isDragging
-              ? "border-amber-500 bg-amber-50"
-              : "border-gray-300 hover:border-gray-400"
+              ? "border-amber-500 bg-amber-950"
+              : "border-gray-700 hover:border-gray-600"
           }`}
         >
           {isImporting ? (
-            <p className="text-gray-600">Importing...</p>
+            <p className="text-gray-400">Importing...</p>
           ) : (
             <>
-              <p className="text-gray-600 mb-2">
+              <p className="text-gray-400 mb-2">
                 Drag & drop your .zip export here, or
               </p>
               <button
@@ -138,7 +138,7 @@ export default function ImportDialog({
 
         {result && (
           <div
-            className={`mt-4 p-3 rounded-lg ${result.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}
+            className={`mt-4 p-3 rounded-lg ${result.success ? "bg-green-950 text-green-300" : "bg-red-950 text-red-300"}`}
           >
             {result.success ? (
               <>
@@ -149,7 +149,7 @@ export default function ImportDialog({
                 </p>
                 {result.errors && result.errors.length > 0 && (
                   <details className="mt-2">
-                    <summary className="text-sm cursor-pointer text-amber-700">
+                    <summary className="text-sm cursor-pointer text-amber-400">
                       {result.errors.length} warnings
                     </summary>
                     <ul className="text-xs mt-1 space-y-1">

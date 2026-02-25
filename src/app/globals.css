@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #f9fafb;
-  --foreground: #171717;
+  --background: #0f1117;
+  --foreground: #e5e7eb;
 }
 
 body {
@@ -14,8 +14,8 @@ body {
 
 /* FullCalendar overrides */
 .fc {
-  --fc-border-color: #e5e7eb;
-  --fc-today-bg-color: #fffbeb;
+  --fc-border-color: #2d3748;
+  --fc-today-bg-color: #1c1917;
 }
 
 .fc .fc-button-primary {
@@ -56,8 +56,35 @@ body {
 
 .fc .fc-daygrid-day-number {
   cursor: pointer;
+  color: #e5e7eb;
 }
 
 .fc .fc-daygrid-day-number:hover {
   text-decoration: underline;
+}
+
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: #e5e7eb;
+}
+
+.fc .fc-toolbar-title {
+  color: #e5e7eb;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: #2d3748;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-color: #2d3748;
+}
+
+.fc .fc-col-header-cell {
+  background-color: #1a1d2e;
+}
+
+.fc .fc-daygrid-day {
+  background-color: #0f1117;
 }

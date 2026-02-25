@@ -10,12 +10,12 @@ import { extractBeanFinishDates } from "@/lib/schedule-utils";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function statusColor(bean: BeanWithComputed): string {
-  if (bean.remaining_grams <= 0) return "bg-gray-200 text-gray-500";
-  if (bean.is_frozen) return "bg-blue-100 text-blue-800";
-  if (!bean.ready_date) return "bg-yellow-100 text-yellow-800";
+  if (bean.remaining_grams <= 0) return "bg-gray-700 text-gray-400";
+  if (bean.is_frozen) return "bg-blue-900/50 text-blue-300";
+  if (!bean.ready_date) return "bg-yellow-900/50 text-yellow-300";
   const today = new Date().toISOString().split("T")[0];
-  if (bean.ready_date > today) return "bg-orange-100 text-orange-800";
-  return "bg-green-100 text-green-800";
+  if (bean.ready_date > today) return "bg-orange-900/50 text-orange-300";
+  return "bg-green-900/50 text-green-300";
 }
 
 function statusLabel(bean: BeanWithComputed): string {
@@ -189,12 +189,12 @@ export default function BeanList({
   );
 
   if (error)
-    return <div className="p-4 text-red-600">Failed to load beans</div>;
-  if (!beans) return <div className="p-4 text-gray-500">Loading...</div>;
+    return <div className="p-4 text-red-400">Failed to load beans</div>;
+  if (!beans) return <div className="p-4 text-gray-400">Loading...</div>;
 
   if (beans.length === 0) {
     return (
-      <div className="p-4 text-gray-500 text-center">
+      <div className="p-4 text-gray-400 text-center">
         <p className="mb-2">No beans imported yet.</p>
         <p className="text-sm">Use the Import button to get started.</p>
       </div>
@@ -202,7 +202,7 @@ export default function BeanList({
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="divide-y divide-gray-800">
       {beans.map((bean) => {
         const roasterColor = getRoasterColor(bean.roaster);
         return (
@@ -217,18 +217,18 @@ export default function BeanList({
               setDragId(null);
             }}
             onClick={() => onSelectBean(bean.id)}
-            className={`w-full text-left p-3 hover:bg-gray-50 transition-colors cursor-grab active:cursor-grabbing ${
+            className={`w-full text-left p-3 hover:bg-gray-800 transition-colors cursor-grab active:cursor-grabbing ${
               selectedBeanId === bean.id
-                ? "bg-amber-50 border-l-2 border-amber-600"
+                ? "bg-amber-950 border-l-2 border-amber-500"
                 : ""
-            } ${dragOverId === bean.id ? "bg-amber-50/50 border-t-2 border-amber-400" : ""}`}
+            } ${dragOverId === bean.id ? "bg-amber-950/50 border-t-2 border-amber-500" : ""}`}
           >
             <div className="flex justify-between items-start">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-gray-100 truncate">
                   {bean.name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-gray-400 truncate">
                   <span
                     className="inline-block w-2 h-2 rounded-full mr-1"
                     style={{ backgroundColor: roasterColor.border }}
@@ -242,12 +242,12 @@ export default function BeanList({
                 {statusLabel(bean)}
               </span>
             </div>
-            <div className="mt-1 flex gap-3 text-xs text-gray-500">
+            <div className="mt-1 flex gap-3 text-xs text-gray-400">
               <span>{Math.round(bean.remaining_grams)}g remaining</span>
               {bean.ready_date && <span>Ready {bean.ready_date}</span>}
             </div>
             {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
-              <p className="mt-0.5 text-xs font-medium text-red-600">
+              <p className="mt-0.5 text-xs font-medium text-red-400">
                 Finishes day {ageAtFinish.get(bean.id)}
               </p>
             )}

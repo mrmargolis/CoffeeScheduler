@@ -49,22 +49,22 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
       {/* Summary Banner */}
       {summary && (
         <div className="mb-4 flex gap-4 text-sm">
-          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-            <span className="text-green-800 font-medium">
+          <div className="bg-green-950 border border-green-800 rounded-lg px-4 py-2">
+            <span className="text-green-300 font-medium">
               {summary.daysOfCoffee} days
             </span>
-            <span className="text-green-600"> of coffee remaining</span>
+            <span className="text-green-400"> of coffee remaining</span>
           </div>
           {summary.nextGapDate && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-              <span className="text-red-800 font-medium">Gap:</span>
-              <span className="text-red-600"> {summary.nextGapDate}</span>
+            <div className="bg-red-950 border border-red-800 rounded-lg px-4 py-2">
+              <span className="text-red-300 font-medium">Gap:</span>
+              <span className="text-red-400"> {summary.nextGapDate}</span>
             </div>
           )}
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-4">
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
