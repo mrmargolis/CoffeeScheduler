@@ -74,6 +74,53 @@ export default function BeanList({
     return map;
   }, [schedule, beans]);
 
+  const freezeSuggestions = useMemo(() => {
+    const suggestions = new Map<string, string>();
+    if (!beans || !schedule) return suggestions;
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Criterion 1: Staleness risk
+    // Bean is rested (ready_date <= today), not frozen, remaining > 0, and ageAtFinish > 60
+    for (const bean of beans) {
+      if (bean.is_frozen || bean.remaining_grams <= 0) continue;
+      if (!bean.ready_date || bean.ready_date > todayStr) continue;
+      const age = ageAtFinish.get(bean.id);
+      if (age && age > 60) {
+        suggestions.set(bean.id, "Will go stale \u2014 consider freezing");
+      }
+    }
+
+    // Criterion 2: Low frozen stock
+    const frozenCount = beans.filter((b) => b.is_frozen).length;
+    const finishDates = extractBeanFinishDates(schedule);
+    let lastScheduledDate = todayStr;
+    for (const d of finishDates.values()) {
+      if (d > lastScheduledDate) lastScheduledDate = d;
+    }
+    const scheduleExtendsDays = daysBetween(todayStr, lastScheduledDate);
+
+    if (frozenCount <= 2 && scheduleExtendsDays > 30) {
+      const restedBeans = beans.filter(
+        (b) =>
+          !b.is_frozen &&
+          b.remaining_grams > 0 &&
+          b.ready_date &&
+          b.ready_date <= todayStr &&
+          !suggestions.has(b.id)
+      );
+      const lastRested = restedBeans[restedBeans.length - 1];
+      if (lastRested) {
+        suggestions.set(
+          lastRested.id,
+          "Low frozen stock \u2014 consider freezing"
+        );
+      }
+    }
+
+    return suggestions;
+  }, [beans, schedule, ageAtFinish]);
+
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -202,6 +249,11 @@ export default function BeanList({
             {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
               <p className="mt-0.5 text-xs font-medium text-red-600">
                 Finishes day {ageAtFinish.get(bean.id)}
+              </p>
+            )}
+            {freezeSuggestions.has(bean.id) && (
+              <p className="mt-0.5 text-xs font-medium text-blue-600">
+                {freezeSuggestions.get(bean.id)}
               </p>
             )}
           </div>
