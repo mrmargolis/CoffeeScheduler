@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import useSWR, { mutate } from "swr";
-import { BeanWithComputed } from "@/lib/types";
+import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
+import { daysBetween } from "@/lib/date-utils";
+import { extractBeanFinishDates } from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -39,6 +41,39 @@ export default function BeanList({
     "/api/beans",
     fetcher
   );
+
+  // Use the same date range as Calendar so SWR returns the cached result
+  const scheduleKey = useMemo(() => {
+    const start = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - 2);
+      d.setDate(1);
+      return d.toISOString().split("T")[0];
+    })();
+    const end = (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 4);
+      return d.toISOString().split("T")[0];
+    })();
+    return `/api/schedule?start=${start}&end=${end}`;
+  }, []);
+
+  const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey, fetcher);
+
+  // Compute age-at-finish for each bean
+  const ageAtFinish = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!schedule || !beans) return map;
+    const finishDates = extractBeanFinishDates(schedule);
+    for (const bean of beans) {
+      if (!bean.roast_date) continue;
+      const finishDate = finishDates.get(bean.id);
+      if (!finishDate) continue;
+      map.set(bean.id, daysBetween(bean.roast_date, finishDate));
+    }
+    return map;
+  }, [schedule, beans]);
+
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -164,6 +199,11 @@ export default function BeanList({
               <span>{Math.round(bean.remaining_grams)}g remaining</span>
               {bean.ready_date && <span>Ready {bean.ready_date}</span>}
             </div>
+            {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
+              <p className="mt-0.5 text-xs font-medium text-red-600">
+                Finishes day {ageAtFinish.get(bean.id)}
+              </p>
+            )}
           </div>
         );
       })}
