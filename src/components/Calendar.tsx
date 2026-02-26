@@ -72,7 +72,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "dayGridMonth",
+            right: "",
           }}
           height="auto"
           dateClick={async (info) => {

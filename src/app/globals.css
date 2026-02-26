@@ -72,6 +72,23 @@ body {
   color: #e5e7eb;
 }
 
+.fc .fc-toolbar {
+  display: flex;
+  justify-content: space-between;
+}
+
+.fc .fc-toolbar > * {
+  flex: 1;
+}
+
+.fc .fc-toolbar-chunk:nth-child(2) {
+  text-align: center;
+}
+
+.fc .fc-toolbar-chunk:last-child {
+  min-width: 0;
+}
+
 .fc-theme-standard td,
 .fc-theme-standard th {
   border-color: #2d3748;
