@@ -135,6 +135,18 @@ export default function BeanList({
     return suggestions;
   }, [beans, schedule, ageAtFinish]);
 
+  const sortedBeans = useMemo(
+    () =>
+      beans
+        ? [
+            ...beans.filter((b) => !b.is_frozen && b.remaining_grams > 0),
+            ...beans.filter((b) => !b.is_frozen && b.remaining_grams <= 0),
+            ...beans.filter((b) => b.is_frozen),
+          ]
+        : [],
+    [beans]
+  );
+
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -217,7 +229,7 @@ export default function BeanList({
 
   return (
     <div className="divide-y divide-gray-700">
-      {beans.map((bean) => {
+      {sortedBeans.map((bean) => {
         const roasterColor = getRoasterColor(bean.roaster);
         return (
           <div
