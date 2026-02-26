@@ -61,9 +61,9 @@ export function buildCalendarEvents(
         title: reason,
         start: day.date,
         allDay: true,
-        backgroundColor: "#1c1a10",
-        borderColor: "#D29922",
-        textColor: "#C9D1D9",
+        backgroundColor: "#161B22",
+        borderColor: "#6E7681",
+        textColor: "#8B949E",
         classNames: ["skip-day"],
       });
 
