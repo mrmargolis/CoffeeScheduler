@@ -5,7 +5,7 @@ import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
 import { daysBetween } from "@/lib/date-utils";
-import { extractBeanFinishDates } from "@/lib/schedule-utils";
+import { extractBeanFinishDates, extractBeanStartDates } from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -70,6 +70,20 @@ export default function BeanList({
       const finishDate = finishDates.get(bean.id);
       if (!finishDate) continue;
       map.set(bean.id, daysBetween(bean.roast_date, finishDate));
+    }
+    return map;
+  }, [schedule, beans]);
+
+  // Compute age-at-start for each bean
+  const ageAtStart = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!schedule || !beans) return map;
+    const startDates = extractBeanStartDates(schedule);
+    for (const bean of beans) {
+      if (!bean.roast_date) continue;
+      const startDate = startDates.get(bean.id);
+      if (!startDate) continue;
+      map.set(bean.id, daysBetween(bean.roast_date, startDate));
     }
     return map;
   }, [schedule, beans]);
@@ -245,6 +259,9 @@ export default function BeanList({
             <div className="mt-1 flex gap-3 text-xs text-gray-400">
               <span>{Math.round(bean.remaining_grams)}g remaining</span>
               {bean.ready_date && <span>Ready {bean.ready_date}</span>}
+              {ageAtStart.has(bean.id) && (
+                <span>{ageAtStart.get(bean.id)} days old at start</span>
+              )}
             </div>
             {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
               <p className="mt-0.5 text-xs font-medium text-red-400">
