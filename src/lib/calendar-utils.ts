@@ -63,7 +63,7 @@ export function buildCalendarEvents(
         allDay: true,
         backgroundColor: "#2a2017",
         borderColor: "#e0af68",
-        textColor: "#e0af68",
+        textColor: "#e4e6f0",
         classNames: ["skip-day"],
       });
 
@@ -93,7 +93,7 @@ export function buildCalendarEvents(
         allDay: true,
         backgroundColor: "#2a1a1a",
         borderColor: "#ff7b72",
-        textColor: "#ff7b72",
+        textColor: "#e4e6f0",
         classNames: ["gap-day"],
       });
     }

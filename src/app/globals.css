@@ -15,7 +15,7 @@ body {
 /* FullCalendar overrides */
 .fc {
   --fc-border-color: #2d3748;
-  --fc-today-bg-color: #1c1917;
+  --fc-today-bg-color: #1e2030;
 }
 
 .fc .fc-button-primary {
