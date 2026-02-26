@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import ScheduleInfoPopover from "./ScheduleInfoPopover";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -48,7 +49,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
     <div>
       {/* Summary Banner */}
       {summary && (
-        <div className="mb-4 flex gap-4 text-sm">
+        <div className="mb-4 flex items-center gap-4 text-sm">
           <div className="bg-green-950 border border-green-800 rounded-lg px-4 py-2">
             <span className="text-green-300 font-medium">
               {summary.daysOfCoffee} days
@@ -61,6 +62,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
               <span className="text-red-400"> {summary.nextGapDate}</span>
             </div>
           )}
+          <ScheduleInfoPopover />
         </div>
       )}
 
