@@ -62,7 +62,7 @@ export default function BeanDetail({
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-semibold text-gray-100">{bean.name}</h3>
+          <h3 className="font-semibold text-gray-300">{bean.name}</h3>
           <p className="text-sm text-gray-400">{bean.roaster}</p>
         </div>
         <button
@@ -76,41 +76,41 @@ export default function BeanDetail({
       {/* Info Grid */}
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div className="text-gray-400">Roast date</div>
-        <div className="text-gray-100">
+        <div className="text-gray-300">
           {bean.roast_date || (
             <span className="text-yellow-400">Not set</span>
           )}
         </div>
         <div className="text-gray-400">Weight</div>
-        <div className="text-gray-100">{bean.weight_grams}g</div>
+        <div className="text-gray-300">{bean.weight_grams}g</div>
         <div className="text-gray-400">Brewed</div>
-        <div className="text-gray-100">{bean.total_brewed_grams}g</div>
+        <div className="text-gray-300">{bean.total_brewed_grams}g</div>
         <div className="text-gray-400">Remaining</div>
-        <div className="text-gray-100 font-medium">
+        <div className="text-gray-300 font-medium">
           {Math.round(bean.remaining_grams)}g
         </div>
         <div className="text-gray-400">Effective rest</div>
-        <div className="text-gray-100">{bean.effective_rest_days} days</div>
+        <div className="text-gray-300">{bean.effective_rest_days} days</div>
         <div className="text-gray-400">Ready date</div>
-        <div className="text-gray-100">
+        <div className="text-gray-300">
           {bean.ready_date || <span className="text-yellow-400">Unknown</span>}
         </div>
         {bean.is_frozen && bean.planned_thaw_date && (
           <>
             <div className="text-gray-400">Planned thaw</div>
-            <div className="text-gray-100">{bean.planned_thaw_date}</div>
+            <div className="text-gray-300">{bean.planned_thaw_date}</div>
           </>
         )}
         {bean.flavour_profile && (
           <>
             <div className="text-gray-400">Flavour</div>
-            <div className="text-gray-100">{bean.flavour_profile}</div>
+            <div className="text-gray-300">{bean.flavour_profile}</div>
           </>
         )}
         {bean.country && (
           <>
             <div className="text-gray-400">Origin</div>
-            <div className="text-gray-100">
+            <div className="text-gray-300">
               {[bean.country, bean.region].filter(Boolean).join(", ")}
             </div>
           </>
@@ -118,13 +118,13 @@ export default function BeanDetail({
         {bean.variety && (
           <>
             <div className="text-gray-400">Variety</div>
-            <div className="text-gray-100">{bean.variety}</div>
+            <div className="text-gray-300">{bean.variety}</div>
           </>
         )}
         {bean.processing && (
           <>
             <div className="text-gray-400">Processing</div>
-            <div className="text-gray-100">{bean.processing}</div>
+            <div className="text-gray-300">{bean.processing}</div>
           </>
         )}
       </div>
@@ -139,7 +139,7 @@ export default function BeanDetail({
             type="date"
             value={roastDate}
             onChange={(e) => setRoastDate(e.target.value)}
-            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
+            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
           />
         </div>
       )}
@@ -154,7 +154,7 @@ export default function BeanDetail({
             type="date"
             value={plannedThawDate}
             onChange={(e) => setPlannedThawDate(e.target.value)}
-            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
+            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
           />
         </div>
       )}
@@ -169,7 +169,7 @@ export default function BeanDetail({
           value={restDays}
           onChange={(e) => setRestDays(e.target.value)}
           placeholder={`Default: ${bean.effective_rest_days}`}
-          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
+          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
           min={0}
         />
       </div>
@@ -183,7 +183,7 @@ export default function BeanDetail({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
+          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
         />
       </div>
 
@@ -208,7 +208,7 @@ export default function BeanDetail({
 
       {/* Recent brews */}
       {bean.recent_brews?.length > 0 && (
-        <div className="border-t border-gray-800 pt-4">
+        <div className="border-t border-gray-700 pt-4">
           <p className="text-sm font-medium text-gray-300 mb-2">
             Recent Brews
           </p>

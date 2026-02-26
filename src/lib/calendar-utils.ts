@@ -61,9 +61,9 @@ export function buildCalendarEvents(
         title: reason,
         start: day.date,
         allDay: true,
-        backgroundColor: "#2a2017",
-        borderColor: "#e0af68",
-        textColor: "#e4e6f0",
+        backgroundColor: "#1c1a10",
+        borderColor: "#D29922",
+        textColor: "#C9D1D9",
         classNames: ["skip-day"],
       });
 
@@ -91,9 +91,9 @@ export function buildCalendarEvents(
         title: "No coffee!",
         start: day.date,
         allDay: true,
-        backgroundColor: "#2a1a1a",
-        borderColor: "#ff7b72",
-        textColor: "#e4e6f0",
+        backgroundColor: "#1c1010",
+        borderColor: "#F85149",
+        textColor: "#C9D1D9",
         classNames: ["gap-day"],
       });
     }

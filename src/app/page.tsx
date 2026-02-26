@@ -22,9 +22,9 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3">
+      <header className="bg-gray-900 border-b border-gray-700 px-6 py-3">
         <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
-          <h1 className="text-xl font-semibold text-gray-100">
+          <h1 className="text-xl font-semibold text-gray-300">
             CoffeeScheduler
           </h1>
           <div className="flex items-center gap-3">
@@ -49,9 +49,9 @@ export default function Home() {
 
           {/* Sidebar */}
           <div className="w-80 shrink-0">
-            <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-800">
-                <h2 className="font-semibold text-gray-100 text-sm">
+            <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-700">
+                <h2 className="font-semibold text-gray-300 text-sm">
                   Bean Queue
                 </h2>
               </div>

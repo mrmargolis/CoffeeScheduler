@@ -2,19 +2,19 @@
  * Deterministic color assignment per roaster.
  * Uses a hash of the roaster name to pick from a palette.
  */
-const FG = "#e4e6f0"; // near-white with faint blue tint
+const FG = "#C9D1D9";
 
 const PALETTE = [
-  { bg: "#2a2017", border: "#e0af68", text: FG }, // amber
-  { bg: "#1a2030", border: "#7aa2f7", text: FG }, // blue
-  { bg: "#1a2617", border: "#9ece6a", text: FG }, // green
-  { bg: "#2a1a24", border: "#f7768e", text: FG }, // pink
-  { bg: "#1e1a30", border: "#bb9af7", text: FG }, // indigo
-  { bg: "#2a1e17", border: "#ff9e64", text: FG }, // orange
-  { bg: "#221a2e", border: "#9d7cd8", text: FG }, // purple
-  { bg: "#172624", border: "#73daca", text: FG }, // teal
-  { bg: "#1a2530", border: "#7dcfff", text: FG }, // cyan
-  { bg: "#2a1a1a", border: "#ff7b72", text: FG }, // red
+  { bg: "#1c1a10", border: "#D29922", text: FG }, // amber
+  { bg: "#10131e", border: "#58A6FF", text: FG }, // blue
+  { bg: "#101a11", border: "#3FB950", text: FG }, // green
+  { bg: "#1c1012", border: "#FF7B72", text: FG }, // pink
+  { bg: "#14101c", border: "#BC8CFF", text: FG }, // purple
+  { bg: "#1c1510", border: "#FFA657", text: FG }, // orange
+  { bg: "#101c18", border: "#56D364", text: FG }, // teal
+  { bg: "#101619", border: "#A5D6FF", text: FG }, // cyan
+  { bg: "#12101c", border: "#D2A8FF", text: FG }, // indigo
+  { bg: "#1c1010", border: "#F85149", text: FG }, // red
 ];
 
 function hashString(str: string): number {

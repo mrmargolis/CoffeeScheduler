@@ -67,7 +67,7 @@ export default function SettingsPanel({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-100">Settings</h2>
+          <h2 className="text-lg font-semibold text-gray-300">Settings</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-300"
@@ -85,7 +85,7 @@ export default function SettingsPanel({
               type="number"
               value={dailyGrams}
               onChange={(e) => setDailyGrams(Number(e.target.value))}
-              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-100"
+              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-300"
               min={1}
             />
           </div>
@@ -98,7 +98,7 @@ export default function SettingsPanel({
               type="number"
               value={defaultRestDays}
               onChange={(e) => setDefaultRestDays(Number(e.target.value))}
-              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-100"
+              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-300"
               min={0}
             />
           </div>
@@ -114,7 +114,7 @@ export default function SettingsPanel({
                     key={rd.roaster}
                     className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2"
                   >
-                    <span className="text-sm text-gray-100">{rd.roaster}</span>
+                    <span className="text-sm text-gray-300">{rd.roaster}</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -128,7 +128,7 @@ export default function SettingsPanel({
                             )
                           )
                         }
-                        className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-1 text-sm text-gray-100"
+                        className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-1 text-sm text-gray-300"
                         min={0}
                       />
                       <span className="text-xs text-gray-400">days</span>
@@ -155,18 +155,18 @@ export default function SettingsPanel({
                 value={newRoaster}
                 onChange={(e) => setNewRoaster(e.target.value)}
                 placeholder="Roaster name"
-                className="flex-1 border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100"
+                className="flex-1 border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
               />
               <input
                 type="number"
                 value={newRestDays}
                 onChange={(e) => setNewRestDays(Number(e.target.value))}
-                className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-2 text-sm text-gray-100"
+                className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-2 text-sm text-gray-300"
                 min={0}
               />
               <button
                 onClick={addRoasterDefault}
-                className="px-3 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600 text-gray-100"
+                className="px-3 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600 text-gray-300"
               >
                 Add
               </button>

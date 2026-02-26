@@ -202,7 +202,7 @@ export default function BeanList({
   }
 
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-gray-700">
       {beans.map((bean) => {
         const roasterColor = getRoasterColor(bean.roaster);
         return (
@@ -225,7 +225,7 @@ export default function BeanList({
           >
             <div className="flex justify-between items-start">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-100 truncate">
+                <p className="text-sm font-medium text-gray-300 truncate">
                   {bean.name}
                 </p>
                 <p className="text-xs text-gray-400 truncate">

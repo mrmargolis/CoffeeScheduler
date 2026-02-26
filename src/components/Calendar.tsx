@@ -64,7 +64,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
         </div>
       )}
 
-      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-4">
+      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-4">
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
