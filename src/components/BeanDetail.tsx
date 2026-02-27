@@ -50,6 +50,7 @@ export default function BeanDetail({
     mutate((key: string) => key?.startsWith("/api/schedule"), undefined, {
       revalidate: true,
     });
+    onClose();
   };
 
   const handleFreeze = async () => {
@@ -59,6 +60,7 @@ export default function BeanDetail({
     mutate((key: string) => key?.startsWith("/api/schedule"), undefined, {
       revalidate: true,
     });
+    onClose();
   };
 
   return (
