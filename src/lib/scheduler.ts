@@ -20,6 +20,7 @@ export interface SchedulerBean {
   effective_rest_days: number;
   is_frozen: boolean;
   planned_thaw_date: string | null;
+  freeze_after_grams: number | null;
   display_order: number | null;
   frozen_days: number; // Total days spent frozen (computed from freeze_events)
 }
@@ -215,6 +216,11 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
       const readyDate = computeReadyDate(bean);
       const rem = remaining.get(bean.id) || 0;
       if (readyDate && readyDate <= date && rem > MIN_DOSE_GRAMS) {
+        // Skip bean if projected consumption has reached freeze-after target
+        const freezeFloor = bean.freeze_after_grams != null
+          ? bean.weight_grams - bean.freeze_after_grams
+          : 0;
+        if (rem - freezeFloor <= MIN_DOSE_GRAMS) continue;
         readyCount++;
       }
     }
@@ -233,19 +239,28 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
       const rem = remaining.get(bean.id) || 0;
       if (rem <= MIN_DOSE_GRAMS) continue;
 
-      let consume = Math.min(gramsNeeded, rem);
+      // Cap available grams to respect freeze-after target
+      const freezeFloor = bean.freeze_after_grams != null
+        ? bean.weight_grams - bean.freeze_after_grams
+        : 0;
+      const effectiveRem = rem - freezeFloor;
+
+      // Skip bean if projected consumption has reached freeze-after target
+      if (effectiveRem <= MIN_DOSE_GRAMS) continue;
+
+      let consume = Math.min(gramsNeeded, effectiveRem);
 
       // If this bean can't fill the day, round down to a whole number of doses.
-      // The sub-dose remainder is wasted.
+      // The sub-dose remainder is wasted (or frozen).
       if (consume < gramsNeeded) {
         const doses = Math.floor(consume / DOSE_SIZE_GRAMS);
         if (doses === 0) {
           // Can't even get one full dose — waste it, skip this bean
-          remaining.set(bean.id, 0);
+          remaining.set(bean.id, freezeFloor);
           continue;
         }
         const doseConsume = doses * DOSE_SIZE_GRAMS;
-        remaining.set(bean.id, 0); // Rest is waste
+        remaining.set(bean.id, freezeFloor); // Rest is waste/frozen
         consume = doseConsume;
       } else {
         remaining.set(bean.id, rem - consume);

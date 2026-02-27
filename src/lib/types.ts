@@ -15,6 +15,7 @@ export interface Bean {
   rest_days: number | null; // Override for this specific bean
   is_frozen: boolean;
   planned_thaw_date: string | null; // ISO 8601 date for auto-thaw
+  freeze_after_grams: number | null; // Auto-freeze after consuming this many grams
   notes: string | null;
   display_order: number | null; // For manual queue ordering
 }

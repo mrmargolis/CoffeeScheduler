@@ -18,6 +18,7 @@ export default function BeanDetail({
   const [restDays, setRestDays] = useState<string>("");
   const [roastDate, setRoastDate] = useState("");
   const [plannedThawDate, setPlannedThawDate] = useState("");
+  const [freezeAfterGrams, setFreezeAfterGrams] = useState<string>("");
   const [freezeConfirm, setFreezeConfirm] = useState(false);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function BeanDetail({
       setRestDays(bean.rest_days !== null ? String(bean.rest_days) : "");
       setRoastDate(bean.roast_date || "");
       setPlannedThawDate(bean.planned_thaw_date || "");
+      setFreezeAfterGrams(bean.freeze_after_grams != null ? String(bean.freeze_after_grams) : "");
     }
   }, [bean]);
 
@@ -40,6 +42,7 @@ export default function BeanDetail({
         rest_days: restDays === "" ? null : Number(restDays),
         roast_date: roastDate || null,
         planned_thaw_date: plannedThawDate || null,
+        freeze_after_grams: freezeAfterGrams === "" ? null : Number(freezeAfterGrams),
       }),
     });
     mutate(`/api/beans/${beanId}`);
@@ -108,6 +111,12 @@ export default function BeanDetail({
         <div className="text-gray-300">
           {bean.ready_date || <span className="text-yellow-400">Unknown</span>}
         </div>
+        {!bean.is_frozen && bean.freeze_after_grams != null && (
+          <>
+            <div className="text-gray-400">Freeze after</div>
+            <div className="text-gray-300">{bean.freeze_after_grams}g consumed</div>
+          </>
+        )}
         {bean.is_frozen && bean.planned_thaw_date && (
           <>
             <div className="text-gray-400">Planned thaw</div>
@@ -168,6 +177,24 @@ export default function BeanDetail({
             value={plannedThawDate}
             onChange={(e) => setPlannedThawDate(e.target.value)}
             className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
+          />
+        </div>
+      )}
+
+      {/* Freeze after grams (only when not frozen) */}
+      {!bean.is_frozen && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Freeze after consuming (grams)
+          </label>
+          <input
+            type="number"
+            value={freezeAfterGrams}
+            onChange={(e) => setFreezeAfterGrams(e.target.value)}
+            placeholder="e.g. 125"
+            className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
+            min={0}
+            max={bean.weight_grams}
           />
         </div>
       )}

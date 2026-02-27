@@ -20,7 +20,7 @@ export async function POST(
   const today = new Date().toISOString().split("T")[0];
 
   const toggleTx = db.transaction(() => {
-    db.prepare("UPDATE beans SET is_frozen = ?, planned_thaw_date = NULL WHERE id = ?").run(
+    db.prepare("UPDATE beans SET is_frozen = ?, planned_thaw_date = NULL, freeze_after_grams = NULL WHERE id = ?").run(
       newState ? 1 : 0,
       params.id
     );

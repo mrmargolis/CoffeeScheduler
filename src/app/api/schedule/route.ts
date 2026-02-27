@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { computeSchedule, SchedulerBean } from "@/lib/scheduler";
 import { daysBetween, dateRange } from "@/lib/date-utils";
 import { autoThawBeans } from "@/lib/auto-thaw";
+import { autoFreezeBeans } from "@/lib/auto-freeze";
 import { queryBeanRowsRaw } from "@/lib/bean-queries";
 
 export async function GET(request: NextRequest) {
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
 
   // Auto-thaw beans whose planned thaw date has arrived
   autoThawBeans(db, today);
+  autoFreezeBeans(db, today);
 
   const startDate = params.get("start") || today;
   const endDate =
@@ -90,6 +92,7 @@ export async function GET(request: NextRequest) {
       effective_rest_days: row.effective_rest_days,
       is_frozen: Boolean(row.is_frozen),
       planned_thaw_date: row.planned_thaw_date || null,
+      freeze_after_grams: row.freeze_after_grams ?? null,
       display_order: row.display_order,
       frozen_days: frozenDaysMap.get(row.id) || 0,
     };

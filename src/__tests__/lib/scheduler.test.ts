@@ -17,6 +17,7 @@ function makeBean(overrides: Partial<SchedulerBean> = {}): SchedulerBean {
     effective_rest_days: 30,
     is_frozen: false,
     planned_thaw_date: null,
+    freeze_after_grams: null,
     display_order: null,
     frozen_days: 0,
     ...overrides,
@@ -721,6 +722,165 @@ describe("computeSchedule", () => {
     expect(schedule[1].is_skip).toBe(true);
     // Feb 2: consume bean2 (bean1 exhausted)
     expect(schedule[2].consumptions[0].bean_id).toBe("b2");
+  });
+
+  it("freeze_after_grams caps total consumption at the target", () => {
+    // 200g bag, freeze after 170g consumed → should stop at 170g, leaving 30g
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      weight_grams: 200,
+      remaining_grams: 200,
+      freeze_after_grams: 170,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-06",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    const totalConsumed = schedule.reduce(
+      (sum, day) => sum + day.consumptions.reduce((s, c) => s + c.grams, 0),
+      0
+    );
+    expect(totalConsumed).toBeLessThanOrEqual(170);
+    expect(totalConsumed).toBeGreaterThan(0);
+  });
+
+  it("freeze_after_grams does not overshoot on the last day", () => {
+    // 200g bag, freeze after 170g. Daily 45g.
+    // Day 1: 45, Day 2: 45, Day 3: 45, Day 4: should cap at 35g (not 45)
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      weight_grams: 200,
+      remaining_grams: 200,
+      freeze_after_grams: 170,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-05",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    // Collect per-day consumption from this bean
+    const daily = schedule.map(
+      (d) => d.consumptions.reduce((s, c) => s + c.grams, 0)
+    );
+
+    // First 3 days: full 45g
+    expect(daily[0]).toBe(45);
+    expect(daily[1]).toBe(45);
+    expect(daily[2]).toBe(45);
+    // Day 4: only 35g remaining in the consumable window (170 - 135 = 35)
+    // 35g < 39g acceptable minimum → treated as remnant, tossed as gap
+    // OR consumed if paired with another bean. With single bean, this is a gap.
+    // Total should be exactly 135g (3 full days)
+    const totalConsumed = daily.reduce((a, b) => a + b, 0);
+    expect(totalConsumed).toBe(135);
+  });
+
+  it("freeze_after_grams transitions to next bean when freeze target reached", () => {
+    const bean1 = makeBean({
+      id: "b1",
+      name: "Bean 1",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      weight_grams: 200,
+      remaining_grams: 200,
+      freeze_after_grams: 90, // Only consume 90g, then freeze
+    });
+    const bean2 = makeBean({
+      id: "b2",
+      name: "Bean 2",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-04",
+      dailyConsumptionGrams: 45,
+      beans: [bean1, bean2],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    // Day 1: 45g from bean1
+    expect(schedule[0].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[0].consumptions[0].grams).toBe(45);
+    // Day 2: 45g from bean1 (total 90g consumed, hits target)
+    expect(schedule[1].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[1].consumptions[0].grams).toBe(45);
+    // Day 3: bean1 frozen, consume from bean2
+    expect(schedule[2].consumptions[0].bean_id).toBe("b2");
+  });
+
+  it("freeze_after_grams null has no effect on consumption", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      weight_grams: 200,
+      remaining_grams: 200,
+      freeze_after_grams: null,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-04",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    const totalConsumed = schedule.reduce(
+      (sum, day) => sum + day.consumptions.reduce((s, c) => s + c.grams, 0),
+      0
+    );
+    // Should consume all 200g (4 full days = 180g, then 20g remainder < min dose)
+    expect(totalConsumed).toBe(180);
+  });
+
+  it("freeze_after_grams does not count toward surplus when bean is at freeze target", () => {
+    const bean1 = makeBean({
+      id: "b1",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      weight_grams: 200,
+      remaining_grams: 30, // 170g already consumed, at freeze target
+      freeze_after_grams: 170,
+    });
+    const bean2 = makeBean({
+      id: "b2",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean1, bean2],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    // bean1 is at freeze target (remaining 30 = weight 200 - freeze_after 170)
+    // Only bean2 should be ready, so no surplus
+    expect(schedule[0].is_surplus).toBe(false);
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].bean_id).toBe("b2");
   });
 
   it("past skip days with actual brews override skip", () => {

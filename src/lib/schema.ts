@@ -68,4 +68,7 @@ export function initializeSchema(db: Database.Database): void {
   if (!columns.some(c => c.name === "planned_thaw_date")) {
     db.exec("ALTER TABLE beans ADD COLUMN planned_thaw_date TEXT");
   }
+  if (!columns.some(c => c.name === "freeze_after_grams")) {
+    db.exec("ALTER TABLE beans ADD COLUMN freeze_after_grams REAL");
+  }
 }

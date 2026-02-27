@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { autoThawBeans } from "@/lib/auto-thaw";
+import { autoFreezeBeans } from "@/lib/auto-freeze";
 import { queryBean } from "@/lib/bean-queries";
 
 export async function GET(
@@ -10,6 +11,7 @@ export async function GET(
   const db = getDb();
   const today = new Date().toISOString().split("T")[0];
   autoThawBeans(db, today);
+  autoFreezeBeans(db, today);
 
   const bean = queryBean(db, params.id);
 
@@ -70,6 +72,10 @@ export async function PATCH(
   if (body.planned_thaw_date !== undefined) {
     updates.push("planned_thaw_date = ?");
     values.push(body.planned_thaw_date);
+  }
+  if (body.freeze_after_grams !== undefined) {
+    updates.push("freeze_after_grams = ?");
+    values.push(body.freeze_after_grams);
   }
 
   if (updates.length > 0) {
