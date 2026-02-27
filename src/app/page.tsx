@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { mutate } from "swr";
 import Calendar from "@/components/Calendar";
 import BeanList from "@/components/BeanList";
@@ -11,6 +11,18 @@ import SettingsPanel from "@/components/SettingsPanel";
 export default function Home() {
   const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setSelectedBeanId(null);
+      setSettingsOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [handleEscape]);
 
   const handleImportComplete = () => {
     mutate("/api/beans");

@@ -45,6 +45,7 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
     [schedule, skipDayRanges, today]
   );
 
+
   return (
     <div>
       {/* Summary Banner */}
@@ -94,6 +95,11 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
             const beanId = info.event.extendedProps?.beanId;
             if (beanId && onSelectBean) {
               onSelectBean(beanId);
+            }
+          }}
+          eventDidMount={(info) => {
+            if (info.event.classNames.includes("skip-day") || info.event.classNames.includes("gap-day")) {
+              info.el.title = info.event.title;
             }
           }}
           eventDisplay="block"

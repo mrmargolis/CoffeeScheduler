@@ -105,3 +105,11 @@ body {
 .fc .fc-daygrid-day {
   background-color: #0D1117;
 }
+
+.fc .fc-daygrid-body tr {
+  height: 1px; /* forces rows to distribute evenly via table layout */
+}
+
+.fc .fc-daygrid-day-frame {
+  min-height: 8rem;
+}

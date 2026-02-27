@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
@@ -8,6 +8,9 @@ import { daysBetween } from "@/lib/date-utils";
 import { extractBeanFinishDates, extractBeanStartDates } from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+// Persists across mount/unmount cycles so scroll position survives BeanDetail view
+let persistedScrollTop = 0;
 
 function statusColor(bean: BeanWithComputed): string {
   if (bean.remaining_grams <= 0) return "bg-gray-700 text-gray-400";
@@ -26,7 +29,10 @@ function statusLabel(bean: BeanWithComputed): string {
   }
   if (!bean.ready_date) return "No roast date";
   const today = new Date().toISOString().split("T")[0];
-  if (bean.ready_date > today) return "Resting";
+  if (bean.ready_date > today) {
+    const days = daysBetween(today, bean.ready_date);
+    return days === 1 ? "Ready in 1 day" : `Ready in ${days} days`;
+  }
   return "Ready";
 }
 
@@ -145,12 +151,38 @@ export default function BeanList({
   );
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    active: false,
     frozen: true,
   });
 
   const toggleSection = useCallback((key: string) => {
-    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    setCollapsedSections((prev) => {
+      // Active and Frozen are mutually exclusive: expanding one collapses the other
+      if (key === "frozen" && prev.frozen) {
+        return { ...prev, frozen: false, active: true };
+      }
+      if (key === "active" && prev.active) {
+        return { ...prev, active: false, frozen: true };
+      }
+      return { ...prev, [key]: !prev[key] };
+    });
   }, []);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Restore scroll position when component mounts (e.g. returning from BeanDetail)
+  useEffect(() => {
+    if (scrollRef.current && persistedScrollTop > 0) {
+      scrollRef.current.scrollTop = persistedScrollTop;
+    }
+  }, []);
+
+  const handleSelectBean = useCallback((id: string) => {
+    if (scrollRef.current) {
+      persistedScrollTop = scrollRef.current.scrollTop;
+    }
+    onSelectBean(id);
+  }, [onSelectBean]);
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -219,6 +251,12 @@ export default function BeanList({
     [dragId, beans]
   );
 
+  // The first active bean with remaining < weight is "in progress" (currently being consumed)
+  const inProgressBeanId = useMemo(() => {
+    const bean = activeBeans.find((b) => b.remaining_grams < b.weight_grams);
+    return bean?.id ?? null;
+  }, [activeBeans]);
+
   if (error)
     return <div className="p-4 text-red-400">Failed to load beans</div>;
   if (!beans) return <div className="p-4 text-gray-400">Loading...</div>;
@@ -234,6 +272,7 @@ export default function BeanList({
 
   const renderBean = (bean: BeanWithComputed, draggable: boolean) => {
     const roasterColor = getRoasterColor(bean.roaster);
+    const isInProgress = bean.id === inProgressBeanId;
     return (
       <div
         key={bean.id}
@@ -249,13 +288,15 @@ export default function BeanList({
               },
             }
           : {})}
-        onClick={() => onSelectBean(bean.id)}
+        onClick={() => handleSelectBean(bean.id)}
         className={`w-full text-left p-3 hover:bg-gray-800 transition-colors ${
           draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
         } ${
           selectedBeanId === bean.id
             ? "bg-amber-950 border-l-2 border-amber-500"
-            : ""
+            : isInProgress
+              ? "border-l-2 border-green-500"
+              : ""
         } ${dragOverId === bean.id ? "bg-amber-950/50 border-t-2 border-amber-500" : ""}`}
       >
         <div className="flex justify-between items-start">
@@ -272,9 +313,9 @@ export default function BeanList({
             </p>
           </div>
           <span
-            className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusColor(bean)}`}
+            className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${isInProgress ? "bg-green-900/50 text-green-300" : statusColor(bean)}`}
           >
-            {statusLabel(bean)}
+            {isInProgress ? "Brewing" : statusLabel(bean)}
           </span>
         </div>
         <div className="mt-1 flex gap-3 text-xs text-gray-400">
@@ -289,8 +330,16 @@ export default function BeanList({
             Finishes day {ageAtFinish.get(bean.id)}
           </p>
         )}
+        {bean.weight_grams > 0 && bean.remaining_grams < bean.weight_grams && (
+          <div className="mt-1.5 h-1 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-amber-600 rounded-full transition-all"
+              style={{ width: `${Math.min(100, ((bean.weight_grams - bean.remaining_grams) / bean.weight_grams) * 100)}%` }}
+            />
+          </div>
+        )}
         {freezeSuggestions.has(bean.id) && (
-          <p className="mt-0.5 text-xs font-medium text-blue-600">
+          <p className="mt-0.5 text-xs font-medium text-blue-400">
             {freezeSuggestions.get(bean.id)}
           </p>
         )}
@@ -324,13 +373,32 @@ export default function BeanList({
   };
 
   return (
-    <div className="divide-y divide-gray-700">
-      {renderSectionHeader("Active", activeBeans.length)}
-      {activeBeans.map((bean) => renderBean(bean, true))}
+    <div ref={scrollRef} className="divide-y divide-gray-700 max-h-[calc(100vh-12rem)] overflow-y-auto">
+      {renderSectionHeader("Active", activeBeans.length, "active")}
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        style={{ gridTemplateRows: collapsedSections.active ? "0fr" : "1fr" }}
+      >
+        <div className="overflow-hidden">
+          {activeBeans.length === 0 ? (
+            <div className="px-3 py-4 text-sm text-gray-500 text-center">
+              No active beans — thaw or import beans to continue.
+            </div>
+          ) : (
+            activeBeans.map((bean) => renderBean(bean, true))
+          )}
+        </div>
+      </div>
 
       {renderSectionHeader("Frozen", frozenBeans.length, "frozen")}
-      {!collapsedSections.frozen &&
-        frozenBeans.map((bean) => renderBean(bean, false))}
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        style={{ gridTemplateRows: collapsedSections.frozen ? "0fr" : "1fr" }}
+      >
+        <div className="overflow-hidden">
+          {frozenBeans.map((bean) => renderBean(bean, false))}
+        </div>
+      </div>
     </div>
   );
 }

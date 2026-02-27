@@ -13,9 +13,11 @@ export default function BeanDetail({
   onClose: () => void;
 }) {
   const { data: bean, error } = useSWR(`/api/beans/${beanId}`, fetcher);
+  const { data: settings } = useSWR("/api/settings", fetcher);
   const [restDays, setRestDays] = useState<string>("");
   const [roastDate, setRoastDate] = useState("");
   const [plannedThawDate, setPlannedThawDate] = useState("");
+  const [freezeConfirm, setFreezeConfirm] = useState(false);
 
   useEffect(() => {
     if (bean) {
@@ -85,6 +87,11 @@ export default function BeanDetail({
         <div className="text-gray-400">Remaining</div>
         <div className="text-gray-300 font-medium">
           {Math.round(bean.remaining_grams)}g
+          {settings?.daily_consumption_grams > 0 && bean.remaining_grams > 0 && (
+            <span className="text-gray-500 font-normal ml-1">
+              (~{Math.round(bean.remaining_grams / settings.daily_consumption_grams)} days)
+            </span>
+          )}
         </div>
         <div className="text-gray-400">Effective rest</div>
         <div className="text-gray-300">{bean.effective_rest_days} days</div>
@@ -178,16 +185,30 @@ export default function BeanDetail({
         Save Changes
       </button>
 
-      {/* Freeze toggle */}
+      {/* Freeze toggle with confirmation */}
       <button
-        onClick={handleFreeze}
+        onClick={() => {
+          if (freezeConfirm) {
+            handleFreeze();
+            setFreezeConfirm(false);
+          } else {
+            setFreezeConfirm(true);
+          }
+        }}
+        onBlur={() => setFreezeConfirm(false)}
         className={`w-full px-4 py-2 rounded-lg text-sm ${
-          bean.is_frozen
-            ? "bg-blue-900/50 text-blue-300 hover:bg-blue-900"
-            : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+          freezeConfirm
+            ? "bg-yellow-800 text-yellow-200 hover:bg-yellow-700"
+            : bean.is_frozen
+              ? "bg-blue-900/50 text-blue-300 hover:bg-blue-900"
+              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
         }`}
       >
-        {bean.is_frozen ? "Thaw Bean" : "Freeze Bean"}
+        {freezeConfirm
+          ? `Confirm ${bean.is_frozen ? "thaw" : "freeze"}?`
+          : bean.is_frozen
+            ? "Thaw Bean"
+            : "Freeze Bean"}
       </button>
 
       {/* Recent brews */}
