@@ -14,14 +14,12 @@ export default function BeanDetail({
 }) {
   const { data: bean, error } = useSWR(`/api/beans/${beanId}`, fetcher);
   const [restDays, setRestDays] = useState<string>("");
-  const [notes, setNotes] = useState("");
   const [roastDate, setRoastDate] = useState("");
   const [plannedThawDate, setPlannedThawDate] = useState("");
 
   useEffect(() => {
     if (bean) {
       setRestDays(bean.rest_days !== null ? String(bean.rest_days) : "");
-      setNotes(bean.notes || "");
       setRoastDate(bean.roast_date || "");
       setPlannedThawDate(bean.planned_thaw_date || "");
     }
@@ -37,7 +35,6 @@ export default function BeanDetail({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rest_days: restDays === "" ? null : Number(restDays),
-        notes: notes || null,
         roast_date: roastDate || null,
         planned_thaw_date: plannedThawDate || null,
       }),
@@ -171,19 +168,6 @@ export default function BeanDetail({
           placeholder={`Default: ${bean.effective_rest_days}`}
           className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
           min={0}
-        />
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Notes
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
         />
       </div>
 

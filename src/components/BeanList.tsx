@@ -135,17 +135,22 @@ export default function BeanList({
     return suggestions;
   }, [beans, schedule, ageAtFinish]);
 
-  const sortedBeans = useMemo(
-    () =>
-      beans
-        ? [
-            ...beans.filter((b) => !b.is_frozen && b.remaining_grams > 0),
-            ...beans.filter((b) => !b.is_frozen && b.remaining_grams <= 0),
-            ...beans.filter((b) => b.is_frozen),
-          ]
-        : [],
+  const activeBeans = useMemo(
+    () => (beans ? beans.filter((b) => !b.is_frozen && b.remaining_grams > 0) : []),
     [beans]
   );
+  const frozenBeans = useMemo(
+    () => (beans ? beans.filter((b) => b.is_frozen) : []),
+    [beans]
+  );
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    frozen: true,
+  });
+
+  const toggleSection = useCallback((key: string) => {
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -227,67 +232,105 @@ export default function BeanList({
     );
   }
 
+  const renderBean = (bean: BeanWithComputed, draggable: boolean) => {
+    const roasterColor = getRoasterColor(bean.roaster);
+    return (
+      <div
+        key={bean.id}
+        {...(draggable
+          ? {
+              draggable: true,
+              onDragStart: (e: React.DragEvent) => handleDragStart(e, bean.id),
+              onDragOver: (e: React.DragEvent) => handleDragOver(e, bean.id),
+              onDrop: (e: React.DragEvent) => handleDrop(e, bean.id),
+              onDragEnd: () => {
+                setDragOverId(null);
+                setDragId(null);
+              },
+            }
+          : {})}
+        onClick={() => onSelectBean(bean.id)}
+        className={`w-full text-left p-3 hover:bg-gray-800 transition-colors ${
+          draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        } ${
+          selectedBeanId === bean.id
+            ? "bg-amber-950 border-l-2 border-amber-500"
+            : ""
+        } ${dragOverId === bean.id ? "bg-amber-950/50 border-t-2 border-amber-500" : ""}`}
+      >
+        <div className="flex justify-between items-start">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-300 truncate">
+              {bean.name}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              <span
+                className="inline-block w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: roasterColor.border }}
+              />
+              {bean.roaster}
+            </p>
+          </div>
+          <span
+            className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusColor(bean)}`}
+          >
+            {statusLabel(bean)}
+          </span>
+        </div>
+        <div className="mt-1 flex gap-3 text-xs text-gray-400">
+          <span>{Math.round(bean.remaining_grams)}g remaining</span>
+          {bean.ready_date && <span>Ready {bean.ready_date}</span>}
+          {ageAtStart.has(bean.id) && (
+            <span>{ageAtStart.get(bean.id)} days old at start</span>
+          )}
+        </div>
+        {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
+          <p className="mt-0.5 text-xs font-medium text-red-400">
+            Finishes day {ageAtFinish.get(bean.id)}
+          </p>
+        )}
+        {freezeSuggestions.has(bean.id) && (
+          <p className="mt-0.5 text-xs font-medium text-blue-600">
+            {freezeSuggestions.get(bean.id)}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  const renderSectionHeader = (
+    label: string,
+    count: number,
+    sectionKey?: string
+  ) => {
+    const collapsed = sectionKey ? collapsedSections[sectionKey] : false;
+    return (
+      <div
+        key={`header-${label}`}
+        onClick={sectionKey ? () => toggleSection(sectionKey) : undefined}
+        className={`text-xs uppercase tracking-wide text-gray-500 px-3 py-2 bg-gray-900/50 flex items-center gap-2 select-none ${
+          sectionKey ? "cursor-pointer hover:bg-gray-800" : ""
+        }`}
+      >
+        {sectionKey && (
+          <span className="text-[10px] text-gray-500">{collapsed ? "\u203A" : "\u2039"}</span>
+        )}
+        <span>{label}</span>
+        <span className="ml-auto bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+          {count}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="divide-y divide-gray-700">
-      {sortedBeans.map((bean) => {
-        const roasterColor = getRoasterColor(bean.roaster);
-        return (
-          <div
-            key={bean.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, bean.id)}
-            onDragOver={(e) => handleDragOver(e, bean.id)}
-            onDrop={(e) => handleDrop(e, bean.id)}
-            onDragEnd={() => {
-              setDragOverId(null);
-              setDragId(null);
-            }}
-            onClick={() => onSelectBean(bean.id)}
-            className={`w-full text-left p-3 hover:bg-gray-800 transition-colors cursor-grab active:cursor-grabbing ${
-              selectedBeanId === bean.id
-                ? "bg-amber-950 border-l-2 border-amber-500"
-                : ""
-            } ${dragOverId === bean.id ? "bg-amber-950/50 border-t-2 border-amber-500" : ""}`}
-          >
-            <div className="flex justify-between items-start">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-300 truncate">
-                  {bean.name}
-                </p>
-                <p className="text-xs text-gray-400 truncate">
-                  <span
-                    className="inline-block w-2 h-2 rounded-full mr-1"
-                    style={{ backgroundColor: roasterColor.border }}
-                  />
-                  {bean.roaster}
-                </p>
-              </div>
-              <span
-                className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusColor(bean)}`}
-              >
-                {statusLabel(bean)}
-              </span>
-            </div>
-            <div className="mt-1 flex gap-3 text-xs text-gray-400">
-              <span>{Math.round(bean.remaining_grams)}g remaining</span>
-              {bean.ready_date && <span>Ready {bean.ready_date}</span>}
-              {ageAtStart.has(bean.id) && (
-                <span>{ageAtStart.get(bean.id)} days old at start</span>
-              )}
-            </div>
-            {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
-              <p className="mt-0.5 text-xs font-medium text-red-400">
-                Finishes day {ageAtFinish.get(bean.id)}
-              </p>
-            )}
-            {freezeSuggestions.has(bean.id) && (
-              <p className="mt-0.5 text-xs font-medium text-blue-600">
-                {freezeSuggestions.get(bean.id)}
-              </p>
-            )}
-          </div>
-        );
-      })}
+      {renderSectionHeader("Active", activeBeans.length)}
+      {activeBeans.map((bean) => renderBean(bean, true))}
+
+      {renderSectionHeader("Frozen", frozenBeans.length, "frozen")}
+      {!collapsedSections.frozen &&
+        frozenBeans.map((bean) => renderBean(bean, false))}
     </div>
   );
 }
