@@ -324,6 +324,9 @@ export default function BeanList({
           {ageAtStart.has(bean.id) && (
             <span>{ageAtStart.get(bean.id)} days old at start</span>
           )}
+          {bean.freeze_after_grams != null && !bean.is_frozen && (
+            <span className="text-blue-400/60">Freeze at {bean.freeze_after_grams}g</span>
+          )}
         </div>
         {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
           <p className="mt-0.5 text-xs font-medium text-red-400">
