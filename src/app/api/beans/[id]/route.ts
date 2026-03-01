@@ -3,13 +3,14 @@ import { getDb } from "@/lib/db";
 import { autoThawBeans } from "@/lib/auto-thaw";
 import { autoFreezeBeans } from "@/lib/auto-freeze";
 import { queryBean } from "@/lib/bean-queries";
+import { today as getToday } from "@/lib/date-utils";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const db = getDb();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
   autoThawBeans(db, today);
   autoFreezeBeans(db, today);
 

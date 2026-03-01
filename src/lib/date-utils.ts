@@ -29,10 +29,21 @@ export function isoToDate(iso: string): Date {
 }
 
 /**
- * Convert Date to ISO 8601 date string (YYYY-MM-DD).
+ * Convert a UTC Date to ISO 8601 date string (YYYY-MM-DD).
+ * Only for use with dates created via isoToDate / Date.UTC.
  */
 export function dateToIso(date: Date): string {
   return date.toISOString().split("T")[0];
+}
+
+/**
+ * Format a Date as YYYY-MM-DD using local timezone.
+ */
+export function localDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /**
@@ -54,10 +65,10 @@ export function daysBetween(startIso: string, endIso: string): number {
 }
 
 /**
- * Get today's date as ISO string.
+ * Get today's date as YYYY-MM-DD in local timezone.
  */
 export function today(): string {
-  return dateToIso(new Date());
+  return localDateStr(new Date());
 }
 
 /**

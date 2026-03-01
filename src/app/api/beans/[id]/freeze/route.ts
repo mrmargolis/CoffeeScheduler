@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { today as getToday } from "@/lib/date-utils";
 
 export async function POST(
   _request: NextRequest,
@@ -17,7 +18,7 @@ export async function POST(
   const isFrozen = Boolean(bean.is_frozen);
   const newState = !isFrozen;
   const eventType = newState ? "freeze" : "thaw";
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
 
   const toggleTx = db.transaction(() => {
     db.prepare("UPDATE beans SET is_frozen = ?, planned_thaw_date = NULL, freeze_after_grams = NULL WHERE id = ?").run(

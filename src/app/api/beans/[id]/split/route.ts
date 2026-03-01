@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { today as getToday } from "@/lib/date-utils";
 
 export async function POST(
   request: NextRequest,
@@ -29,7 +30,7 @@ export async function POST(
     params.id,
     body.grams,
     body.recipient || "",
-    body.split_date || new Date().toISOString().split("T")[0],
+    body.split_date || getToday(),
     body.notes || null
   );
 

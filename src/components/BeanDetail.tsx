@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
-import { daysBetween } from "@/lib/date-utils";
+import { daysBetween, today as getToday } from "@/lib/date-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -90,7 +90,7 @@ export default function BeanDetail({
           <>
             <div className="text-gray-400">Current age</div>
             <div className="text-gray-300">
-              {daysBetween(bean.roast_date, new Date().toISOString().split("T")[0])} days
+              {daysBetween(bean.roast_date, getToday())} days
             </div>
           </>
         )}

@@ -52,12 +52,15 @@ function parseIsoDate(dateStr: string | undefined | null): string | null {
 }
 
 /**
- * Convert unix timestamp (seconds) to YYYY-MM-DD.
+ * Convert unix timestamp (seconds) to YYYY-MM-DD in local timezone.
  */
 function unixToDate(ts: number): string | null {
   if (!ts || !isFinite(ts)) return null;
   const d = new Date(ts * 1000);
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**

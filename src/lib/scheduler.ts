@@ -210,6 +210,21 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     let gramsNeeded = dailyConsumptionGrams;
     const consumptions: ScheduleDay["consumptions"] = [];
 
+    // Incorporate pre-logged brews for future days (e.g. user entered
+    // tomorrow's brew in advance). These count toward the daily target
+    // and deduct from the bean's remaining supply.
+    const futureBrews = brewsByDate.get(date) || [];
+    const hasPreLogged = futureBrews.length > 0;
+    if (hasPreLogged) {
+      const preLogged = aggregateBrews(futureBrews, beanMap);
+      for (const c of preLogged) {
+        consumptions.push(c);
+        const rem = remaining.get(c.bean_id) || 0;
+        remaining.set(c.bean_id, Math.max(0, rem - c.grams));
+        gramsNeeded -= c.grams;
+      }
+    }
+
     // Count how many beans are ready on this date
     let readyCount = 0;
     for (const bean of activeBeans) {
@@ -278,10 +293,28 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     const totalConsumed = dailyConsumptionGrams - gramsNeeded;
 
     // If we can't reach the acceptable minimum, toss the partial remnants
-    // (remaining already decremented, so those grams are effectively wasted)
-    if (totalConsumed > 0 && totalConsumed < acceptableMin) {
+    // (remaining already decremented, so those grams are effectively wasted).
+    // Skip this check when the user has pre-logged brews — they committed
+    // to brewing on this day.
+    if (!hasPreLogged && totalConsumed > 0 && totalConsumed < acceptableMin) {
       consumptions.length = 0;
       gramsNeeded = dailyConsumptionGrams;
+    }
+
+    // Merge pre-logged and projected consumptions for the same bean
+    // (e.g. 15g pre-logged WHG + 30g projected WHG → 45g WHG)
+    if (hasPreLogged && consumptions.length > 1) {
+      const merged = new Map<string, ScheduleDay["consumptions"][0]>();
+      for (const c of consumptions) {
+        const existing = merged.get(c.bean_id);
+        if (existing) {
+          existing.grams += c.grams;
+        } else {
+          merged.set(c.bean_id, { ...c });
+        }
+      }
+      consumptions.length = 0;
+      consumptions.push(...merged.values());
     }
 
     schedule.push({

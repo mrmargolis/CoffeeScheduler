@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { computeSchedule, SchedulerBean } from "@/lib/scheduler";
-import { daysBetween, dateRange } from "@/lib/date-utils";
+import { daysBetween, dateRange, today as getToday } from "@/lib/date-utils";
 import { autoThawBeans } from "@/lib/auto-thaw";
 import { autoFreezeBeans } from "@/lib/auto-freeze";
 import { queryBeanRowsRaw } from "@/lib/bean-queries";
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const db = getDb();
   const params = request.nextUrl.searchParams;
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
 
   // Auto-thaw beans whose planned thaw date has arrived
   autoThawBeans(db, today);
@@ -97,6 +97,22 @@ export async function GET(request: NextRequest) {
       frozen_days: frozenDaysMap.get(row.id) || 0,
     };
   });
+
+  // Exclude future brews from remaining_grams — they shouldn't reduce
+  // available supply for schedule projections. The scheduler will handle
+  // them as pre-logged consumption on their respective future dates.
+  const futureBrewTotals = db
+    .prepare(
+      `SELECT bean_id, SUM(ground_coffee_grams) as total_grams
+       FROM brews WHERE creation_date > ?
+       GROUP BY bean_id`
+    )
+    .all(today) as { bean_id: string; total_grams: number }[];
+
+  for (const fb of futureBrewTotals) {
+    const bean = schedulerBeans.find((b) => b.id === fb.bean_id);
+    if (bean) bean.remaining_grams += fb.total_grams;
+  }
 
   // Get actual brews in range
   const actualBrews = db

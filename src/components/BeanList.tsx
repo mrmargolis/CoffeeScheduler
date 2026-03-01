@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
-import { daysBetween } from "@/lib/date-utils";
+import { daysBetween, today as getToday } from "@/lib/date-utils";
 import { extractBeanFinishDates, extractBeanStartDates } from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -16,7 +16,7 @@ function statusColor(bean: BeanWithComputed): string {
   if (bean.remaining_grams <= 0) return "bg-gray-700 text-gray-400";
   if (bean.is_frozen) return "bg-blue-900/50 text-blue-300";
   if (!bean.ready_date) return "bg-yellow-900/50 text-yellow-300";
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
   if (bean.ready_date > today) return "bg-orange-900/50 text-orange-300";
   return "bg-green-900/50 text-green-300";
 }
@@ -28,7 +28,7 @@ function statusLabel(bean: BeanWithComputed): string {
     return "Frozen";
   }
   if (!bean.ready_date) return "No roast date";
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
   if (bean.ready_date > today) {
     const days = daysBetween(today, bean.ready_date);
     return days === 1 ? "Ready in 1 day" : `Ready in ${days} days`;
@@ -98,7 +98,7 @@ export default function BeanList({
     const suggestions = new Map<string, string>();
     if (!beans || !schedule) return suggestions;
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getToday();
 
     // Criterion 1: Staleness risk
     // Bean is rested (ready_date <= today), not frozen, remaining > 0, and ageAtFinish > 60

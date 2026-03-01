@@ -8,6 +8,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import useSWR, { mutate } from "swr";
 import { ScheduleDay, SkipDayRange } from "@/lib/types";
 import { buildCalendarEvents } from "@/lib/calendar-utils";
+import { today as getToday, localDateStr } from "@/lib/date-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -16,18 +17,18 @@ interface CalendarProps {
 }
 
 export default function Calendar({ onSelectBean }: CalendarProps) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
   // Fetch 2 months back and 4 months forward
   const startDate = (() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 2);
     d.setDate(1);
-    return d.toISOString().split("T")[0];
+    return localDateStr(d);
   })();
   const endDate = (() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 4);
-    return d.toISOString().split("T")[0];
+    return localDateStr(d);
   })();
 
   const { data: schedule } = useSWR<ScheduleDay[]>(

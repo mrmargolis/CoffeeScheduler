@@ -48,7 +48,7 @@ function makeBrew(overrides: Record<string, any> = {}) {
     bean: "uuid-1",
     grind_weight: 15,
     rating: 4,
-    config: { uuid: "brew-1", unix_timestamp: 1706745600 }, // 2024-02-01
+    config: { uuid: "brew-1", unix_timestamp: 1706788800 }, // 2024-02-01 12:00 UTC
     ...overrides,
   };
 }
@@ -128,13 +128,13 @@ describe("parseBcZip", () => {
   it("combines brews from main file and split files", () => {
     const bean = makeBean();
     const mainBrew = makeBrew({
-      config: { uuid: "brew-main", unix_timestamp: 1706745600 },
+      config: { uuid: "brew-main", unix_timestamp: 1706788800 },
     });
     const splitBrew1 = makeBrew({
-      config: { uuid: "brew-split-1", unix_timestamp: 1706832000 },
+      config: { uuid: "brew-split-1", unix_timestamp: 1706875200 },
     });
     const splitBrew2 = makeBrew({
-      config: { uuid: "brew-split-2", unix_timestamp: 1706918400 },
+      config: { uuid: "brew-split-2", unix_timestamp: 1706961600 },
     });
 
     const buffer = createTestZip([bean], [mainBrew], {
@@ -149,7 +149,7 @@ describe("parseBcZip", () => {
   it("deduplicates brews by config.uuid", () => {
     const bean = makeBean();
     const brew = makeBrew({
-      config: { uuid: "same-uuid", unix_timestamp: 1706745600 },
+      config: { uuid: "same-uuid", unix_timestamp: 1706788800 },
     });
 
     const buffer = createTestZip([bean], [brew], {
@@ -217,9 +217,9 @@ describe("parseBcZip", () => {
     const bean = makeBean({
       roastingDate: "2026-01-01T00:00:00.000Z",
     });
-    // unix_timestamp for 2026-01-15 00:00:00 UTC = 1768435200
+    // unix_timestamp for 2026-01-15 12:00:00 UTC = 1768478400
     const brew = makeBrew({
-      config: { uuid: "brew-age", unix_timestamp: 1768435200 },
+      config: { uuid: "brew-age", unix_timestamp: 1768478400 },
     });
 
     const buffer = createTestZip([bean], [brew]);
@@ -252,9 +252,9 @@ describe("parseBcZip", () => {
       }),
     ];
     const brews = [
-      makeBrew({ bean: "b1", config: { uuid: "br1", unix_timestamp: 1706745600 } }),
-      makeBrew({ bean: "b1", config: { uuid: "br2", unix_timestamp: 1706832000 } }),
-      makeBrew({ bean: "b2", config: { uuid: "br3", unix_timestamp: 1706918400 } }),
+      makeBrew({ bean: "b1", config: { uuid: "br1", unix_timestamp: 1706788800 } }),
+      makeBrew({ bean: "b1", config: { uuid: "br2", unix_timestamp: 1706875200 } }),
+      makeBrew({ bean: "b2", config: { uuid: "br3", unix_timestamp: 1706961600 } }),
     ];
 
     const buffer = createTestZip(beans, brews);

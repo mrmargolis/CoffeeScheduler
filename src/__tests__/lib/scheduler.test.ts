@@ -883,6 +883,134 @@ describe("computeSchedule", () => {
     expect(schedule[0].consumptions[0].bean_id).toBe("b2");
   });
 
+  it("incorporates pre-logged future brews into projections", () => {
+    const bean1 = makeBean({
+      id: "b1",
+      name: "Bean 1",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 20, // Already excludes future brews (done by API route)
+      weight_grams: 200,
+    });
+    const bean2 = makeBean({
+      id: "b2",
+      name: "Bean 2",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean1, bean2],
+      actualBrews: [
+        // Pre-logged brew for the future day
+        { bean_id: "b1", creation_date: "2026-01-31", ground_coffee_grams: 15 },
+      ],
+      today: "2026-01-30", // Jan 31 is tomorrow
+    });
+
+    // Pre-logged 15g + projected 30g from bean2 (bean1 only has 5g left after
+    // deducting the 15g pre-logged brew, which is below min dose)
+    expect(schedule[0].consumptions).toHaveLength(2);
+    expect(schedule[0].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[0].consumptions[0].grams).toBe(15);
+    expect(schedule[0].consumptions[1].bean_id).toBe("b2");
+    expect(schedule[0].consumptions[1].grams).toBe(30);
+  });
+
+  it("merges pre-logged and projected consumption for the same bean", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 100,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [
+        // Pre-logged 1 cup, scheduler should project remaining 2 cups
+        { bean_id: "bean-1", creation_date: "2026-01-31", ground_coffee_grams: 15 },
+      ],
+      today: "2026-01-30",
+    });
+
+    // 15g pre-logged + 30g projected = 45g merged into one consumption
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].grams).toBe(45);
+  });
+
+  it("deducts pre-logged future brews from remaining for subsequent days", () => {
+    const bean1 = makeBean({
+      id: "b1",
+      name: "Bean 1",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 60, // Enough for 1 day + partial
+      weight_grams: 200,
+    });
+    const bean2 = makeBean({
+      id: "b2",
+      name: "Bean 2",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-01",
+      dailyConsumptionGrams: 45,
+      beans: [bean1, bean2],
+      actualBrews: [
+        // Pre-logged brew on Jan 31 (tomorrow)
+        { bean_id: "b1", creation_date: "2026-01-31", ground_coffee_grams: 15 },
+      ],
+      today: "2026-01-30",
+    });
+
+    // Jan 31: 15g pre-logged + 30g projected from bean1 = 45g bean1
+    // (remaining after: 60 - 15 (pre-logged) - 30 (projected) = 15g)
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[0].consumptions[0].grams).toBe(45);
+
+    // Feb 1: bean1 has 15g left → 1 dose (15g), then bean2 fills remaining
+    expect(schedule[1].consumptions).toHaveLength(2);
+    expect(schedule[1].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[1].consumptions[0].grams).toBe(15);
+    expect(schedule[1].consumptions[1].bean_id).toBe("b2");
+  });
+
+  it("does not toss remnants on days with pre-logged brews", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 15, // Only 1 dose left
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [
+        { bean_id: "bean-1", creation_date: "2026-01-31", ground_coffee_grams: 15 },
+      ],
+      today: "2026-01-30",
+    });
+
+    // 15g < 39g acceptable minimum, but pre-logged brews are not tossed
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].grams).toBe(15);
+    expect(schedule[0].is_gap).toBe(false);
+  });
+
   it("past skip days with actual brews override skip", () => {
     const bean = makeBean({
       id: "b1",
