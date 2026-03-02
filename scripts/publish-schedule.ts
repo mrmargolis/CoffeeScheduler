@@ -124,18 +124,31 @@ function renderDayCell(cell: DayCellData | null): string {
   if (cell.isSkip) classes.push("skip");
 
   let pills = "";
+  const detailLines: string[] = [];
+
+  // Format date label for modal: "Tue Mar 3"
+  const d = new Date(cell.date + "T00:00:00Z");
+  const dayLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  detailLines.push(`<strong>${escapeHtml(dayLabel)}</strong>`);
+
   for (const c of cell.consumptions) {
     const color = getRoasterColor(c.roaster);
     pills += `<div class="pill" style="background:${color.bg};border-color:${color.border};color:${color.text}">${Math.round(c.grams)}g ${escapeHtml(c.bean_name)}</div>`;
+    detailLines.push(`<div class="modal-pill" style="background:${color.bg};border-color:${color.border};color:${color.text}">${Math.round(c.grams)}g ${escapeHtml(c.bean_name)}</div>`);
   }
   if (cell.isGap) {
     pills += `<div class="pill gap-pill">No coffee!</div>`;
+    detailLines.push(`<div class="modal-pill gap-pill">No coffee!</div>`);
   }
   if (cell.isSkip) {
     pills += `<div class="pill skip-pill">Skip</div>`;
+    detailLines.push(`<div class="modal-pill skip-pill">Skip</div>`);
   }
 
-  return `<div class="${classes.join(" ")}"><span class="day-num">${cell.dayNum}</span>${pills}</div>`;
+  const hasDetail = cell.consumptions.length > 0 || cell.isGap || cell.isSkip;
+  const detailAttr = hasDetail ? ` data-detail="${escapeHtml(detailLines.join(""))}"` : "";
+
+  return `<div class="${classes.join(" ")}"${detailAttr}><span class="day-num">${cell.dayNum}</span>${pills}</div>`;
 }
 
 function renderMonth(m: MonthData): string {
@@ -191,6 +204,12 @@ h2{font-size:1rem;margin:16px 0 6px;font-weight:600}
 .gap-pill{background:#1c1010;border-color:#F85149;color:#F85149}
 .skip-pill{background:#161B22;border-color:#6E7681;color:#8B949E}
 .footer{text-align:center;color:#6E7681;font-size:0.7rem;margin-top:16px;padding-bottom:env(safe-area-inset-bottom,12px)}
+.cell[data-detail]{cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
+.modal.hidden{display:none}
+.modal-card{background:#161B22;border:1px solid #30363D;border-radius:12px;padding:16px 20px;max-width:320px;width:100%;color:#C9D1D9;font-size:0.95rem;line-height:1.6}
+.modal-card strong{font-size:1.1rem}
+.modal-pill{font-size:0.85rem;padding:4px 8px;border-radius:6px;border:1px solid;margin-top:6px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -198,6 +217,20 @@ h2{font-size:1rem;margin:16px 0 6px;font-weight:600}
 ${summaryHtml}
 ${months.map(renderMonth).join("\n")}
 <div class="footer">Generated ${escapeHtml(generatedAt)}</div>
+<div id="modal" class="modal hidden"></div>
+<script>
+(function(){
+  var modal=document.getElementById("modal");
+  document.querySelectorAll(".cell[data-detail]").forEach(function(cell){
+    cell.addEventListener("click",function(e){
+      e.stopPropagation();
+      modal.innerHTML='<div class="modal-card">'+cell.getAttribute("data-detail")+'</div>';
+      modal.classList.remove("hidden");
+    });
+  });
+  modal.addEventListener("click",function(){modal.classList.add("hidden");});
+})();
+</script>
 </body>
 </html>`;
 
