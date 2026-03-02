@@ -21,10 +21,10 @@ const today = getToday();
 autoThawBeans(db, today);
 autoFreezeBeans(db, today);
 
-// Date range: 1st of current month through end of month+2
+// Date range: 1st of current month through end of next month
 const now = new Date();
 const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-const endMonth = new Date(now.getFullYear(), now.getMonth() + 3, 0); // last day of month+2
+const endMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0); // last day of next month
 const endDate = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, "0")}-${String(endMonth.getDate()).padStart(2, "0")}`;
 
 const { schedule, skipDayRanges } = loadScheduleData(db, startDate, endDate, today);

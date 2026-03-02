@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { exec } from "child_process";
 import { getDb } from "@/lib/db";
 import { parseBcZip } from "@/lib/bc-json-parser";
 
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
     });
 
     const result = importTransaction();
+
+    if (process.env.NODE_ENV !== "test") {
+      exec("npm run publish-schedule", (err, stdout, stderr) => {
+        if (err) console.error("publish-schedule failed:", err.message);
+        if (stderr) console.error("publish-schedule stderr:", stderr);
+        if (stdout) console.log("publish-schedule:", stdout);
+      });
+    }
 
     return NextResponse.json({
       success: true,
