@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ScheduleInfoPopover from "./ScheduleInfoPopover";
+import DayOptionsModal from "./DayOptionsModal";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import useSWR, { mutate } from "swr";
-import { ScheduleDay, SkipDayRange } from "@/lib/types";
+import { ScheduleDay, SkipDayRange, ConsumptionOverride } from "@/lib/types";
 import { buildCalendarEvents } from "@/lib/calendar-utils";
 import { today as getToday, localDateStr } from "@/lib/date-utils";
 
@@ -18,6 +19,8 @@ interface CalendarProps {
 
 export default function Calendar({ onSelectBean }: CalendarProps) {
   const today = getToday();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
   // Fetch 2 months back and 4 months forward
   const startDate = (() => {
     const d = new Date();
@@ -41,11 +44,72 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
     fetcher
   );
 
-  const { events, summary } = useMemo(
-    () => buildCalendarEvents(schedule || null, skipDayRanges, today),
-    [schedule, skipDayRanges, today]
+  const { data: consumptionOverrides, mutate: mutateOverrides } = useSWR<ConsumptionOverride[]>(
+    "/api/consumption-overrides",
+    fetcher
   );
 
+  const { events, summary } = useMemo(
+    () => buildCalendarEvents(schedule || null, skipDayRanges, today, consumptionOverrides),
+    [schedule, skipDayRanges, today, consumptionOverrides]
+  );
+
+  // Check if selected date is a skip day
+  const isSkipDay = useMemo(() => {
+    if (!selectedDate || !skipDayRanges) return false;
+    return skipDayRanges.some(
+      (r) => selectedDate >= r.start_date && selectedDate <= r.end_date
+    );
+  }, [selectedDate, skipDayRanges]);
+
+  // Find existing override for selected date
+  const existingOverride = useMemo(() => {
+    if (!selectedDate || !consumptionOverrides) return null;
+    return consumptionOverrides.find(
+      (o) => selectedDate >= o.start_date && selectedDate <= o.end_date
+    ) || null;
+  }, [selectedDate, consumptionOverrides]);
+
+  const revalidateSchedule = () => {
+    mutate(
+      (key: string) => key?.startsWith("/api/schedule"),
+      undefined,
+      { revalidate: true }
+    );
+  };
+
+  const handleToggleSkip = async (date: string) => {
+    await fetch("/api/skip-days/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date }),
+    });
+    mutateSkipDays();
+    revalidateSchedule();
+  };
+
+  const handleSaveOverride = async (override: {
+    start_date: string;
+    end_date: string;
+    daily_grams: number;
+    dose_size_grams: number;
+  }) => {
+    await fetch("/api/consumption-overrides", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(override),
+    });
+    mutateOverrides();
+    revalidateSchedule();
+  };
+
+  const handleClearOverride = async (id: number) => {
+    await fetch(`/api/consumption-overrides/${id}`, {
+      method: "DELETE",
+    });
+    mutateOverrides();
+    revalidateSchedule();
+  };
 
   return (
     <div>
@@ -79,18 +143,8 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
             right: "",
           }}
           height="auto"
-          dateClick={async (info) => {
-            await fetch("/api/skip-days/toggle", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ date: info.dateStr }),
-            });
-            mutateSkipDays();
-            mutate(
-              (key: string) => key?.startsWith("/api/schedule"),
-              undefined,
-              { revalidate: true }
-            );
+          dateClick={(info) => {
+            setSelectedDate(info.dateStr);
           }}
           eventClick={(info) => {
             const beanId = info.event.extendedProps?.beanId;
@@ -107,6 +161,18 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
           dayMaxEvents={4}
         />
       </div>
+
+      {selectedDate && (
+        <DayOptionsModal
+          date={selectedDate}
+          isSkipDay={isSkipDay}
+          existingOverride={existingOverride}
+          onClose={() => setSelectedDate(null)}
+          onToggleSkip={handleToggleSkip}
+          onSaveOverride={handleSaveOverride}
+          onClearOverride={handleClearOverride}
+        />
+      )}
     </div>
   );
 }

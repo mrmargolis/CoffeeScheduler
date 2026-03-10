@@ -1,4 +1,4 @@
-import { ScheduleDay, SkipDayRange } from "./types";
+import { ConsumptionOverride, ScheduleDay, SkipDayRange } from "./types";
 import { getRoasterColor } from "./colors";
 
 export interface CalendarEvent {
@@ -27,7 +27,8 @@ function nextDay(iso: string): string {
 export function buildCalendarEvents(
   schedule: ScheduleDay[] | null,
   skipDayRanges: SkipDayRange[] | undefined,
-  today: string
+  today: string,
+  consumptionOverrides?: ConsumptionOverride[]
 ): { events: CalendarEvent[]; summary: ScheduleSummary | null } {
   if (!schedule) return { events: [], summary: null };
 
@@ -38,6 +39,20 @@ export function buildCalendarEvents(
       let current = range.start_date;
       while (current <= range.end_date) {
         skipReasonMap.set(current, range.reason || "Skip");
+        const d = new Date(current + "T00:00:00Z");
+        d.setUTCDate(d.getUTCDate() + 1);
+        current = d.toISOString().split("T")[0];
+      }
+    }
+  }
+
+  // Build a map from date to override info for display
+  const overrideMap = new Map<string, number>();
+  if (Array.isArray(consumptionOverrides)) {
+    for (const override of consumptionOverrides) {
+      let current = override.start_date;
+      while (current <= override.end_date) {
+        overrideMap.set(current, override.daily_grams);
         const d = new Date(current + "T00:00:00Z");
         d.setUTCDate(d.getUTCDate() + 1);
         current = d.toISOString().split("T")[0];
@@ -83,6 +98,20 @@ export function buildCalendarEvents(
         beanSpans.delete(key);
       }
       continue;
+    }
+
+    // Override day indicator
+    const overrideGrams = overrideMap.get(day.date);
+    if (overrideGrams !== undefined) {
+      events.push({
+        title: `${overrideGrams}g/day`,
+        start: day.date,
+        allDay: true,
+        backgroundColor: "#1a1a2e",
+        borderColor: "#6366f1",
+        textColor: "#a5b4fc",
+        classNames: ["override-day"],
+      });
     }
 
     // Gap day indicator

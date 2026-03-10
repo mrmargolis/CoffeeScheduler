@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS skip_days (
   reason TEXT
 );
 
+CREATE TABLE IF NOT EXISTS consumption_overrides (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  daily_grams REAL NOT NULL,
+  dose_size_grams REAL NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
 CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
 `;

@@ -1,8 +1,8 @@
 import type Database from "better-sqlite3";
-import { computeSchedule, SchedulerBean } from "./scheduler";
+import { computeSchedule, DayOverride, SchedulerBean } from "./scheduler";
 import { daysBetween, dateRange } from "./date-utils";
 import { queryBeanRowsRaw } from "./bean-queries";
-import { ScheduleDay, SkipDayRange } from "./types";
+import { ConsumptionOverride, ScheduleDay, SkipDayRange } from "./types";
 
 export interface ScheduleData {
   schedule: ScheduleDay[];
@@ -132,6 +132,26 @@ export function loadScheduleData(
     }
   }
 
+  // Load consumption overrides overlapping the schedule range
+  const overrideRows = db
+    .prepare(
+      `SELECT * FROM consumption_overrides
+       WHERE start_date <= ? AND end_date >= ?`
+    )
+    .all(endDate, startDate) as ConsumptionOverride[];
+
+  const consumptionOverrides = new Map<string, DayOverride>();
+  for (const row of overrideRows) {
+    const rangeStart = row.start_date < startDate ? startDate : row.start_date;
+    const rangeEnd = row.end_date > endDate ? endDate : row.end_date;
+    for (const date of dateRange(rangeStart, rangeEnd)) {
+      consumptionOverrides.set(date, {
+        dailyGrams: row.daily_grams,
+        doseSize: row.dose_size_grams,
+      });
+    }
+  }
+
   const schedule = computeSchedule({
     startDate,
     endDate,
@@ -140,6 +160,7 @@ export function loadScheduleData(
     actualBrews,
     today,
     skipDays,
+    consumptionOverrides,
   });
 
   return { schedule, skipDayRanges };

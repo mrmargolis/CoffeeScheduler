@@ -76,6 +76,11 @@ export function sortBeanQueue(beans: SchedulerBean[]): SchedulerBean[] {
   });
 }
 
+export interface DayOverride {
+  dailyGrams: number;
+  doseSize: number;
+}
+
 export interface ScheduleOptions {
   startDate: string;
   endDate: string;
@@ -84,6 +89,7 @@ export interface ScheduleOptions {
   actualBrews: ActualBrew[];
   today: string;
   skipDays?: Set<string>;
+  consumptionOverrides?: Map<string, DayOverride>;
 }
 
 /**
@@ -113,7 +119,7 @@ function aggregateBrews(
 }
 
 export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
-  const { startDate, endDate, dailyConsumptionGrams, beans, actualBrews, today, skipDays } =
+  const { startDate, endDate, dailyConsumptionGrams, beans, actualBrews, today, skipDays, consumptionOverrides } =
     options;
 
   // Build a map of actual brews by date
@@ -207,7 +213,10 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     }
 
     // Future days (or today with no brews): project consumption
-    let gramsNeeded = dailyConsumptionGrams;
+    const dayOverride = consumptionOverrides?.get(date);
+    const dayDailyGrams = dayOverride?.dailyGrams ?? dailyConsumptionGrams;
+    const dayDoseSize = dayOverride?.doseSize ?? DOSE_SIZE_GRAMS;
+    let gramsNeeded = dayDailyGrams;
     const consumptions: ScheduleDay["consumptions"] = [];
 
     // Incorporate pre-logged brews for future days (e.g. user entered
@@ -268,13 +277,13 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
       // If this bean can't fill the day, round down to a whole number of doses.
       // The sub-dose remainder is wasted (or frozen).
       if (consume < gramsNeeded) {
-        const doses = Math.floor(consume / DOSE_SIZE_GRAMS);
+        const doses = Math.floor(consume / dayDoseSize);
         if (doses === 0) {
           // Can't even get one full dose — waste it, skip this bean
           remaining.set(bean.id, freezeFloor);
           continue;
         }
-        const doseConsume = doses * DOSE_SIZE_GRAMS;
+        const doseConsume = doses * dayDoseSize;
         remaining.set(bean.id, freezeFloor); // Rest is waste/frozen
         consume = doseConsume;
       } else {
@@ -290,7 +299,7 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
       gramsNeeded -= consume;
     }
 
-    const totalConsumed = dailyConsumptionGrams - gramsNeeded;
+    const totalConsumed = dayDailyGrams - gramsNeeded;
 
     // If we can't reach the acceptable minimum, toss the partial remnants
     // (remaining already decremented, so those grams are effectively wasted).
@@ -298,7 +307,7 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     // to brewing on this day.
     if (!hasPreLogged && totalConsumed > 0 && totalConsumed < acceptableMin) {
       consumptions.length = 0;
-      gramsNeeded = dailyConsumptionGrams;
+      gramsNeeded = dayDailyGrams;
     }
 
     // Merge pre-logged and projected consumptions for the same bean

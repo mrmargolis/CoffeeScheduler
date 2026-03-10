@@ -67,6 +67,14 @@ export interface SkipDayRange {
   reason?: string | null;
 }
 
+export interface ConsumptionOverride {
+  id?: number;
+  start_date: string;
+  end_date: string;
+  daily_grams: number;
+  dose_size_grams: number;
+}
+
 export interface BeanWithComputed extends Bean {
   effective_rest_days: number;
   ready_date: string | null;

@@ -1011,6 +1011,110 @@ describe("computeSchedule", () => {
     expect(schedule[0].is_gap).toBe(false);
   });
 
+  it("uses consumption override for daily grams on specific dates", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const consumptionOverrides = new Map([
+      ["2026-02-01", { dailyGrams: 40, doseSize: 20 }],
+    ]);
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-02",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+      consumptionOverrides,
+    });
+
+    // Jan 31: normal 45g
+    expect(schedule[0].consumptions[0].grams).toBe(45);
+    // Feb 1: overridden to 40g
+    expect(schedule[1].consumptions[0].grams).toBe(40);
+    // Feb 2: back to normal 45g
+    expect(schedule[2].consumptions[0].grams).toBe(45);
+  });
+
+  it("uses override dose size for rounding on transition days", () => {
+    const bean1 = makeBean({
+      id: "b1",
+      name: "Bean 1",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 50, // More than 40g daily target, but will transition
+      weight_grams: 200,
+    });
+    const bean2 = makeBean({
+      id: "b2",
+      name: "Bean 2",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    // Override: 40g/day with 20g doses
+    const consumptionOverrides = new Map([
+      ["2026-01-31", { dailyGrams: 40, doseSize: 20 }],
+    ]);
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean1, bean2],
+      actualBrews: [],
+      today: "2026-01-01",
+      consumptionOverrides,
+    });
+
+    // With 40g target: bean1 fills it entirely (50g >= 40g)
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].bean_id).toBe("b1");
+    expect(schedule[0].consumptions[0].grams).toBe(40);
+  });
+
+  it("consumption override extends coffee supply (lower daily consumption)", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 130, // ~2.8 days at 45g, ~3.25 days at 40g
+    });
+
+    // Override all days to 40g
+    const consumptionOverrides = new Map([
+      ["2026-01-31", { dailyGrams: 40, doseSize: 20 }],
+      ["2026-02-01", { dailyGrams: 40, doseSize: 20 }],
+      ["2026-02-02", { dailyGrams: 40, doseSize: 20 }],
+      ["2026-02-03", { dailyGrams: 40, doseSize: 20 }],
+    ]);
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-02-03",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+      consumptionOverrides,
+    });
+
+    const totalConsumed = schedule.reduce(
+      (sum, day) => sum + day.consumptions.reduce((s, c) => s + c.grams, 0),
+      0
+    );
+    // At 40g/day: 3 full days (120g), 10g remainder < min dose → 120g total
+    expect(totalConsumed).toBe(120);
+    expect(schedule[0].consumptions[0].grams).toBe(40);
+    expect(schedule[1].consumptions[0].grams).toBe(40);
+    expect(schedule[2].consumptions[0].grams).toBe(40);
+    expect(schedule[3].is_gap).toBe(true);
+  });
+
   it("past skip days with actual brews override skip", () => {
     const bean = makeBean({
       id: "b1",
