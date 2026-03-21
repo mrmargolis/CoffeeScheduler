@@ -301,9 +301,12 @@ export default function BeanList({
       >
         <div className="flex justify-between items-start">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-300 truncate">
-              {bean.name}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-gray-300 truncate">{bean.name}</p>
+              {bean.display_order != null && (
+                <span className="text-xs font-mono shrink-0 px-1 py-0.5 rounded bg-amber-900/50 text-amber-400">#{bean.display_order}</span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 truncate">
               <span
                 className="inline-block w-2 h-2 rounded-full mr-1"

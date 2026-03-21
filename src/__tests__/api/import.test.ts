@@ -3,7 +3,6 @@ import Database from "better-sqlite3";
 import AdmZip from "adm-zip";
 import { initializeSchema } from "@/lib/schema";
 import { parseBcZip } from "@/lib/bc-json-parser";
-import type { FreezeInfo } from "@/lib/bc-json-parser";
 
 function createTestZip(
   beans: any[] = [],

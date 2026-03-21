@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { initializeSchema } from "@/lib/schema";
 import { queryBeans, queryBean } from "@/lib/bean-queries";
+import { resequenceDisplayOrder } from "@/lib/display-order";
 
 describe("beans", () => {
   let db: Database.Database;
@@ -80,6 +81,26 @@ describe("beans", () => {
     expect(events).toHaveLength(2);
     expect(events[0].event_type).toBe("freeze");
     expect(events[1].event_type).toBe("thaw");
+  });
+
+  it("clears display_order on freeze and resequences remaining", () => {
+    // Assign display orders
+    db.prepare("UPDATE beans SET display_order = 1 WHERE id = 'bean-1'").run();
+    db.prepare("UPDATE beans SET display_order = 2 WHERE id = 'bean-2'").run();
+
+    // Freeze bean-1 (mimics what the route does)
+    db.prepare(
+      "UPDATE beans SET is_frozen = 1, display_order = NULL WHERE id = 'bean-1'"
+    ).run();
+    resequenceDisplayOrder(db);
+
+    const frozen = queryBean(db, "bean-1")!;
+    expect(frozen.is_frozen).toBe(true);
+    expect(frozen.display_order).toBeNull();
+
+    // bean-2 should now be display_order 1 (no gap)
+    const remaining = queryBean(db, "bean-2")!;
+    expect(remaining.display_order).toBe(1);
   });
 
   it("orders beans by display_order then roast_date", () => {

@@ -1115,6 +1115,32 @@ describe("computeSchedule", () => {
     expect(schedule[3].is_gap).toBe(true);
   });
 
+  it("override below MIN_DAILY_GRAMS does not cause gap day", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      remaining_grams: 250,
+    });
+
+    const consumptionOverrides = new Map([
+      ["2026-01-31", { dailyGrams: 30, doseSize: 30 }],
+    ]);
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+      consumptionOverrides,
+    });
+
+    expect(schedule[0].is_gap).toBe(false);
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].grams).toBe(30);
+  });
+
   it("past skip days with actual brews override skip", () => {
     const bean = makeBean({
       id: "b1",

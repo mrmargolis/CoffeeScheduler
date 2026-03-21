@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { today as getToday } from "@/lib/date-utils";
+import { resequenceDisplayOrder } from "@/lib/display-order";
 
 export async function POST(
   _request: NextRequest,
@@ -21,13 +22,15 @@ export async function POST(
   const today = getToday();
 
   const toggleTx = db.transaction(() => {
-    db.prepare("UPDATE beans SET is_frozen = ?, planned_thaw_date = NULL, freeze_after_grams = NULL WHERE id = ?").run(
-      newState ? 1 : 0,
-      params.id
-    );
+    db.prepare(
+      `UPDATE beans SET is_frozen = ?, planned_thaw_date = NULL, freeze_after_grams = NULL${newState ? ", display_order = NULL" : ""} WHERE id = ?`
+    ).run(newState ? 1 : 0, params.id);
     db.prepare(
       "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES (?, ?, ?)"
     ).run(params.id, eventType, today);
+    if (newState) {
+      resequenceDisplayOrder(db);
+    }
   });
 
   toggleTx();

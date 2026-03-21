@@ -250,7 +250,7 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     }
 
     // Consume from queue in order
-    const acceptableMin = MIN_DAILY_GRAMS;
+    const acceptableMin = dayOverride ? dayOverride.dailyGrams : MIN_DAILY_GRAMS;
 
     for (const bean of activeBeans) {
       if (gramsNeeded <= 0) break;

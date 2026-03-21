@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { initializeSchema } from "@/lib/schema";
-import { computeSchedule, SchedulerBean } from "@/lib/scheduler";
 import { autoThawBeans } from "@/lib/auto-thaw";
 import { loadScheduleData } from "@/lib/schedule-loader";
 

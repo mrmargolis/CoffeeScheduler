@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { resequenceDisplayOrder } from "@/lib/display-order";
 
 /**
  * Auto-freeze beans whose brewed grams have reached the freeze_after_grams target.
@@ -19,12 +20,13 @@ export function autoFreezeBeans(db: Database.Database, today: string): void {
   const freezeTx = db.transaction(() => {
     for (const bean of beansToFreeze) {
       db.prepare(
-        "UPDATE beans SET is_frozen = 1, freeze_after_grams = NULL WHERE id = ?"
+        "UPDATE beans SET is_frozen = 1, freeze_after_grams = NULL, display_order = NULL WHERE id = ?"
       ).run(bean.id);
       db.prepare(
         "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES (?, 'freeze', ?)"
       ).run(bean.id, today);
     }
+    resequenceDisplayOrder(db);
   });
 
   freezeTx();
