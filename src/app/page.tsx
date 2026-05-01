@@ -11,6 +11,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 export default function Home() {
   const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const handleEscape = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -23,6 +24,21 @@ export default function Home() {
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [handleEscape]);
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/publish", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`Publish failed: ${data.details || "Unknown error"}`);
+      }
+    } catch (e) {
+      alert(`Publish failed: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const handleImportComplete = () => {
     mutate("/api/beans");
@@ -41,6 +57,13 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-3">
             <ImportDialog onImportComplete={handleImportComplete} />
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              className="px-4 py-2 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {publishing ? "Publishing..." : "Publish"}
+            </button>
             <button
               onClick={() => setSettingsOpen(true)}
               className="px-4 py-2 text-gray-400 hover:text-gray-200 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors"

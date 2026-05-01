@@ -155,4 +155,61 @@ describe("Home page", () => {
       expect(screen.getByText(/of coffee remaining/)).toBeInTheDocument();
     });
   });
+
+  it("renders the Publish button", () => {
+    renderHome();
+    expect(screen.getByText("Publish")).toBeInTheDocument();
+  });
+
+  it("shows Publishing... state and re-enables on success", async () => {
+    const user = userEvent.setup();
+    renderHome();
+
+    const publishBtn = screen.getByText("Publish");
+    await user.click(publishBtn);
+
+    // Button should show publishing state
+    await waitFor(() => {
+      expect(screen.getByText("Publish")).toBeInTheDocument();
+      expect(screen.getByText("Publish")).not.toBeDisabled();
+    });
+  });
+
+  it("calls /api/publish when Publish is clicked", async () => {
+    const user = userEvent.setup();
+    renderHome();
+
+    await user.click(screen.getByText("Publish"));
+
+    await waitFor(() => {
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/publish", {
+        method: "POST",
+      });
+    });
+  });
+
+  it("shows alert when publish fails", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("alert", vi.fn());
+
+    // Override fetch to fail for /api/publish
+    vi.mocked(fetch).mockImplementation((url: any, opts?: any) => {
+      if (url === "/api/publish") {
+        return Promise.resolve({
+          ok: false,
+          json: () => Promise.resolve({ details: "deploy error" }),
+        } as Response);
+      }
+      return mockFetch(url) as Promise<Response>;
+    });
+
+    renderHome();
+    await user.click(screen.getByText("Publish"));
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith(
+        "Publish failed: deploy error"
+      );
+    });
+  });
 });
