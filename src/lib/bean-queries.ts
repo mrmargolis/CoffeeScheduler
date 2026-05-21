@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
 import type { BeanWithComputed } from "./types";
+import { addDays, today as getToday } from "./date-utils";
+import { computeFrozenDays } from "./freeze-utils";
 
 const BEAN_SELECT = `
   SELECT
@@ -13,18 +15,15 @@ const BEAN_SELECT = `
   FROM beans b
   LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster`;
 
-export function mapBeanRow(row: any): BeanWithComputed {
+export function mapBeanRow(row: any, frozenDays: number = 0): BeanWithComputed {
   return {
     ...row,
     archived: Boolean(row.archived),
     is_frozen: Boolean(row.is_frozen),
     remaining_grams: row.weight_grams - row.total_brewed_grams,
+    frozen_days: frozenDays,
     ready_date: row.roast_date
-      ? (() => {
-          const d = new Date(row.roast_date);
-          d.setDate(d.getDate() + row.effective_rest_days);
-          return d.toISOString().split("T")[0];
-        })()
+      ? addDays(row.roast_date, row.effective_rest_days + frozenDays)
       : null,
   };
 }
@@ -33,6 +32,7 @@ export function queryBeans(
   db: Database.Database,
   opts: { archived?: boolean }
 ): BeanWithComputed[] {
+  const frozenDaysMap = computeFrozenDays(db, getToday());
   return db
     .prepare(
       `${BEAN_SELECT}
@@ -43,7 +43,7 @@ export function queryBeans(
       b.roast_date`
     )
     .all(opts.archived ? 1 : 0)
-    .map(mapBeanRow);
+    .map((row: any) => mapBeanRow(row, frozenDaysMap.get(row.id) || 0));
 }
 
 export function queryBean(
@@ -52,7 +52,8 @@ export function queryBean(
 ): BeanWithComputed | null {
   const row = db.prepare(`${BEAN_SELECT} WHERE b.id = ?`).get(id) as any;
   if (!row) return null;
-  return mapBeanRow(row);
+  const frozenDaysMap = computeFrozenDays(db, getToday());
+  return mapBeanRow(row, frozenDaysMap.get(id) || 0);
 }
 
 export function queryBeanRowsRaw(db: Database.Database): any[] {

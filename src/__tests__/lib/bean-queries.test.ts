@@ -115,6 +115,7 @@ describe("bean-queries", () => {
       expect(mapped.remaining_grams).toBe(200);
       expect(mapped.archived).toBe(true);
       expect(mapped.is_frozen).toBe(false);
+      expect(mapped.frozen_days).toBe(0);
     });
 
     it("handles null roast_date", () => {
@@ -129,6 +130,64 @@ describe("bean-queries", () => {
 
       const mapped = mapBeanRow(row);
       expect(mapped.ready_date).toBeNull();
+    });
+
+    it("pushes ready_date out by frozen_days", () => {
+      const row = {
+        roast_date: "2026-01-15",
+        effective_rest_days: 30,
+        weight_grams: 250,
+        total_brewed_grams: 0,
+        archived: 0,
+        is_frozen: 0,
+      };
+
+      const mapped = mapBeanRow(row, 20);
+
+      // 2026-01-15 + 30 + 20 = 2026-03-06
+      expect(mapped.ready_date).toBe("2026-03-06");
+      expect(mapped.frozen_days).toBe(20);
+    });
+  });
+
+  describe("frozen_days integration", () => {
+    it("queryBeans exposes frozen_days computed from freeze events", () => {
+      db.prepare(
+        "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('bean-1', 'freeze', '2026-02-01')"
+      ).run();
+      db.prepare(
+        "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('bean-1', 'thaw', '2026-02-21')"
+      ).run();
+
+      const beans = queryBeans(db, { archived: false });
+      const eth = beans.find((b) => b.id === "bean-1")!;
+
+      expect(eth.frozen_days).toBe(20);
+      // ready_date should be roast (2026-01-15) + rest (30) + frozen (20) = 2026-03-06
+      expect(eth.ready_date).toBe("2026-03-06");
+    });
+
+    it("queryBean exposes frozen_days for a still-frozen bean", () => {
+      db.prepare(
+        "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('bean-1', 'freeze', '2026-02-01')"
+      ).run();
+      db.prepare(
+        "UPDATE beans SET is_frozen = 1 WHERE id = 'bean-1'"
+      ).run();
+
+      const bean = queryBean(db, "bean-1")!;
+
+      // frozen_days for a still-frozen bean depends on `today`. Just assert > 0
+      // and that ready_date matches (rest + frozen_days).
+      expect(bean.frozen_days).toBeGreaterThan(0);
+      expect(bean.ready_date).not.toBe("2026-02-14"); // Not the un-frozen-adjusted date
+    });
+
+    it("beans without freeze events have frozen_days = 0", () => {
+      const beans = queryBeans(db, { archived: false });
+      for (const bean of beans) {
+        expect(bean.frozen_days).toBe(0);
+      }
     });
   });
 

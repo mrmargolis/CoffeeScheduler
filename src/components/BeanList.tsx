@@ -5,6 +5,7 @@ import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
 import { daysBetween, today as getToday } from "@/lib/date-utils";
+import { effectiveAge } from "@/lib/freeze-utils";
 import { extractBeanFinishDates, extractBeanStartDates } from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -66,30 +67,30 @@ export default function BeanList({
 
   const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey, fetcher);
 
-  // Compute age-at-finish for each bean
+  // Compute effective age-at-finish for each bean (frozen days subtracted)
   const ageAtFinish = useMemo(() => {
     const map = new Map<string, number>();
     if (!schedule || !beans) return map;
     const finishDates = extractBeanFinishDates(schedule);
     for (const bean of beans) {
-      if (!bean.roast_date) continue;
       const finishDate = finishDates.get(bean.id);
       if (!finishDate) continue;
-      map.set(bean.id, daysBetween(bean.roast_date, finishDate));
+      const age = effectiveAge(bean.roast_date, finishDate, bean.frozen_days);
+      if (age !== null) map.set(bean.id, age);
     }
     return map;
   }, [schedule, beans]);
 
-  // Compute age-at-start for each bean
+  // Compute effective age-at-start for each bean (frozen days subtracted)
   const ageAtStart = useMemo(() => {
     const map = new Map<string, number>();
     if (!schedule || !beans) return map;
     const startDates = extractBeanStartDates(schedule);
     for (const bean of beans) {
-      if (!bean.roast_date) continue;
       const startDate = startDates.get(bean.id);
       if (!startDate) continue;
-      map.set(bean.id, daysBetween(bean.roast_date, startDate));
+      const age = effectiveAge(bean.roast_date, startDate, bean.frozen_days);
+      if (age !== null) map.set(bean.id, age);
     }
     return map;
   }, [schedule, beans]);

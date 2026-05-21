@@ -80,4 +80,5 @@ export interface BeanWithComputed extends Bean {
   ready_date: string | null;
   remaining_grams: number;
   total_brewed_grams: number;
+  frozen_days: number;
 }

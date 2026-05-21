@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { daysBetween, today as getToday } from "@/lib/date-utils";
+import { effectiveAge } from "@/lib/freeze-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -90,7 +91,12 @@ export default function BeanDetail({
           <>
             <div className="text-gray-400">Current age</div>
             <div className="text-gray-300">
-              {daysBetween(bean.roast_date, getToday())} days
+              {effectiveAge(bean.roast_date, getToday(), bean.frozen_days ?? 0)} days
+              {(bean.frozen_days ?? 0) > 0 && (
+                <span className="text-gray-500 font-normal ml-1">
+                  ({daysBetween(bean.roast_date, getToday())} calendar, {bean.frozen_days} frozen)
+                </span>
+              )}
             </div>
           </>
         )}

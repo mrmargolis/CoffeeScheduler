@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import { computeSchedule, DayOverride, SchedulerBean } from "./scheduler";
-import { daysBetween, dateRange } from "./date-utils";
+import { dateRange } from "./date-utils";
 import { queryBeanRowsRaw } from "./bean-queries";
+import { computeFrozenDays } from "./freeze-utils";
 import { ConsumptionOverride, ScheduleDay, SkipDayRange } from "./types";
 
 export interface ScheduleData {
@@ -26,46 +27,7 @@ export function loadScheduleData(
   // Get all beans (including archived) so past brews can resolve names.
   const beanRows = queryBeanRowsRaw(db);
 
-  // Compute frozen days for each bean from freeze_events
-  const freezeEvents = db
-    .prepare(
-      "SELECT bean_id, event_type, event_date FROM freeze_events ORDER BY event_date"
-    )
-    .all() as { bean_id: string; event_type: string; event_date: string }[];
-
-  const frozenDaysMap = new Map<string, number>();
-  const activeFreezeStart = new Map<string, string>();
-
-  for (const event of freezeEvents) {
-    if (event.event_type === "freeze") {
-      activeFreezeStart.set(event.bean_id, event.event_date);
-    } else if (event.event_type === "thaw") {
-      const freezeStart = activeFreezeStart.get(event.bean_id);
-      if (freezeStart) {
-        const days = daysBetween(freezeStart, event.event_date);
-        frozenDaysMap.set(
-          event.bean_id,
-          (frozenDaysMap.get(event.bean_id) || 0) + days
-        );
-        activeFreezeStart.delete(event.bean_id);
-      }
-    }
-  }
-
-  // For currently frozen beans, add days from last freeze to today (or planned thaw date)
-  const beanPlannedThaw = new Map<string, string | null>();
-  for (const row of beanRows) {
-    beanPlannedThaw.set(row.id, row.planned_thaw_date || null);
-  }
-  for (const [beanId, freezeStart] of activeFreezeStart) {
-    const plannedThaw = beanPlannedThaw.get(beanId);
-    const freezeEnd = plannedThaw || today;
-    const days = daysBetween(freezeStart, freezeEnd);
-    frozenDaysMap.set(
-      beanId,
-      (frozenDaysMap.get(beanId) || 0) + days
-    );
-  }
+  const frozenDaysMap = computeFrozenDays(db, today);
 
   const schedulerBeans: SchedulerBean[] = beanRows.map((row) => {
     const isArchived = Boolean(row.archived);
