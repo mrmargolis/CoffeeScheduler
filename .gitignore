@@ -36,9 +36,9 @@ yarn-error.log*
 next-env.d.ts
 
 # app data
-coffee.db
-coffee.db-shm
-coffee.db-wal
+data/coffee.db
+data/coffee.db-shm
+data/coffee.db-wal
 *.xlsx
 *.xlsx:*
 *.zip

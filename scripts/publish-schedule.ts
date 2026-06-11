@@ -15,7 +15,7 @@ const dryRun = process.argv.includes("--dry-run");
 
 // --- Load data ---
 
-const db = getDb(path.join(process.cwd(), "coffee.db"));
+const db = getDb(path.join(process.cwd(), "data", "coffee.db"));
 const today = getToday();
 
 autoThawBeans(db, today);
