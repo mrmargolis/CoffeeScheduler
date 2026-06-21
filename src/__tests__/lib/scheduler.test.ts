@@ -508,11 +508,11 @@ describe("computeSchedule", () => {
     expect(schedule[0].is_gap).toBe(true);
   });
 
-  it("tosses remnant and shows gap when below acceptable minimum (39g)", () => {
+  it("schedules a sub-minimum remnant as a final partial brew day", () => {
     const bean = makeBean({
       roast_date: "2026-01-01",
       effective_rest_days: 30,
-      remaining_grams: 30, // Only 30g available, below 39g minimum
+      remaining_grams: 30, // 30g → 2 doses, below the 45g daily target
     });
 
     const schedule = computeSchedule({
@@ -524,10 +524,11 @@ describe("computeSchedule", () => {
       today: "2026-01-01",
     });
 
-    // 30g < 39g acceptable minimum → remnant tossed, day is a gap
-    expect(schedule[0].consumptions).toHaveLength(0);
-    expect(schedule[0].is_gap).toBe(true);
-    // Next day: bean was wasted, still a gap
+    // The bean's real supply is brewed even though it's below the daily target.
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].grams).toBe(30);
+    expect(schedule[0].is_gap).toBe(false);
+    // Next day: bean exhausted, gap.
     expect(schedule[1].is_gap).toBe(true);
   });
 
@@ -780,12 +781,13 @@ describe("computeSchedule", () => {
     expect(daily[0]).toBe(45);
     expect(daily[1]).toBe(45);
     expect(daily[2]).toBe(45);
-    // Day 4: only 35g remaining in the consumable window (170 - 135 = 35)
-    // 35g < 39g acceptable minimum → treated as remnant, tossed as gap
-    // OR consumed if paired with another bean. With single bean, this is a gap.
-    // Total should be exactly 135g (3 full days)
+    // Day 4: 35g remaining in the consumable window (170 - 135 = 35) is brewed
+    // as a final partial day, rounded down to 2 doses (30g); 5g dregs are wasted
+    // and the 30g freeze floor is preserved — no overshoot past the target.
+    expect(daily[3]).toBe(30);
+    // Total: 135g over 3 full days + 30g final day = 165g.
     const totalConsumed = daily.reduce((a, b) => a + b, 0);
-    expect(totalConsumed).toBe(135);
+    expect(totalConsumed).toBe(165);
   });
 
   it("freeze_after_grams transitions to next bean when freeze target reached", () => {
@@ -847,8 +849,9 @@ describe("computeSchedule", () => {
       (sum, day) => sum + day.consumptions.reduce((s, c) => s + c.grams, 0),
       0
     );
-    // Should consume all 200g (4 full days = 180g, then 20g remainder < min dose)
-    expect(totalConsumed).toBe(180);
+    // 4 full days (180g) + a 15g final partial day (20g rounds down to 1 dose);
+    // the 5g sub-dose remainder is wasted. Total = 195g.
+    expect(totalConsumed).toBe(195);
   });
 
   it("freeze_after_grams does not count toward surplus when bean is at freeze target", () => {

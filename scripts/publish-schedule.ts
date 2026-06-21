@@ -8,8 +8,14 @@ import { autoThawBeans } from "../src/lib/auto-thaw";
 import { autoFreezeBeans } from "../src/lib/auto-freeze";
 import { loadScheduleData } from "../src/lib/schedule-loader";
 import { buildCalendarEvents } from "../src/lib/calendar-utils";
-import { getRoasterColor } from "../src/lib/colors";
 import { ScheduleDay } from "../src/lib/types";
+import {
+  DayCellData,
+  MonthData,
+  escapeHtml,
+  renderMonth,
+  REHIGHLIGHT_SCRIPT,
+} from "../src/lib/schedule-html";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -21,7 +27,10 @@ const today = getToday();
 autoThawBeans(db, today);
 autoFreezeBeans(db, today);
 
-// Date range: 1st of current month through end of next month
+// Schedule spans the 1st of the current month through the end of next month so
+// the calendar shows past brews (actual history) alongside the future
+// projection. Past days without recorded brews are flagged is_actual by the
+// scheduler, so the gap marking below suppresses their "No coffee!" indicator.
 const now = new Date();
 const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 const endMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0); // last day of next month
@@ -33,20 +42,6 @@ const { summary } = buildCalendarEvents(schedule, skipDayRanges, today);
 closeDb();
 
 // --- Build calendar data structures ---
-
-interface MonthData {
-  label: string; // "March 2026"
-  weeks: (DayCellData | null)[][]; // 7-col grid, null = empty cell
-}
-
-interface DayCellData {
-  date: string;
-  dayNum: number;
-  isToday: boolean;
-  isGap: boolean;
-  isSkip: boolean;
-  consumptions: ScheduleDay["consumptions"];
-}
 
 // Group schedule days by month
 const scheduleMap = new Map<string, ScheduleDay>();
@@ -85,7 +80,9 @@ function buildMonths(): MonthData[] {
         date: iso,
         dayNum: d,
         isToday: iso === today,
-        isGap: sched?.is_gap ?? false,
+        // Mirror the dynamic calendar: only projected gaps are flagged. Past
+        // empty days are is_actual, so they render blank rather than "No coffee!".
+        isGap: (sched?.is_gap ?? false) && !(sched?.is_actual ?? false),
         isSkip: sched?.is_skip ?? false,
         consumptions: sched?.consumptions ?? [],
       });
@@ -110,57 +107,6 @@ function buildMonths(): MonthData[] {
 const months = buildMonths();
 
 // --- Generate HTML ---
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function renderDayCell(cell: DayCellData | null): string {
-  if (!cell) return `<div class="cell empty"></div>`;
-
-  const classes = ["cell"];
-  if (cell.isToday) classes.push("today");
-  if (cell.isGap) classes.push("gap");
-  if (cell.isSkip) classes.push("skip");
-
-  let pills = "";
-  const detailLines: string[] = [];
-
-  // Format date label for modal: "Tue Mar 3"
-  const d = new Date(cell.date + "T00:00:00Z");
-  const dayLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
-  detailLines.push(`<strong>${escapeHtml(dayLabel)}</strong>`);
-
-  for (const c of cell.consumptions) {
-    const color = getRoasterColor(c.roaster);
-    pills += `<div class="pill" style="background:${color.bg};border-color:${color.border};color:${color.text}">${Math.round(c.grams)}g ${escapeHtml(c.bean_name)}</div>`;
-    detailLines.push(`<div class="modal-pill" style="background:${color.bg};border-color:${color.border};color:${color.text}">${Math.round(c.grams)}g ${escapeHtml(c.bean_name)}</div>`);
-  }
-  if (cell.isGap) {
-    pills += `<div class="pill gap-pill">No coffee!</div>`;
-    detailLines.push(`<div class="modal-pill gap-pill">No coffee!</div>`);
-  }
-  if (cell.isSkip) {
-    pills += `<div class="pill skip-pill">Skip</div>`;
-    detailLines.push(`<div class="modal-pill skip-pill">Skip</div>`);
-  }
-
-  const hasDetail = cell.consumptions.length > 0 || cell.isGap || cell.isSkip;
-  const detailAttr = hasDetail ? ` data-detail="${escapeHtml(detailLines.join(""))}"` : "";
-
-  return `<div class="${classes.join(" ")}"${detailAttr}><span class="day-num">${cell.dayNum}</span>${pills}</div>`;
-}
-
-function renderMonth(m: MonthData): string {
-  let html = `<h2>${escapeHtml(m.label)}</h2><div class="cal-grid"><div class="hdr">Mon</div><div class="hdr">Tue</div><div class="hdr">Wed</div><div class="hdr">Thu</div><div class="hdr">Fri</div><div class="hdr">Sat</div><div class="hdr">Sun</div>`;
-  for (const week of m.weeks) {
-    for (const cell of week) {
-      html += renderDayCell(cell);
-    }
-  }
-  html += `</div>`;
-  return html;
-}
 
 let summaryHtml = "";
 if (summary) {
@@ -220,6 +166,7 @@ ${months.map(renderMonth).join("\n")}
 <div class="footer">Generated ${escapeHtml(generatedAt)}</div>
 <div id="modal" class="modal hidden"></div>
 <script>
+${REHIGHLIGHT_SCRIPT}
 (function(){
   var modal=document.getElementById("modal");
   document.querySelectorAll(".cell[data-detail]").forEach(function(cell){

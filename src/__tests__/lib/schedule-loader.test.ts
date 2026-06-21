@@ -117,6 +117,29 @@ describe("loadScheduleData", () => {
     expect(feb5?.consumptions.length).toBeGreaterThan(0);
   });
 
+  it("marks empty past days as gaps when the range starts before today", () => {
+    insertBean("b1", "Ethiopia", "Square Mile", "2026-01-01", 250);
+
+    // Range starts on the 1st but today is the 21st: days 19-20 are empty past days.
+    const result = loadScheduleData(db, "2026-06-01", "2026-06-30", "2026-06-21");
+
+    const jun19 = result.schedule.find((d) => d.date === "2026-06-19");
+    const jun20 = result.schedule.find((d) => d.date === "2026-06-20");
+    expect(jun19?.is_gap).toBe(true);
+    expect(jun20?.is_gap).toBe(true);
+  });
+
+  it("does not report past-day gaps when the range starts at today (matches the app)", () => {
+    insertBean("b1", "Ethiopia", "Square Mile", "2026-01-01", 250);
+
+    // Starting the schedule at `today` is what /api/schedule does, so past days
+    // are simply excluded rather than shown as gaps.
+    const result = loadScheduleData(db, "2026-06-21", "2026-06-30", "2026-06-21");
+
+    expect(result.schedule.some((d) => d.date < "2026-06-21")).toBe(false);
+    expect(result.schedule.find((d) => d.date === "2026-06-19")).toBeUndefined();
+  });
+
   it("uses daily_consumption_grams setting", () => {
     insertBean("b1", "Ethiopia", "Square Mile", "2026-01-01", 250);
     db.prepare("UPDATE settings SET value = '40' WHERE key = 'daily_consumption_grams'").run();

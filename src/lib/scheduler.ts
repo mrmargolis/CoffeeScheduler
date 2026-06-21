@@ -7,9 +7,6 @@ const MIN_DOSE_GRAMS = 12;
 /** Typical dose size used for rounding on transition days. */
 const DOSE_SIZE_GRAMS = 15;
 
-/** Minimum acceptable daily consumption. Days below this toss remnants. */
-const MIN_DAILY_GRAMS = 39;
-
 export interface SchedulerBean {
   id: string;
   name: string;
@@ -250,8 +247,6 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
     }
 
     // Consume from queue in order
-    const acceptableMin = dayOverride ? dayOverride.dailyGrams : MIN_DAILY_GRAMS;
-
     for (const bean of activeBeans) {
       if (gramsNeeded <= 0) break;
       // Don't start a new bean just to fill a gap smaller than a minimum dose
@@ -297,17 +292,6 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
         grams: consume,
       });
       gramsNeeded -= consume;
-    }
-
-    const totalConsumed = dayDailyGrams - gramsNeeded;
-
-    // If we can't reach the acceptable minimum, toss the partial remnants
-    // (remaining already decremented, so those grams are effectively wasted).
-    // Skip this check when the user has pre-logged brews — they committed
-    // to brewing on this day.
-    if (!hasPreLogged && totalConsumed > 0 && totalConsumed < acceptableMin) {
-      consumptions.length = 0;
-      gramsNeeded = dayDailyGrams;
     }
 
     // Merge pre-logged and projected consumptions for the same bean
