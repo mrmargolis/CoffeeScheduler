@@ -76,8 +76,8 @@ describe("schedule API integration", () => {
     // Bean roasted Jan 1 with default 30 rest days + 10 frozen days = ready Feb 10.
     const { schedule } = loadScheduleData(db, "2026-02-09", "2026-02-11", "2026-02-01");
 
-    expect(schedule[0].is_gap).toBe(true); // Feb 9: not ready
-    expect(schedule[1].is_gap).toBe(false); // Feb 10: ready
+    expect(schedule[0].consumptions[0].days_early).toBe(1); // Feb 9: one day short
+    expect(schedule[1].consumptions[0].days_early).toBeUndefined(); // Feb 10: ready
     expect(schedule[1].consumptions[0].bean_name).toBe("Ethiopia");
   });
 
@@ -108,8 +108,8 @@ describe("schedule API integration", () => {
     // Ready date = Jan 1 + 30 (rest) + 26 (frozen from Jan 15 to Feb 10) = Feb 26
     const { schedule } = loadScheduleData(db, "2026-02-25", "2026-02-27", "2026-02-01");
 
-    expect(schedule[0].is_gap).toBe(true); // Feb 25: not ready
-    expect(schedule[1].is_gap).toBe(false); // Feb 26: ready
+    expect(schedule[0].consumptions[0].days_early).toBe(1); // Feb 25: one day short
+    expect(schedule[1].consumptions[0].days_early).toBeUndefined(); // Feb 26: ready
     expect(schedule[1].consumptions[0].bean_name).toBe("Ethiopia");
   });
 

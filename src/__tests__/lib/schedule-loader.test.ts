@@ -65,9 +65,11 @@ describe("loadScheduleData", () => {
 
     const feb9 = result.schedule.find((d) => d.date === "2026-02-09");
     const feb10 = result.schedule.find((d) => d.date === "2026-02-10");
-    expect(feb9?.is_gap).toBe(true);
+    // Feb 9 is one day short of ready, so it's scheduled but flagged early
+    expect(feb9?.consumptions[0].days_early).toBe(1);
     expect(feb10?.is_gap).toBe(false);
     expect(feb10?.consumptions[0].bean_name).toBe("Ethiopia");
+    expect(feb10?.consumptions[0].days_early).toBeUndefined();
   });
 
   it("handles currently frozen beans with planned thaw date", () => {
@@ -82,9 +84,11 @@ describe("loadScheduleData", () => {
 
     const feb25 = result.schedule.find((d) => d.date === "2026-02-25");
     const feb26 = result.schedule.find((d) => d.date === "2026-02-26");
-    expect(feb25?.is_gap).toBe(true);
+    // Thawed on Feb 10, so it's brewable by Feb 25 — one day short of rested
+    expect(feb25?.consumptions[0].days_early).toBe(1);
     expect(feb26?.is_gap).toBe(false);
     expect(feb26?.consumptions[0].bean_name).toBe("Ethiopia");
+    expect(feb26?.consumptions[0].days_early).toBeUndefined();
   });
 
   it("archived beans have zero remaining grams but resolve brew names", () => {

@@ -193,7 +193,7 @@ describe("Home page", () => {
     vi.stubGlobal("alert", vi.fn());
 
     // Override fetch to fail for /api/publish
-    vi.mocked(fetch).mockImplementation((url: any, opts?: any) => {
+    vi.mocked(fetch).mockImplementation((url: any) => {
       if (url === "/api/publish") {
         return Promise.resolve({
           ok: false,

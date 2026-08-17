@@ -6,7 +6,11 @@ import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
 import { daysBetween, today as getToday } from "@/lib/date-utils";
 import { effectiveAge } from "@/lib/freeze-utils";
-import { extractBeanFinishDates, extractBeanStartDates } from "@/lib/schedule-utils";
+import {
+  extractBeanEarlyStarts,
+  extractBeanFinishDates,
+  extractBeanStartDates,
+} from "@/lib/schedule-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -94,6 +98,12 @@ export default function BeanList({
     }
     return map;
   }, [schedule, beans]);
+
+  // Bags whose queue position starts them before they've finished resting
+  const earlyStarts = useMemo(
+    () => (schedule ? extractBeanEarlyStarts(schedule) : new Map<string, number>()),
+    [schedule]
+  );
 
   const freezeSuggestions = useMemo(() => {
     const suggestions = new Map<string, string>();
@@ -332,6 +342,12 @@ export default function BeanList({
             <span className="text-blue-400/60">Freeze at {bean.freeze_after_grams}g</span>
           )}
         </div>
+        {earlyStarts.has(bean.id) && (
+          <p className="mt-0.5 text-xs font-medium text-orange-400">
+            Starts {earlyStarts.get(bean.id)} day
+            {earlyStarts.get(bean.id) === 1 ? "" : "s"} before ready ({bean.ready_date})
+          </p>
+        )}
         {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
           <p className="mt-0.5 text-xs font-medium text-red-400">
             Finishes day {ageAtFinish.get(bean.id)}

@@ -1,4 +1,4 @@
-import { addDays, dateRange } from "./date-utils";
+import { addDays, dateRange, daysBetween } from "./date-utils";
 import { ScheduleDay } from "./types";
 
 /** Minimum viable dose. Beans with less than this remaining are done. */
@@ -36,6 +36,15 @@ export interface ActualBrew {
 export function computeReadyDate(bean: SchedulerBean): string | null {
   if (!bean.roast_date) return null;
   return addDays(bean.roast_date, bean.effective_rest_days + bean.frozen_days);
+}
+
+/**
+ * A bag still sitting in the freezer on this date can't be brewed, no matter
+ * where it sits in the queue. Frozen bags without a planned thaw date are
+ * filtered out of the queue entirely before this is consulted.
+ */
+function isInFreezer(bean: SchedulerBean, date: string): boolean {
+  return Boolean(bean.is_frozen && bean.planned_thaw_date && date < bean.planned_thaw_date);
 }
 
 /**
@@ -246,14 +255,20 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
       }
     }
 
-    // Consume from queue in order
+    // Consume from queue in order. Queue position is authoritative: a bag that
+    // hasn't finished resting is still used rather than passed over, and the
+    // consumption records how many days early it was started.
     for (const bean of activeBeans) {
       if (gramsNeeded <= 0) break;
       // Don't start a new bean just to fill a gap smaller than a minimum dose
       if (consumptions.length > 0 && gramsNeeded <= MIN_DOSE_GRAMS) break;
 
       const readyDate = computeReadyDate(bean);
-      if (!readyDate || readyDate > date) continue;
+      // No roast date means no ready date to be early against, and the bag
+      // would otherwise block the queue forever.
+      if (!readyDate) continue;
+      if (isInFreezer(bean, date)) continue;
+      const daysEarly = readyDate > date ? daysBetween(date, readyDate) : 0;
 
       const rem = remaining.get(bean.id) || 0;
       if (rem <= MIN_DOSE_GRAMS) continue;
@@ -290,6 +305,7 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
         bean_name: bean.name,
         roaster: bean.roaster,
         grams: consume,
+        ...(daysEarly > 0 ? { days_early: daysEarly } : {}),
       });
       gramsNeeded -= consume;
     }
@@ -302,6 +318,10 @@ export function computeSchedule(options: ScheduleOptions): ScheduleDay[] {
         const existing = merged.get(c.bean_id);
         if (existing) {
           existing.grams += c.grams;
+          // Pre-logged entries carry no earliness; keep it if the projected half has it
+          if (existing.days_early === undefined && c.days_early !== undefined) {
+            existing.days_early = c.days_early;
+          }
         } else {
           merged.set(c.bean_id, { ...c });
         }

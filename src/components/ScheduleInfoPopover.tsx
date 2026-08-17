@@ -50,7 +50,13 @@ export default function ScheduleInfoPopover() {
             <li>
               <strong className="text-gray-100">Queue order</strong> — Beans are
               scheduled by: manual drag order &rarr; already started &rarr;
-              earliest ready date.
+              earliest ready date. The order is followed strictly, so the next
+              bag in the list is always the next bag in the schedule.
+            </li>
+            <li>
+              <strong className="text-gray-100">Early starts</strong> — If the
+              next bag hasn&apos;t finished resting it is still scheduled, and
+              the bean list flags how many days early it starts.
             </li>
             <li>
               <strong className="text-gray-100">Ready date</strong> — Roast date
@@ -81,7 +87,8 @@ export default function ScheduleInfoPopover() {
             </li>
             <li>
               <strong className="text-gray-100">Gaps</strong> — Appear when no
-              beans are ready on a future day.
+              beans are available on a future day — every bag is either
+              exhausted or still in the freezer.
             </li>
           </ul>
         </div>

@@ -271,7 +271,7 @@ describe("computeSchedule", () => {
     expect(schedule[0].consumptions[0].bean_id).toBe("b2");
   });
 
-  it("detects gap days when no coffee available", () => {
+  it("starts an unrested bean early rather than leaving a gap", () => {
     // Bean not ready until Feb 14
     const bean = makeBean({
       roast_date: "2026-01-15",
@@ -288,8 +288,10 @@ describe("computeSchedule", () => {
       today: "2026-01-01",
     });
 
-    expect(schedule[0].is_gap).toBe(true); // Feb 13: not ready
+    expect(schedule[0].is_gap).toBe(false); // Feb 13: used a day early
+    expect(schedule[0].consumptions[0].days_early).toBe(1);
     expect(schedule[1].is_gap).toBe(false); // Feb 14: ready
+    expect(schedule[1].consumptions[0].days_early).toBeUndefined();
     expect(schedule[2].is_gap).toBe(false); // Feb 15: still has coffee
   });
 
@@ -337,8 +339,8 @@ describe("computeSchedule", () => {
       today: "2026-01-01",
     });
 
-    expect(schedule[0].is_gap).toBe(true); // Feb 14: not ready
-    expect(schedule[1].is_gap).toBe(false); // Feb 15: ready
+    expect(schedule[0].consumptions[0].days_early).toBe(1); // Feb 14: one day short
+    expect(schedule[1].consumptions[0].days_early).toBeUndefined(); // Feb 15: ready
   });
 
   it("uses actual brew data for past days", () => {
@@ -483,8 +485,9 @@ describe("computeSchedule", () => {
       today: "2026-01-26",
     });
 
-    expect(schedule[0].is_gap).toBe(true); // Feb 19: not ready
-    expect(schedule[1].is_gap).toBe(false); // Feb 20: ready
+    // Thawed Feb 15, so it's out of the freezer by Feb 19 but a day short of rested
+    expect(schedule[0].consumptions[0].days_early).toBe(1); // Feb 19
+    expect(schedule[1].consumptions[0].days_early).toBeUndefined(); // Feb 20: ready
     expect(schedule[2].is_gap).toBe(false); // Feb 21: still has coffee
   });
 
@@ -1172,5 +1175,159 @@ describe("computeSchedule", () => {
     expect(schedule[0].is_actual).toBe(true);
     expect(schedule[0].is_skip).toBe(false);
     expect(schedule[0].consumptions[0].grams).toBe(15);
+  });
+});
+
+describe("strict queue order", () => {
+  it("tops up a remnant day from the next bean in order, not a later ready one", () => {
+    // The reported scenario: an open bag runs out mid-day, the next bag in the
+    // queue is one day short of rested, and a much later bag happens to be ready.
+    const open = makeBean({
+      id: "open",
+      name: "Open Bag",
+      display_order: 4,
+      roast_date: "2026-01-01",
+      effective_rest_days: 21,
+      weight_grams: 200,
+      remaining_grams: 35,
+    });
+    const next = makeBean({
+      id: "next",
+      name: "Next In Queue",
+      display_order: 5,
+      roast_date: "2026-01-03",
+      effective_rest_days: 30, // ready 2026-02-02
+    });
+    const later = makeBean({
+      id: "later",
+      name: "Later But Ready",
+      display_order: 8,
+      roast_date: "2026-01-01",
+      effective_rest_days: 31, // ready 2026-02-01
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-02-01",
+      endDate: "2026-02-01",
+      dailyConsumptionGrams: 45,
+      beans: [open, next, later],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    expect(schedule[0].consumptions).toHaveLength(2);
+    expect(schedule[0].consumptions[0].bean_id).toBe("open");
+    expect(schedule[0].consumptions[0].grams).toBe(30);
+    expect(schedule[0].consumptions[1].bean_id).toBe("next");
+    expect(schedule[0].consumptions[1].grams).toBe(15);
+    expect(schedule[0].consumptions[1].days_early).toBe(1);
+  });
+
+  it("uses an unrested bean ahead of a rested one lower in the queue", () => {
+    const first = makeBean({
+      id: "first",
+      display_order: 1,
+      roast_date: "2026-01-15",
+      effective_rest_days: 30, // ready 2026-02-14
+    });
+    const second = makeBean({
+      id: "second",
+      display_order: 2,
+      roast_date: "2026-01-01",
+      effective_rest_days: 30, // ready 2026-01-31
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-02-01",
+      endDate: "2026-02-01",
+      dailyConsumptionGrams: 45,
+      beans: [first, second],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].bean_id).toBe("first");
+    expect(schedule[0].consumptions[0].grams).toBe(45);
+    expect(schedule[0].consumptions[0].days_early).toBe(13);
+  });
+
+  it("skips a bag still in the freezer, then uses it once thawed", () => {
+    const frozen = makeBean({
+      id: "frozen",
+      display_order: 1,
+      is_frozen: true,
+      planned_thaw_date: "2026-02-10",
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+      frozen_days: 20, // ready 2026-02-20
+    });
+    const thawed = makeBean({
+      id: "thawed",
+      display_order: 2,
+      roast_date: "2026-01-01",
+      effective_rest_days: 30, // ready 2026-01-31
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-02-09",
+      endDate: "2026-02-10",
+      dailyConsumptionGrams: 45,
+      beans: [frozen, thawed],
+      actualBrews: [],
+      today: "2026-02-01",
+    });
+
+    // Feb 9: still in the freezer, so the queue falls through
+    expect(schedule[0].consumptions[0].bean_id).toBe("thawed");
+    expect(schedule[0].consumptions[0].days_early).toBeUndefined();
+
+    // Feb 10: out of the freezer, so queue order applies — 10 days short of rested
+    expect(schedule[1].consumptions[0].bean_id).toBe("frozen");
+    expect(schedule[1].consumptions[0].days_early).toBe(10);
+  });
+
+  it("skips a bag with no roast date rather than blocking the queue", () => {
+    const noRoast = makeBean({
+      id: "no-roast",
+      display_order: 1,
+      roast_date: null,
+    });
+    const dated = makeBean({
+      id: "dated",
+      display_order: 2,
+      roast_date: "2026-01-01",
+      effective_rest_days: 30,
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-02-01",
+      endDate: "2026-02-01",
+      dailyConsumptionGrams: 45,
+      beans: [noRoast, dated],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    expect(schedule[0].consumptions).toHaveLength(1);
+    expect(schedule[0].consumptions[0].bean_id).toBe("dated");
+  });
+
+  it("omits days_early on the ready date itself", () => {
+    const bean = makeBean({
+      roast_date: "2026-01-01",
+      effective_rest_days: 30, // ready 2026-01-31
+    });
+
+    const schedule = computeSchedule({
+      startDate: "2026-01-31",
+      endDate: "2026-01-31",
+      dailyConsumptionGrams: 45,
+      beans: [bean],
+      actualBrews: [],
+      today: "2026-01-01",
+    });
+
+    expect(schedule[0].consumptions[0].days_early).toBeUndefined();
   });
 });

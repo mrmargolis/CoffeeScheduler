@@ -53,6 +53,7 @@ export interface ScheduleDay {
     bean_name: string;
     roaster: string;
     grams: number;
+    days_early?: number; // > 0 when this bag was started before its ready date
   }[];
   is_gap: boolean; // No coffee available
   is_surplus: boolean; // Multiple bags ready
