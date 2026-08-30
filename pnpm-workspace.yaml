@@ -1,0 +1,14 @@
+# Supply-chain guard: refuse any package version published less than 7 days
+# ago (10080 minutes). Freshly published versions are the usual vector for
+# compromised-maintainer attacks; the delay gives them time to be caught and
+# pulled before they reach this project. Re-checked on every install, including
+# ones resolved entirely from pnpm-lock.yaml.
+minimumReleaseAge: 10080
+
+# pnpm blocks dependency lifecycle scripts by default. Anything set to true
+# here is allowed to run its install/build script; everything else stays
+# blocked and pnpm will ask before it runs.
+allowBuilds:
+  better-sqlite3: true # compiles/downloads the native SQLite binding
+  esbuild: true # installs the platform binary that vitest and tsx run on
+  unrs-resolver: true # native binding for the ESLint import resolver
