@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
-import { getRoasterColor } from "@/lib/colors";
 import { today as getToday, scheduleKey, formatShortDay } from "@/lib/date-utils";
 import { effectiveAge } from "@/lib/freeze-utils";
 import {
@@ -12,6 +11,7 @@ import {
   extractBeanStartDates,
 } from "@/lib/schedule-utils";
 import { daysBetween } from "@/lib/date-utils";
+import { useRoasterColors } from "@/lib/use-roaster-colors";
 import { ChevronRight, GripIcon, SnowflakeIcon, WarningIcon } from "./icons";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -59,6 +59,7 @@ export default function BeanList({
     "/api/beans",
     fetcher
   );
+  const colorFor = useRoasterColors();
 
   const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey(), fetcher);
 
@@ -282,7 +283,7 @@ export default function BeanList({
   }
 
   const renderBean = (bean: BeanWithComputed, draggable: boolean) => {
-    const roasterColor = getRoasterColor(bean.roaster);
+    const roasterColor = colorFor(bean.roaster);
     const isInProgress = bean.id === inProgressBeanId;
     const isSelected = selectedBeanId === bean.id;
     const pill = status(bean, isInProgress);

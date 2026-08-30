@@ -1,5 +1,5 @@
 import { ConsumptionOverride, ScheduleDay, SkipDayRange } from "./types";
-import { getRoasterColor } from "./colors";
+import { getRoasterColor, RoasterColor } from "./colors";
 
 export type CalendarEventKind = "bean" | "skip" | "gap" | "override";
 
@@ -51,8 +51,15 @@ function nextDay(iso: string): string {
   return d.toISOString().split("T")[0];
 }
 
-function spanEvent(beanId: string, span: BeanSpan): CalendarEvent {
-  const color = getRoasterColor(span.roaster);
+/** How a roaster maps to a colour for this render. */
+export type RoasterPalette = (roaster: string) => RoasterColor;
+
+function spanEvent(
+  beanId: string,
+  span: BeanSpan,
+  colorFor: RoasterPalette
+): CalendarEvent {
+  const color = colorFor(span.roaster);
   const classNames: string[] = [];
   if (span.isActual) classNames.push("brewed");
   if (span.daysEarly > 0) classNames.push("early-start");
@@ -80,7 +87,8 @@ export function buildCalendarEvents(
   schedule: ScheduleDay[] | null,
   skipDayRanges: SkipDayRange[] | undefined,
   today: string,
-  consumptionOverrides?: ConsumptionOverride[]
+  consumptionOverrides?: ConsumptionOverride[],
+  colorFor: RoasterPalette = getRoasterColor
 ): { events: CalendarEvent[]; summary: ScheduleSummary | null } {
   if (!schedule) return { events: [], summary: null };
 
@@ -115,7 +123,7 @@ export function buildCalendarEvents(
 
   const flushAll = () => {
     for (const [beanId, span] of beanSpans) {
-      events.push(spanEvent(beanId, span));
+      events.push(spanEvent(beanId, span, colorFor));
     }
     beanSpans.clear();
   };
@@ -173,7 +181,7 @@ export function buildCalendarEvents(
       flushAll();
 
       for (const consumption of day.consumptions) {
-        const color = getRoasterColor(consumption.roaster);
+        const color = colorFor(consumption.roaster);
         const daysEarly = consumption.days_early ?? 0;
         const classNames: string[] = [];
         if (day.is_actual) classNames.push("brewed");
@@ -218,7 +226,7 @@ export function buildCalendarEvents(
         } else {
           // Flush existing span if any
           if (existing) {
-            events.push(spanEvent(key, existing));
+            events.push(spanEvent(key, existing, colorFor));
           }
           // Start new span
           beanSpans.set(key, {

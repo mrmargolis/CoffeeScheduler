@@ -9,6 +9,7 @@ import useSWR, { mutate } from "swr";
 import { ScheduleDay, SkipDayRange, ConsumptionOverride } from "@/lib/types";
 import { buildCalendarEvents } from "@/lib/calendar-utils";
 import { today as getToday, scheduleKey } from "@/lib/date-utils";
+import { useRoasterColors } from "@/lib/use-roaster-colors";
 import { ChevronLeft, ChevronRight } from "./icons";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -22,6 +23,7 @@ const toolbarButton =
 
 export default function Calendar({ onSelectBean }: CalendarProps) {
   const today = getToday();
+  const colorFor = useRoasterColors();
   const calendarRef = useRef<FullCalendar>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [monthLabel, setMonthLabel] = useState<{ month: string; year: string }>({
@@ -49,9 +51,10 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
         schedule || null,
         skipDayRanges,
         today,
-        consumptionOverrides
+        consumptionOverrides,
+        colorFor
       ),
-    [schedule, skipDayRanges, today, consumptionOverrides]
+    [schedule, skipDayRanges, today, consumptionOverrides, colorFor]
   );
 
   // On narrow screens the bars lose their labels, so name the bags on show.

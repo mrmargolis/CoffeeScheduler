@@ -54,6 +54,11 @@ export function getRoasterColor(roaster: string): RoasterColor {
  * survivable where the colour sits beside a label, but not where colour is the
  * only thing identifying a bag, as on the published schedule page.
  *
+ * The result depends only on the SET of roasters, not the order they arrive
+ * in: names are de-duplicated and sorted first, so the app and the published
+ * page derive the same colours from the same roasters without having to agree
+ * on an iteration order.
+ *
  * Each roaster keeps its hashed slot when that slot is free. When it is not,
  * probing steps by PROBE_STRIDE rather than by one: neighbouring palette
  * entries are neighbouring hues (teal sits next to cyan), so a +1 probe would
@@ -68,8 +73,7 @@ export function assignRoasterColors(
   const taken = new Set<number>();
   const assigned = new Map<string, RoasterColor>();
 
-  for (const roaster of roasters) {
-    if (assigned.has(roaster)) continue;
+  for (const roaster of [...new Set(roasters)].sort()) {
     const preferred = hashString(roaster) % PALETTE.length;
     let slot = preferred;
     for (let probe = 0; probe < PALETTE.length; probe++) {

@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { summarizeSchedule } from "@/lib/calendar-utils";
-import { getRoasterColor } from "@/lib/colors";
 import { extractBeanEarlyStarts, extractBeanStartDates } from "@/lib/schedule-utils";
 import { today as getToday, scheduleKey, formatShortDay } from "@/lib/date-utils";
+import { useRoasterColors } from "@/lib/use-roaster-colors";
 import ScheduleInfoPopover from "./ScheduleInfoPopover";
 import { WarningIcon } from "./icons";
 
@@ -24,6 +24,7 @@ export default function RunwayStrip({
   const today = getToday();
   const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey(), fetcher);
   const { data: beans } = useSWR<BeanWithComputed[]>("/api/beans", fetcher);
+  const colorFor = useRoasterColors();
 
   const summary = useMemo(
     () => (schedule ? summarizeSchedule(schedule, today) : null),
@@ -102,7 +103,7 @@ export default function RunwayStrip({
           >
             <span
               className="h-[15px] w-[3px] shrink-0 rounded-sm"
-              style={{ backgroundColor: getRoasterColor(brewing.roaster).border }}
+              style={{ backgroundColor: colorFor(brewing.roaster).border }}
             />
             <span className="truncate text-[13.5px] font-medium">
               {brewing.name}
