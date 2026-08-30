@@ -47,6 +47,27 @@ describe("assignRoasterColors", () => {
     expect(assignRoasterColors(roasters)).toEqual(assignRoasterColors(roasters));
   });
 
+  it("depends on the set of roasters, not the order they arrive in", () => {
+    // This is what lets the app and the published page agree without having to
+    // coordinate an iteration order.
+    const forward = assignRoasterColors(["Square Mile", "La Cabra", "Friedhats"]);
+    const reversed = assignRoasterColors(["Friedhats", "La Cabra", "Square Mile"]);
+    expect(forward).toEqual(reversed);
+  });
+
+  it("resolves a collision to a clearly different hue, not the neighbouring one", () => {
+    // Palette neighbours are hue neighbours, so a +1 probe would hand out two
+    // colours nobody can tell apart.
+    const assigned = assignRoasterColors(["Square Mile", "La Cabra"]);
+    const [a, b] = [
+      assigned.get("Square Mile")!.border,
+      assigned.get("La Cabra")!.border,
+    ];
+    expect(a).not.toBe(b);
+    // #78d0ca (teal) and #7ccbe4 (cyan) are the adjacent-slot pair.
+    expect([a, b].sort()).not.toEqual(["#78d0ca", "#7ccbe4"]);
+  });
+
   it("still returns a colour for every roaster past the palette size", () => {
     const roasters = Array.from({ length: 14 }, (_, i) => `Roaster ${i}`);
     const assigned = assignRoasterColors(roasters);

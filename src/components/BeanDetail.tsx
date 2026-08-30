@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import useSWR, { mutate } from "swr";
 import { ScheduleDay } from "@/lib/types";
-import { getRoasterColor } from "@/lib/colors";
 import {
   daysBetween,
   today as getToday,
@@ -15,6 +14,7 @@ import {
   extractBeanFinishDates,
   extractBeanStartDates,
 } from "@/lib/schedule-utils";
+import { useRoasterColors } from "@/lib/use-roaster-colors";
 import { ChevronLeft, CloseIcon, SnowflakeIcon } from "./icons";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -34,6 +34,7 @@ export default function BeanDetail({
   const { data: bean, error } = useSWR(`/api/beans/${beanId}`, fetcher);
   const { data: settings } = useSWR("/api/settings", fetcher);
   const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey(), fetcher);
+  const colorFor = useRoasterColors();
   const [restDays, setRestDays] = useState<string>("");
   const [roastDate, setRoastDate] = useState("");
   const [plannedThawDate, setPlannedThawDate] = useState("");
@@ -96,7 +97,7 @@ export default function BeanDetail({
     onClose();
   };
 
-  const rail = getRoasterColor(bean.roaster).border;
+  const rail = colorFor(bean.roaster).border;
   const consumed = Math.max(0, bean.weight_grams - bean.remaining_grams);
   const pctConsumed =
     bean.weight_grams > 0

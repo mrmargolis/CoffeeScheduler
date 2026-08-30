@@ -4,6 +4,7 @@ import os from "os";
 import { execSync } from "child_process";
 import { getDb, closeDb } from "../src/lib/db";
 import { assignRoasterColors, getRoasterColor } from "../src/lib/colors";
+import { queryBeans } from "../src/lib/bean-queries";
 import { today as getToday } from "../src/lib/date-utils";
 import { autoThawBeans } from "../src/lib/auto-thaw";
 import { autoFreezeBeans } from "../src/lib/auto-freeze";
@@ -40,7 +41,25 @@ const endMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0); // last day
 const endDate = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, "0")}-${String(endMonth.getDate()).padStart(2, "0")}`;
 
 const { schedule, skipDayRanges } = loadScheduleData(db, startDate, endDate, today);
-const { summary } = buildCalendarEvents(schedule, skipDayRanges, today);
+
+// Colour is the only thing identifying a bag in the stripe grid, so assign
+// across the whole collection rather than hashing each roaster independently —
+// otherwise two bags can land on the same colour. Assigning over the same set
+// the app uses (its non-archived bag list) keeps a roaster the same colour in
+// both places.
+const roasterColors = assignRoasterColors(
+  queryBeans(db, { archived: false }).map((b) => b.roaster)
+);
+const colorFor = (roaster: string) =>
+  roasterColors.get(roaster) ?? getRoasterColor(roaster);
+
+const { summary } = buildCalendarEvents(
+  schedule,
+  skipDayRanges,
+  today,
+  undefined,
+  colorFor
+);
 
 closeDb();
 
@@ -124,15 +143,7 @@ if (summary) {
   summaryHtml = `<div class="runway${summary.nextGapDate ? " alert" : ""}"><span class="runway-num">${summary.daysOfCoffee}</span><span class="runway-text">days of coffee${gap}</span></div>`;
 }
 
-// Colour is the only thing identifying a bag in the stripe grid, so assign
-// across the roasters actually on this page rather than hashing each one
-// independently — otherwise two bags can land on the same colour.
-const bagRuns = collectBagRuns(schedule);
-const roasterColors = assignRoasterColors(bagRuns.map((b) => b.roaster));
-const colorFor = (roaster: string) =>
-  roasterColors.get(roaster) ?? getRoasterColor(roaster);
-
-const bagsHtml = renderBagList(bagRuns, colorFor);
+const bagsHtml = renderBagList(collectBagRuns(schedule), colorFor);
 
 const generatedAt = new Date().toLocaleString("en-US", {
   dateStyle: "medium",

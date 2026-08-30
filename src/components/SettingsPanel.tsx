@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
-import { getRoasterColor } from "@/lib/colors";
+import { useRoasterColors } from "@/lib/use-roaster-colors";
 import Modal from "./Modal";
 import { CloseIcon, PlusIcon } from "./icons";
 
@@ -24,6 +24,7 @@ export default function SettingsPanel({
   onClose: () => void;
 }) {
   const { data } = useSWR(isOpen ? "/api/settings" : null, fetcher);
+  const colorFor = useRoasterColors();
   const [dailyGrams, setDailyGrams] = useState(45);
   const [defaultRestDays, setDefaultRestDays] = useState(30);
   const [roasterDefaults, setRoasterDefaults] = useState<RoasterDefault[]>([]);
@@ -126,7 +127,7 @@ export default function SettingsPanel({
                   <span
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{
-                      backgroundColor: getRoasterColor(rd.roaster).border,
+                      backgroundColor: colorFor(rd.roaster).border,
                     }}
                   />
                   <span className="flex-1 truncate text-[13px]">
