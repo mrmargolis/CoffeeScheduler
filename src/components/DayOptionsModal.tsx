@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ConsumptionOverride } from "@/lib/types";
+import Modal from "./Modal";
 
 interface DayOptionsModalProps {
   date: string;
@@ -17,6 +18,9 @@ interface DayOptionsModalProps {
   }) => Promise<void>;
   onClearOverride: (id: number) => Promise<void>;
 }
+
+const inputClass =
+  "h-11 w-full rounded-[9px] border border-rule-strong bg-[#191614] px-3 font-mono text-[13.5px] tabular-nums text-ink focus:border-accent-dim focus:outline-none lg:h-[38px]";
 
 export default function DayOptionsModal({
   date,
@@ -44,7 +48,7 @@ export default function DayOptionsModal({
 
   const formattedDate = new Date(date + "T00:00:00").toLocaleDateString(
     undefined,
-    { weekday: "short", month: "short", day: "numeric" }
+    { weekday: "long", day: "numeric", month: "long" }
   );
 
   const handleSaveOverride = async () => {
@@ -81,87 +85,95 @@ export default function DayOptionsModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-300">
-            {formattedDate}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-300"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Skip day toggle */}
+    <Modal title={formattedDate} subtitle={date} onClose={onClose}>
+      <div className="flex flex-col gap-[18px] px-[18px] pb-[18px] pt-4">
+        {/* Skip day */}
         <button
           onClick={async () => {
             await onToggleSkip(date);
             onClose();
           }}
-          className={`w-full mb-4 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            isSkipDay
-              ? "bg-amber-700 text-white hover:bg-amber-800"
-              : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600"
-          }`}
+          className="flex items-center gap-3 rounded-[10px] border border-rule bg-raised p-3 text-left transition-colors hover:bg-elevated"
         >
-          {isSkipDay ? "Remove Skip Day" : "Mark as Skip Day"}
+          <div className="flex-1">
+            <div className="text-[13px] font-medium">Skip this day</div>
+            <p className="mt-0.5 text-[11.5px] leading-[1.5] text-ink-faint text-pretty">
+              Travelling, or away from the grinder. Nothing is consumed and
+              everything after shifts a day later.
+            </p>
+          </div>
+          <span
+            className={`flex h-[23px] w-10 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+              isSkipDay ? "justify-end bg-accent" : "bg-track"
+            }`}
+          >
+            <span
+              className={`h-[19px] w-[19px] rounded-full ${isSkipDay ? "bg-on-accent" : "bg-ink-faint"}`}
+            />
+          </span>
         </button>
 
         {/* Consumption override */}
-        <div className="border-t border-gray-700 pt-4">
-          <h3 className="text-sm font-medium text-gray-400 mb-3">
-            Consumption Override
-          </h3>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10.5px] uppercase tracking-[0.09em] text-ink-faint">
+              Drink more or less
+            </span>
+            {existingOverride && (
+              <span className="font-mono text-[11.5px] tabular-nums text-ink-faint">
+                override set
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Daily grams
+              <label
+                htmlFor="daily-grams"
+                className="mb-1.5 block text-[11.5px] text-ink-muted"
+              >
+                Total for the day
               </label>
               <input
+                id="daily-grams"
                 type="number"
                 value={dailyGrams}
                 onChange={(e) => setDailyGrams(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 focus:border-amber-500 focus:outline-none"
+                className={inputClass}
                 min="1"
                 step="1"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Dose size (g)
+              <label
+                htmlFor="dose-size"
+                className="mb-1.5 block text-[11.5px] text-ink-muted"
+              >
+                Dose size
               </label>
               <input
+                id="dose-size"
                 type="number"
                 value={doseSize}
                 onChange={(e) => setDoseSize(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 focus:border-amber-500 focus:outline-none"
+                className={inputClass}
                 min="1"
                 step="1"
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2.5">
             <button
               onClick={handleSaveOverride}
               disabled={saving}
-              className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50"
+              className="h-11 flex-1 rounded-[9px] bg-accent text-[13px] font-semibold text-on-accent transition-colors hover:bg-[#f0b878] disabled:opacity-50 lg:h-[38px]"
             >
-              {existingOverride ? "Update" : "Set"} Override
+              {existingOverride ? "Update" : "Set"} override
             </button>
             {existingOverride && (
               <button
                 onClick={handleClearOverride}
                 disabled={saving}
-                className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-700 border border-gray-600 transition-colors disabled:opacity-50"
+                className="h-11 rounded-[9px] border border-rule-strong px-3.5 text-[13px] text-ink-muted transition-colors hover:bg-elevated hover:text-ink disabled:opacity-50 lg:h-[38px]"
               >
                 Clear
               </button>
@@ -169,6 +181,6 @@ export default function DayOptionsModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

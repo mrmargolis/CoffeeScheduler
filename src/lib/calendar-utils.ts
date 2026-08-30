@@ -1,6 +1,8 @@
 import { ConsumptionOverride, ScheduleDay, SkipDayRange } from "./types";
 import { getRoasterColor } from "./colors";
 
+export type CalendarEventKind = "bean" | "skip" | "gap" | "override";
+
 export interface CalendarEvent {
   title: string;
   start: string;
@@ -10,7 +12,16 @@ export interface CalendarEvent {
   borderColor: string;
   textColor: string;
   classNames?: string[];
-  extendedProps?: { beanId: string };
+  extendedProps?: {
+    kind: CalendarEventKind;
+    beanId?: string;
+    /** Roaster hue, used to paint the stripe on narrow screens. */
+    rail?: string;
+    /** Right-aligned mono detail on the bar, e.g. "7 d · 315 g". */
+    meta?: string;
+    /** > 0 when the bag was scheduled before it finished resting. */
+    daysEarly?: number;
+  };
 }
 
 export interface ScheduleSummary {
@@ -18,10 +29,51 @@ export interface ScheduleSummary {
   nextGapDate: string | null;
 }
 
+/** A run of consecutive days on the same bag, at the same certainty. */
+interface BeanSpan {
+  start: string;
+  end: string; // exclusive
+  name: string;
+  roaster: string;
+  totalGrams: number;
+  days: number;
+  isActual: boolean;
+  daysEarly: number;
+}
+
+const SKIP_COLORS = { bg: "#1f1c1a", border: "#3d3833", text: "#807b74" };
+const GAP_COLORS = { bg: "#2f1b18", border: "#ea8e82", text: "#f0cdc7" };
+const OVERRIDE_COLORS = { bg: "#162733", border: "#8ec2e6", text: "#cfe3f2" };
+
 function nextDay(iso: string): string {
   const d = new Date(iso + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().split("T")[0];
+}
+
+function spanEvent(beanId: string, span: BeanSpan): CalendarEvent {
+  const color = getRoasterColor(span.roaster);
+  const classNames: string[] = [];
+  if (span.isActual) classNames.push("brewed");
+  if (span.daysEarly > 0) classNames.push("early-start");
+
+  return {
+    title: span.name,
+    start: span.start,
+    end: span.end,
+    allDay: true,
+    backgroundColor: color.bg,
+    borderColor: color.border,
+    textColor: color.text,
+    classNames,
+    extendedProps: {
+      kind: "bean",
+      beanId,
+      rail: color.border,
+      meta: `${span.days} d · ${Math.round(span.totalGrams)} g`,
+      daysEarly: span.daysEarly,
+    },
+  };
 }
 
 export function buildCalendarEvents(
@@ -39,9 +91,7 @@ export function buildCalendarEvents(
       let current = range.start_date;
       while (current <= range.end_date) {
         skipReasonMap.set(current, range.reason || "Skip");
-        const d = new Date(current + "T00:00:00Z");
-        d.setUTCDate(d.getUTCDate() + 1);
-        current = d.toISOString().split("T")[0];
+        current = nextDay(current);
       }
     }
   }
@@ -53,9 +103,7 @@ export function buildCalendarEvents(
       let current = override.start_date;
       while (current <= override.end_date) {
         overrideMap.set(current, override.daily_grams);
-        const d = new Date(current + "T00:00:00Z");
-        d.setUTCDate(d.getUTCDate() + 1);
-        current = d.toISOString().split("T")[0];
+        current = nextDay(current);
       }
     }
   }
@@ -63,40 +111,31 @@ export function buildCalendarEvents(
   const events: CalendarEvent[] = [];
 
   // Group consecutive days per bean into spans
-  const beanSpans = new Map<
-    string,
-    { start: string; end: string; name: string; roaster: string; totalGrams: number }
-  >();
+  const beanSpans = new Map<string, BeanSpan>();
+
+  const flushAll = () => {
+    for (const [beanId, span] of beanSpans) {
+      events.push(spanEvent(beanId, span));
+    }
+    beanSpans.clear();
+  };
 
   for (const day of schedule) {
     // Skip day indicator
     if (day.is_skip) {
-      const reason = skipReasonMap.get(day.date) || "Skip";
       events.push({
-        title: reason,
+        title: skipReasonMap.get(day.date) || "Skip",
         start: day.date,
         allDay: true,
-        backgroundColor: "#161B22",
-        borderColor: "#6E7681",
-        textColor: "#8B949E",
+        backgroundColor: SKIP_COLORS.bg,
+        borderColor: SKIP_COLORS.border,
+        textColor: SKIP_COLORS.text,
         classNames: ["skip-day"],
+        extendedProps: { kind: "skip" },
       });
 
       // Break all bean spans across skip days
-      for (const [key, span] of beanSpans) {
-        const color = getRoasterColor(span.roaster);
-        events.push({
-          title: `${Math.round(span.totalGrams)}g · ${span.name}`,
-          start: span.start,
-          end: span.end,
-          allDay: true,
-          backgroundColor: color.bg,
-          borderColor: color.border,
-          textColor: color.text,
-          extendedProps: { beanId: key },
-        });
-        beanSpans.delete(key);
-      }
+      flushAll();
       continue;
     }
 
@@ -104,82 +143,82 @@ export function buildCalendarEvents(
     const overrideGrams = overrideMap.get(day.date);
     if (overrideGrams !== undefined) {
       events.push({
-        title: `${overrideGrams}g/day`,
+        title: `${overrideGrams} g/day`,
         start: day.date,
         allDay: true,
-        backgroundColor: "#1a1a2e",
-        borderColor: "#6366f1",
-        textColor: "#a5b4fc",
+        backgroundColor: OVERRIDE_COLORS.bg,
+        borderColor: OVERRIDE_COLORS.border,
+        textColor: OVERRIDE_COLORS.text,
         classNames: ["override-day"],
+        extendedProps: { kind: "override" },
       });
     }
 
     // Gap day indicator
     if (day.is_gap && !day.is_actual) {
       events.push({
-        title: "No coffee!",
+        title: "No coffee",
         start: day.date,
         allDay: true,
-        backgroundColor: "#1c1010",
-        borderColor: "#F85149",
-        textColor: "#C9D1D9",
+        backgroundColor: GAP_COLORS.bg,
+        borderColor: GAP_COLORS.border,
+        textColor: GAP_COLORS.text,
         classNames: ["gap-day"],
+        extendedProps: { kind: "gap" },
       });
     }
 
     if (day.consumptions.length > 1) {
       // Multi-bean day: flush active spans and show individual single-day events
-      for (const [key, span] of beanSpans) {
-        const color = getRoasterColor(span.roaster);
-        events.push({
-          title: `${Math.round(span.totalGrams)}g · ${span.name}`,
-          start: span.start,
-          end: span.end,
-          allDay: true,
-          backgroundColor: color.bg,
-          borderColor: color.border,
-          textColor: color.text,
-          extendedProps: { beanId: key },
-        });
-      }
-      beanSpans.clear();
+      flushAll();
 
       for (const consumption of day.consumptions) {
         const color = getRoasterColor(consumption.roaster);
+        const daysEarly = consumption.days_early ?? 0;
+        const classNames: string[] = [];
+        if (day.is_actual) classNames.push("brewed");
+        if (daysEarly > 0) classNames.push("early-start");
+
         events.push({
-          title: `${Math.round(consumption.grams)}g · ${consumption.bean_name}`,
+          title: consumption.bean_name,
           start: day.date,
           end: nextDay(day.date),
           allDay: true,
           backgroundColor: color.bg,
           borderColor: color.border,
           textColor: color.text,
-          extendedProps: { beanId: consumption.bean_id },
+          classNames,
+          extendedProps: {
+            kind: "bean",
+            beanId: consumption.bean_id,
+            rail: color.border,
+            meta: `${Math.round(consumption.grams)} g`,
+            daysEarly,
+          },
         });
       }
     } else {
       for (const consumption of day.consumptions) {
         const key = consumption.bean_id;
         const existing = beanSpans.get(key);
+        const daysEarly = consumption.days_early ?? 0;
 
-        if (existing && existing.end === day.date) {
+        // A span runs while the bag, the certainty (brewed vs projected) and
+        // the day-to-day continuity all hold.
+        if (
+          existing &&
+          existing.end === day.date &&
+          existing.isActual === day.is_actual
+        ) {
           // Extend span - end is exclusive, so end === today means yesterday was the last day
           existing.end = nextDay(day.date);
           existing.totalGrams += consumption.grams;
+          existing.days += 1;
+          existing.daysEarly = Math.max(existing.daysEarly, daysEarly);
         } else {
           // Flush existing span if any
           if (existing) {
-            const color = getRoasterColor(existing.roaster);
-            events.push({
-              title: `${Math.round(existing.totalGrams)}g · ${existing.name}`,
-              start: existing.start,
-              end: existing.end,
-              allDay: true,
-              backgroundColor: color.bg,
-              borderColor: color.border,
-              textColor: color.text,
-              extendedProps: { beanId: key },
-            });
+            events.push(spanEvent(key, existing));
           }
           // Start new span
           beanSpans.set(key, {
@@ -188,6 +227,9 @@ export function buildCalendarEvents(
             name: consumption.bean_name,
             roaster: consumption.roaster,
             totalGrams: consumption.grams,
+            days: 1,
+            isActual: day.is_actual,
+            daysEarly,
           });
         }
       }
@@ -195,31 +237,20 @@ export function buildCalendarEvents(
   }
 
   // Flush remaining spans
-  for (const [key, span] of beanSpans) {
-    const color = getRoasterColor(span.roaster);
-    events.push({
-      title: `${Math.round(span.totalGrams)}g · ${span.name}`,
-      start: span.start,
-      end: span.end,
-      allDay: true,
-      backgroundColor: color.bg,
-      borderColor: color.border,
-      textColor: color.text,
-      extendedProps: { beanId: key },
-    });
-  }
+  flushAll();
 
-  // Compute summary
-  const futureDays = schedule.filter(
-    (d) => d.date >= today && !d.is_actual
-  );
-  const daysWithCoffee = futureDays.filter((d) => !d.is_gap && !d.is_skip).length;
+  return { events, summary: summarizeSchedule(schedule, today) };
+}
+
+/** Days of coffee still projected, and when the first dry day lands. */
+export function summarizeSchedule(
+  schedule: ScheduleDay[],
+  today: string
+): ScheduleSummary {
+  const futureDays = schedule.filter((d) => d.date >= today && !d.is_actual);
   const firstGap = futureDays.find((d) => d.is_gap);
   return {
-    events,
-    summary: {
-      daysOfCoffee: daysWithCoffee,
-      nextGapDate: firstGap?.date || null,
-    },
+    daysOfCoffee: futureDays.filter((d) => !d.is_gap && !d.is_skip).length,
+    nextGapDate: firstGap?.date || null,
   };
 }

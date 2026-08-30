@@ -133,30 +133,30 @@ const html = `<!DOCTYPE html>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 8h16v2h3a4 4 0 0 1 0 8h-3v2a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8z' fill='%238B6914'/%3E%3Cpath d='M22 10h3a2 2 0 0 1 0 4h-3v-4z' fill='%23A07D1A'/%3E%3Cpath d='M8 10h12v9a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3v-9z' fill='%23C4942A'/%3E%3Cpath d='M8 10h12v2H8z' fill='%23D4A43A' opacity='0.6'/%3E%3Cpath d='M7 26h14a1 1 0 0 1 0 2H7a1 1 0 0 1 0-2z' fill='%238B6914'/%3E%3Cellipse cx='14' cy='6' rx='2' ry='2' fill='%23D4A43A' opacity='0.4'/%3E%3Cellipse cx='11' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3Cellipse cx='17' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3C/svg%3E">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#030712;color:#C9D1D9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;padding:12px;max-width:700px;margin:0 auto}
+body{background:#141110;color:#e9e6e0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;font-size:14px;padding:12px;max-width:700px;margin:0 auto}
 h1{font-size:1.3rem;text-align:center;margin-bottom:8px;font-weight:600}
 h2{font-size:1rem;margin:16px 0 6px;font-weight:600}
 .summary{text-align:center;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-weight:600;font-size:0.95rem}
-.ok-summary{background:#0d1f0d;border:1px solid #3FB950;color:#3FB950}
-.gap-summary{background:#1c1010;border:1px solid #F85149;color:#F85149}
+.ok-summary{background:#182a1c;border:1px solid #2f5238;color:#91cb9c}
+.gap-summary{background:#2f1b18;border:1px solid #5c3630;color:#ea8e82}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.hdr{text-align:center;font-size:0.7rem;color:#6E7681;padding:4px 0;font-weight:600}
-.cell{background:#111827;border-radius:4px;min-height:48px;padding:3px;overflow:hidden;position:relative}
+.hdr{text-align:center;font-size:0.7rem;color:#807b74;padding:4px 0;font-weight:600}
+.cell{background:#1c1917;border-radius:4px;min-height:48px;padding:3px;overflow:hidden;position:relative}
 .cell.empty{background:transparent}
-.cell.today{outline:2px solid #58A6FF;outline-offset:-1px}
-.cell.gap{background:#1a0a0a}
-.cell.skip{background:#16181d}
-.day-num{font-size:0.7rem;color:#8B949E;display:block;margin-bottom:1px}
-.pill{font-size:0.55rem;padding:1px 3px;border-radius:3px;border:1px solid;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.gap-pill{background:#1c1010;border-color:#F85149;color:#F85149}
-.skip-pill{background:#161B22;border-color:#6E7681;color:#8B949E}
-.footer{text-align:center;color:#6E7681;font-size:0.7rem;margin-top:16px;padding-bottom:env(safe-area-inset-bottom,12px)}
+.cell.today{outline:2px solid #e5a152;outline-offset:-1px}
+.cell.gap{background:#241614}
+.cell.skip{background:#1f1c1a}
+.day-num{font-size:0.7rem;color:#aea8a1;display:block;margin-bottom:1px}
+.pill{font-size:0.55rem;padding:1px 4px;border-radius:3px;border-left:3px solid;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.gap-pill{background:#2f1b18;border-color:#ea8e82;color:#f0cdc7}
+.skip-pill{background:#1f1c1a;border-color:#3d3833;color:#807b74}
+.footer{text-align:center;color:#807b74;font-size:0.7rem;margin-top:16px;padding-bottom:env(safe-area-inset-bottom,12px)}
 .cell[data-detail]{cursor:pointer}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
 .modal.hidden{display:none}
-.modal-card{background:#161B22;border:1px solid #30363D;border-radius:12px;padding:16px 20px;max-width:320px;width:100%;color:#C9D1D9;font-size:0.95rem;line-height:1.6}
+.modal-card{background:#1c1917;border:1px solid #3d3833;border-radius:12px;padding:16px 20px;max-width:320px;width:100%;color:#e9e6e0;font-size:0.95rem;line-height:1.6}
 .modal-card strong{font-size:1.1rem}
-.modal-pill{font-size:0.85rem;padding:4px 8px;border-radius:6px;border:1px solid;margin-top:6px;line-height:1.4}
+.modal-pill{font-size:0.85rem;padding:4px 10px;border-radius:6px;border-left:3px solid;margin-top:6px;line-height:1.4}
 </style>
 </head>
 <body>

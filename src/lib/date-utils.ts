@@ -83,3 +83,30 @@ export function dateRange(startIso: string, endIso: string): string[] {
   }
   return dates;
 }
+
+/**
+ * The window of schedule the app keeps loaded: two months back, four forward.
+ * Shared by every view so they all hit the same SWR cache entry.
+ */
+export function scheduleRange(): { start: string; end: string } {
+  const start = new Date();
+  start.setMonth(start.getMonth() - 2);
+  start.setDate(1);
+  const end = new Date();
+  end.setMonth(end.getMonth() + 4);
+  return { start: localDateStr(start), end: localDateStr(end) };
+}
+
+/** SWR key for the shared schedule window. */
+export function scheduleKey(): string {
+  const { start, end } = scheduleRange();
+  return `/api/schedule?start=${start}&end=${end}`;
+}
+
+/** Human-facing short day label, e.g. "Sep 18". */
+export function formatShortDay(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}

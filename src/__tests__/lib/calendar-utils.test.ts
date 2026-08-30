@@ -51,7 +51,8 @@ describe("buildCalendarEvents", () => {
     expect(beanEvents).toHaveLength(1);
     expect(beanEvents[0].start).toBe("2026-03-01");
     expect(beanEvents[0].end).toBe("2026-03-04"); // exclusive end
-    expect(beanEvents[0].title).toBe("135g · Ethiopia");
+    expect(beanEvents[0].title).toBe("Ethiopia");
+    expect(beanEvents[0].extendedProps?.meta).toBe("3 d · 135 g");
   });
 
   it("breaks spans at skip days", () => {
@@ -90,7 +91,7 @@ describe("buildCalendarEvents", () => {
 
     const gapEvents = events.filter((e) => e.classNames?.includes("gap-day"));
     expect(gapEvents).toHaveLength(1);
-    expect(gapEvents[0].title).toBe("No coffee!");
+    expect(gapEvents[0].title).toBe("No coffee");
   });
 
   it("flushes spans and creates individual events for multi-bean days", () => {
@@ -164,5 +165,70 @@ describe("buildCalendarEvents", () => {
 
     const skipEvents = events.filter((e) => e.classNames?.includes("skip-day"));
     expect(skipEvents[0].title).toBe("Skip");
+  });
+  it("splits a span where brewed days meet projected days", () => {
+    const schedule: ScheduleDay[] = [
+      makeDay({
+        date: "2026-03-01",
+        is_actual: true,
+        consumptions: [{ bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45 }],
+      }),
+      makeDay({
+        date: "2026-03-02",
+        is_actual: true,
+        consumptions: [{ bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45 }],
+      }),
+      makeDay({
+        date: "2026-03-03",
+        consumptions: [{ bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45 }],
+      }),
+    ];
+
+    const { events } = buildCalendarEvents(schedule, undefined, today);
+    const beanEvents = events.filter((e) => e.extendedProps?.beanId === "b1");
+
+    expect(beanEvents).toHaveLength(2);
+    expect(beanEvents[0].classNames).toContain("brewed");
+    expect(beanEvents[0].end).toBe("2026-03-03");
+    expect(beanEvents[0].extendedProps?.meta).toBe("2 d · 90 g");
+    expect(beanEvents[1].classNames).not.toContain("brewed");
+    expect(beanEvents[1].start).toBe("2026-03-03");
+  });
+
+  it("flags a span that starts before the bag has rested", () => {
+    const schedule: ScheduleDay[] = [
+      makeDay({
+        date: "2026-03-01",
+        consumptions: [
+          { bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45, days_early: 4 },
+        ],
+      }),
+      makeDay({
+        date: "2026-03-02",
+        consumptions: [{ bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45 }],
+      }),
+    ];
+
+    const { events } = buildCalendarEvents(schedule, undefined, today);
+    const beanEvents = events.filter((e) => e.extendedProps?.beanId === "b1");
+
+    expect(beanEvents).toHaveLength(1);
+    expect(beanEvents[0].classNames).toContain("early-start");
+    expect(beanEvents[0].extendedProps?.daysEarly).toBe(4);
+  });
+
+  it("carries the roaster hue for the narrow-screen stripe", () => {
+    const schedule: ScheduleDay[] = [
+      makeDay({
+        date: "2026-03-01",
+        consumptions: [{ bean_id: "b1", bean_name: "Ethiopia", roaster: "SM", grams: 45 }],
+      }),
+    ];
+
+    const { events } = buildCalendarEvents(schedule, undefined, today);
+    const beanEvent = events.find((e) => e.extendedProps?.beanId === "b1");
+
+    expect(beanEvent?.extendedProps?.rail).toBe(beanEvent?.borderColor);
+    expect(beanEvent?.extendedProps?.kind).toBe("bean");
   });
 });
