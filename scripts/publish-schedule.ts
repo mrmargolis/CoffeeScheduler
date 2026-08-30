@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import { execSync } from "child_process";
 import { getDb, closeDb } from "../src/lib/db";
+import { assignRoasterColors, getRoasterColor } from "../src/lib/colors";
 import { today as getToday } from "../src/lib/date-utils";
 import { autoThawBeans } from "../src/lib/auto-thaw";
 import { autoFreezeBeans } from "../src/lib/auto-freeze";
@@ -12,7 +13,9 @@ import { ScheduleDay } from "../src/lib/types";
 import {
   DayCellData,
   MonthData,
+  collectBagRuns,
   escapeHtml,
+  renderBagList,
   renderMonth,
   REHIGHLIGHT_SCRIPT,
 } from "../src/lib/schedule-html";
@@ -61,7 +64,6 @@ function buildMonths(): MonthData[] {
     const month = cursor.getUTCMonth();
     const label = cursor.toLocaleDateString("en-US", {
       month: "long",
-      year: "numeric",
       timeZone: "UTC",
     });
 
@@ -97,7 +99,7 @@ function buildMonths(): MonthData[] {
       weeks.push(cells.slice(i, i + 7));
     }
 
-    months.push({ label, weeks });
+    months.push({ label, year: String(year), weeks });
     cursor = new Date(Date.UTC(year, month + 1, 1));
   }
 
@@ -110,12 +112,27 @@ const months = buildMonths();
 
 let summaryHtml = "";
 if (summary) {
-  if (summary.nextGapDate) {
-    summaryHtml = `<div class="summary gap-summary">Gap on ${summary.nextGapDate}</div>`;
-  } else {
-    summaryHtml = `<div class="summary ok-summary">${summary.daysOfCoffee} days of coffee remaining</div>`;
-  }
+  const gap = summary.nextGapDate
+    ? `<span class="runway-sub">then a gap from ${escapeHtml(
+        new Date(summary.nextGapDate + "T00:00:00Z").toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        })
+      )}</span>`
+    : "";
+  summaryHtml = `<div class="runway${summary.nextGapDate ? " alert" : ""}"><span class="runway-num">${summary.daysOfCoffee}</span><span class="runway-text">days of coffee${gap}</span></div>`;
 }
+
+// Colour is the only thing identifying a bag in the stripe grid, so assign
+// across the roasters actually on this page rather than hashing each one
+// independently — otherwise two bags can land on the same colour.
+const bagRuns = collectBagRuns(schedule);
+const roasterColors = assignRoasterColors(bagRuns.map((b) => b.roaster));
+const colorFor = (roaster: string) =>
+  roasterColors.get(roaster) ?? getRoasterColor(roaster);
+
+const bagsHtml = renderBagList(bagRuns, colorFor);
 
 const generatedAt = new Date().toLocaleString("en-US", {
   dateStyle: "medium",
@@ -133,37 +150,83 @@ const html = `<!DOCTYPE html>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 8h16v2h3a4 4 0 0 1 0 8h-3v2a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8z' fill='%238B6914'/%3E%3Cpath d='M22 10h3a2 2 0 0 1 0 4h-3v-4z' fill='%23A07D1A'/%3E%3Cpath d='M8 10h12v9a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3v-9z' fill='%23C4942A'/%3E%3Cpath d='M8 10h12v2H8z' fill='%23D4A43A' opacity='0.6'/%3E%3Cpath d='M7 26h14a1 1 0 0 1 0 2H7a1 1 0 0 1 0-2z' fill='%238B6914'/%3E%3Cellipse cx='14' cy='6' rx='2' ry='2' fill='%23D4A43A' opacity='0.4'/%3E%3Cellipse cx='11' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3Cellipse cx='17' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3C/svg%3E">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#141110;color:#e9e6e0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;font-size:14px;padding:12px;max-width:700px;margin:0 auto}
-h1{font-size:1.3rem;text-align:center;margin-bottom:8px;font-weight:600}
-h2{font-size:1rem;margin:16px 0 6px;font-weight:600}
-.summary{text-align:center;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-weight:600;font-size:0.95rem}
-.ok-summary{background:#182a1c;border:1px solid #2f5238;color:#91cb9c}
-.gap-summary{background:#2f1b18;border:1px solid #5c3630;color:#ea8e82}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.hdr{text-align:center;font-size:0.7rem;color:#807b74;padding:4px 0;font-weight:600}
-.cell{background:#1c1917;border-radius:4px;min-height:48px;padding:3px;overflow:hidden;position:relative}
+:root{
+  --canvas:#141110;--panel:#1c1917;--raised:#241f1b;--rule:#2c2723;--rule-strong:#3d3833;--track:#322c26;
+  --ink:#e9e6e0;--ink-muted:#aea8a1;--ink-faint:#807b74;
+  --accent:#e5a152;--on-accent:#211603;
+  --ok:#91cb9c;--ok-wash:#182a1c;--alert:#ea8e82;--alert-wash:#2f1b18;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+body{
+  background:var(--canvas);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding:16px 14px calc(24px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Header */
+.page-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+h1{font-size:19px;font-weight:600;letter-spacing:-0.02em}
+.stamp{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+
+/* Runway */
+.runway{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;margin-bottom:22px}
+.runway-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:32px;font-weight:500;line-height:1;color:var(--ok)}
+.runway.alert .runway-num{color:var(--accent)}
+.runway-text{font-size:14px;color:var(--ink-muted);display:flex;flex-direction:column}
+.runway-sub{font-size:12.5px;color:var(--alert);margin-top:2px}
+
+/* Calendar */
+.month{margin-bottom:24px}
+h2{font-size:15px;font-weight:600;letter-spacing:-0.01em;margin-bottom:9px}
+h2 .year{font-family:var(--mono);font-weight:400;color:var(--ink-faint);font-size:13px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.hdr{text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:0.09em;color:var(--ink-faint);padding:0 0 5px}
+.cell{background:var(--panel);border-radius:6px;min-height:54px;padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .cell.empty{background:transparent}
-.cell.today{outline:2px solid #e5a152;outline-offset:-1px}
 .cell.gap{background:#241614}
-.cell.skip{background:#1f1c1a}
-.day-num{font-size:0.7rem;color:#aea8a1;display:block;margin-bottom:1px}
-.pill{font-size:0.55rem;padding:1px 4px;border-radius:3px;border-left:3px solid;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.gap-pill{background:#2f1b18;border-color:#ea8e82;color:#f0cdc7}
-.skip-pill{background:#1f1c1a;border-color:#3d3833;color:#807b74}
-.footer{text-align:center;color:#807b74;font-size:0.7rem;margin-top:16px;padding-bottom:env(safe-area-inset-bottom,12px)}
+.cell.skip{background:var(--raised)}
+.day-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-muted);display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none}
+.cell.today .day-num{background:var(--accent);color:var(--on-accent);border-radius:10px;font-weight:500}
+.stripes{display:flex;flex-direction:column;gap:2px;width:100%;padding:0 1px}
+.stripe{display:block;height:6px;border-radius:3px}
+.gap-stripe{background:var(--alert)}
+.skip-stripe{background:repeating-linear-gradient(115deg,var(--track) 0 3px,transparent 3px 6px)}
 .cell[data-detail]{cursor:pointer}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
+
+/* Bag key */
+.bags{border-top:1px solid var(--rule);padding-top:18px}
+.bag{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.bag:last-child{border-bottom:0}
+.bag-rail{width:3px;border-radius:2px;flex:none;align-self:stretch}
+.bag-name{font-size:14px;font-weight:500;text-wrap:pretty}
+.bag-meta{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-faint);margin-top:3px}
+
+.footer{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:22px}
+
+/* Day detail */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:0}
 .modal.hidden{display:none}
-.modal-card{background:#1c1917;border:1px solid #3d3833;border-radius:12px;padding:16px 20px;max-width:320px;width:100%;color:#e9e6e0;font-size:0.95rem;line-height:1.6}
-.modal-card strong{font-size:1.1rem}
-.modal-pill{font-size:0.85rem;padding:4px 10px;border-radius:6px;border-left:3px solid;margin-top:6px;line-height:1.4}
+.modal-card{background:var(--panel);border:1px solid var(--rule-strong);border-top-left-radius:16px;border-top-right-radius:16px;padding:18px 18px calc(22px + env(safe-area-inset-bottom,0px));width:100%;max-width:640px}
+.modal-card strong{display:block;font-size:16px;font-weight:600;letter-spacing:-0.01em;margin-bottom:12px}
+.modal-row{border-left:3px solid;border-radius:4px;background:var(--raised);padding:9px 12px;margin-top:8px}
+.modal-name{display:block;font-size:14px;font-weight:500;text-wrap:pretty}
+.modal-meta{display:block;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-faint);margin-top:3px}
+.modal-note{font-size:13px;color:var(--ink-muted);background:var(--raised);border-radius:6px;padding:9px 12px;margin-top:8px}
+.modal-note.gap-note{background:var(--alert-wash);color:var(--alert)}
+@media (min-width:560px){
+  .modal{align-items:center;padding:24px}
+  .modal-card{border-radius:16px;max-width:380px}
+}
 </style>
 </head>
 <body>
-<h1>Coffee Schedule</h1>
+<div class="page-head"><h1>Coffee schedule</h1><span class="stamp">${escapeHtml(generatedAt)}</span></div>
 ${summaryHtml}
-${months.map(renderMonth).join("\n")}
-<div class="footer">Generated ${escapeHtml(generatedAt)}</div>
+${months.map((m) => renderMonth(m, colorFor)).join("\n")}
+${bagsHtml}
+<div class="footer">Tap a day for what is brewing</div>
 <div id="modal" class="modal hidden"></div>
 <script>
 ${REHIGHLIGHT_SCRIPT}
