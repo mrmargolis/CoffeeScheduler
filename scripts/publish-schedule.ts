@@ -199,9 +199,24 @@ if (dryRun) {
     execSync("git init", { cwd: tmpDir, stdio: "pipe" });
     execSync("git add index.html", { cwd: tmpDir, stdio: "pipe" });
     execSync('git commit -m "Update coffee schedule"', { cwd: tmpDir, stdio: "pipe" });
+    // Push over HTTPS rather than SSH. The SSH key is passphrase-protected, so
+    // publishing failed whenever ssh-agent had not been unlocked in that shell
+    // session — which is most of the time for an unattended publish. gh's
+    // credential helper authenticates from the gh token instead. It is passed
+    // per-command via GIT_CONFIG_* so this neither depends on nor modifies the
+    // machine's global git config.
     execSync(
-      "git push --force git@github.com:mrmargolis/CoffeeScheduler.git HEAD:gh-pages",
-      { cwd: tmpDir, stdio: "inherit" }
+      "git push --force https://github.com/mrmargolis/CoffeeScheduler.git HEAD:gh-pages",
+      {
+        cwd: tmpDir,
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          GIT_CONFIG_COUNT: "1",
+          GIT_CONFIG_KEY_0: "credential.helper",
+          GIT_CONFIG_VALUE_0: "!gh auth git-credential",
+        },
+      }
     );
     console.log("Published to GitHub Pages!");
   } finally {
