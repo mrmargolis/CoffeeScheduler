@@ -3,13 +3,34 @@
 ## Commands
 
 ```bash
-npm run dev          # Next.js dev server
-npm run build        # Production build
-npm run lint         # ESLint
-npm run test         # Vitest watch mode
-npm run test:run     # Vitest single run (CI)
-npx vitest run src/__tests__/lib/scheduler.test.ts  # Run single test file
+pnpm install         # Install dependencies (pnpm only — do not use npm or yarn)
+pnpm dev             # Next.js dev server
+pnpm build           # Production build
+pnpm lint            # ESLint
+pnpm test            # Vitest watch mode
+pnpm test:run        # Vitest single run (CI)
+pnpm exec vitest run src/__tests__/lib/scheduler.test.ts  # Run single test file
 ```
+
+## Package management
+
+pnpm only. The version is pinned by the `packageManager` field in `package.json`
+and provisioned by Corepack (`corepack enable pnpm`); `pnpm-lock.yaml` is the
+only lockfile and is committed. Never run `npm install` or `yarn` here — either
+one creates a competing lockfile and bypasses the policies below.
+
+`pnpm-workspace.yaml` carries two supply-chain settings:
+
+- `minimumReleaseAge: 10080` — a version published less than 7 days ago will not
+  install. This blunts compromised-maintainer attacks, which are usually caught
+  and unpublished within days. It is enforced on every install, including ones
+  fully resolved from the lockfile, so a new dependency (or an upgrade to a
+  just-released version) fails until the version is a week old. Wait it out
+  rather than disabling the setting.
+- `allowBuilds` — an explicit per-package allowlist for dependency install/build
+  scripts, which pnpm otherwise blocks. Adding an entry means letting that
+  package run code at install time, so add one only when a dependency genuinely
+  needs a native build.
 
 ## Architecture
 
