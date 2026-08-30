@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Modal from "./Modal";
+import { ImportIcon } from "./icons";
 
 interface ImportResult {
   success: boolean;
@@ -74,31 +76,26 @@ export default function ImportDialog({
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition-colors"
+        className="flex h-[34px] items-center gap-[7px] rounded-lg border border-rule-strong px-3 text-[13px] text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
       >
-        Import
+        <ImportIcon size={15} />
+        <span className="hidden sm:inline">Import</span>
       </button>
     );
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-300">
-            Import BeanConqueror Export
-          </h2>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              setResult(null);
-            }}
-            className="text-gray-500 hover:text-gray-300"
-          >
-            ✕
-          </button>
-        </div>
+  const close = () => {
+    setIsOpen(false);
+    setResult(null);
+  };
 
+  return (
+    <Modal
+      title="Import BeanConqueror export"
+      onClose={close}
+      widthClass="max-w-md"
+    >
+      <div className="px-[18px] pb-[18px] pt-4">
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -106,24 +103,24 @@ export default function ImportDialog({
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          className={`rounded-[10px] border border-dashed p-8 text-center transition-colors ${
             isDragging
-              ? "border-amber-500 bg-amber-950"
-              : "border-gray-700 hover:border-gray-600"
+              ? "border-accent bg-accent-wash"
+              : "border-rule-strong hover:border-ink-faint"
           }`}
         >
           {isImporting ? (
-            <p className="text-gray-400">Importing...</p>
+            <p className="text-[13px] text-ink-muted">Importing…</p>
           ) : (
             <>
-              <p className="text-gray-400 mb-2">
-                Drag & drop your .zip export here, or
+              <p className="mb-3 text-[13px] text-ink-muted">
+                Drop your .zip export here, or
               </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+                className="h-[38px] rounded-[9px] bg-accent px-4 text-[13px] font-semibold text-on-accent transition-colors hover:bg-[#f0b878]"
               >
-                Choose File
+                Choose file
               </button>
               <input
                 ref={fileInputRef}
@@ -138,26 +135,29 @@ export default function ImportDialog({
 
         {result && (
           <div
-            className={`mt-4 p-3 rounded-lg ${result.success ? "bg-green-950 text-green-300" : "bg-red-950 text-red-300"}`}
+            className={`mt-4 rounded-[10px] p-3 text-[12.5px] ${
+              result.success
+                ? "bg-ok-wash text-ok"
+                : "bg-alert-wash text-alert"
+            }`}
           >
             {result.success ? (
               <>
                 <p className="font-medium">Import successful</p>
-                <p className="text-sm mt-1">
-                  {result.beansImported} beans, {result.brewsImported} brews
-                  imported
+                <p className="mt-1 font-mono tabular-nums">
+                  {result.beansImported} bags, {result.brewsImported} brews
                 </p>
                 {result.errors && result.errors.length > 0 && (
                   <details className="mt-2">
-                    <summary className="text-sm cursor-pointer text-amber-400">
+                    <summary className="cursor-pointer text-accent">
                       {result.errors.length} warnings
                     </summary>
-                    <ul className="text-xs mt-1 space-y-1">
+                    <ul className="mt-1.5 flex flex-col gap-1 text-[11.5px] text-ink-muted">
                       {result.errors.slice(0, 10).map((err, i) => (
                         <li key={i}>{err}</li>
                       ))}
                       {result.errors.length > 10 && (
-                        <li>...and {result.errors.length - 10} more</li>
+                        <li>…and {result.errors.length - 10} more</li>
                       )}
                     </ul>
                   </details>
@@ -169,6 +169,6 @@ export default function ImportDialog({
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

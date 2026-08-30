@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import Home from "@/app/page";
@@ -50,6 +50,12 @@ const mockSchedule = [
 ];
 
 function mockFetch(url: string) {
+  // A single bag comes back as an object, matching /api/beans/[id].
+  if (/^\/api\/beans\/.+/.test(url))
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ ...mockBeans[0], recent_brews: [] }),
+    });
   if (url.startsWith("/api/beans")) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockBeans) });
   if (url.startsWith("/api/schedule")) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSchedule) });
   if (url.startsWith("/api/skip-days")) return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
@@ -87,15 +93,17 @@ afterEach(() => {
 describe("Home page", () => {
   it("renders the header with title and buttons", () => {
     renderHome();
-    expect(screen.getByText("CoffeeScheduler")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByText("Coffee Scheduler")).toBeInTheDocument();
+    expect(screen.getByLabelText("Settings")).toBeInTheDocument();
   });
 
-  it("renders the Bean Queue sidebar with beans", async () => {
+  it("renders the backlog sidebar with beans", async () => {
     renderHome();
-    expect(screen.getByText("Bean Queue")).toBeInTheDocument();
+    expect(screen.getByText("Backlog")).toBeInTheDocument();
+    // The bag also shows in the runway strip, so scope to the sidebar.
+    const sidebar = screen.getByRole("complementary");
     await waitFor(() => {
-      expect(screen.getByText("Ethiopia Guji")).toBeInTheDocument();
+      expect(within(sidebar).getByText("Ethiopia Guji")).toBeInTheDocument();
     });
   });
 
@@ -108,11 +116,11 @@ describe("Home page", () => {
     const user = userEvent.setup();
     renderHome();
 
-    await user.click(screen.getByText("Settings"));
+    await user.click(screen.getByLabelText("Settings"));
 
     await waitFor(() => {
-      expect(screen.getByText("Daily consumption (grams)")).toBeInTheDocument();
-      expect(screen.getByText("Default rest days")).toBeInTheDocument();
+      expect(screen.getByText("Coffee per day (grams)")).toBeInTheDocument();
+      expect(screen.getByText("Default rest (days)")).toBeInTheDocument();
     });
   });
 
@@ -120,14 +128,14 @@ describe("Home page", () => {
     const user = userEvent.setup();
     renderHome();
 
-    await user.click(screen.getByText("Settings"));
+    await user.click(screen.getByLabelText("Settings"));
     await waitFor(() => {
-      expect(screen.getByText("Daily consumption (grams)")).toBeInTheDocument();
+      expect(screen.getByText("Coffee per day (grams)")).toBeInTheDocument();
     });
 
     await user.click(screen.getByText("Cancel"));
     await waitFor(() => {
-      expect(screen.queryByText("Daily consumption (grams)")).not.toBeInTheDocument();
+      expect(screen.queryByText("Coffee per day (grams)")).not.toBeInTheDocument();
     });
   });
 
@@ -135,24 +143,23 @@ describe("Home page", () => {
     const user = userEvent.setup();
     renderHome();
 
+    const sidebar = screen.getByRole("complementary");
     await waitFor(() => {
-      expect(screen.getByText("Ethiopia Guji")).toBeInTheDocument();
+      expect(within(sidebar).getByText("Ethiopia Guji")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText("Ethiopia Guji"));
+    await user.click(within(sidebar).getByText("Ethiopia Guji"));
 
-    // After clicking, BeanDetail replaces BeanList.
-    // BeanDetail fetches /api/beans/bean-1 which returns mockBeans (array).
-    // The "Bean Queue" heading stays since it's in the parent, not BeanList.
+    // BeanDetail replaces BeanList, bringing its own back-bar with it.
     await waitFor(() => {
-      expect(screen.getByText("Bean Queue")).toBeInTheDocument();
+      expect(screen.getByText("Back to backlog")).toBeInTheDocument();
     });
   });
 
-  it("shows days of coffee remaining in calendar summary", async () => {
+  it("shows days of coffee remaining in the runway strip", async () => {
     renderHome();
     await waitFor(() => {
-      expect(screen.getByText(/of coffee remaining/)).toBeInTheDocument();
+      expect(screen.getByText(/days of coffee/)).toBeInTheDocument();
     });
   });
 

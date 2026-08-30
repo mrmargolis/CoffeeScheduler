@@ -4,41 +4,48 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { BeanWithComputed, ScheduleDay } from "@/lib/types";
 import { getRoasterColor } from "@/lib/colors";
-import { daysBetween, today as getToday } from "@/lib/date-utils";
+import { today as getToday, scheduleKey, formatShortDay } from "@/lib/date-utils";
 import { effectiveAge } from "@/lib/freeze-utils";
 import {
   extractBeanEarlyStarts,
   extractBeanFinishDates,
   extractBeanStartDates,
 } from "@/lib/schedule-utils";
+import { daysBetween } from "@/lib/date-utils";
+import { ChevronRight, GripIcon, SnowflakeIcon, WarningIcon } from "./icons";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Persists across mount/unmount cycles so scroll position survives BeanDetail view
 let persistedScrollTop = 0;
 
-function statusColor(bean: BeanWithComputed): string {
-  if (bean.remaining_grams <= 0) return "bg-gray-700 text-gray-400";
-  if (bean.is_frozen) return "bg-blue-900/50 text-blue-300";
-  if (!bean.ready_date) return "bg-yellow-900/50 text-yellow-300";
-  const today = getToday();
-  if (bean.ready_date > today) return "bg-orange-900/50 text-orange-300";
-  return "bg-green-900/50 text-green-300";
+interface Status {
+  label: string;
+  className: string;
+  dot?: boolean;
 }
 
-function statusLabel(bean: BeanWithComputed): string {
-  if (bean.remaining_grams <= 0) return "Depleted";
+function status(bean: BeanWithComputed, isInProgress: boolean): Status {
+  if (isInProgress)
+    return { label: "Brewing", className: "bg-ok-wash text-ok", dot: true };
+  if (bean.remaining_grams <= 0)
+    return { label: "Finished", className: "bg-raised text-ink-faint" };
   if (bean.is_frozen) {
-    if (bean.planned_thaw_date) return `Thaw ${bean.planned_thaw_date}`;
-    return "Frozen";
+    return {
+      label: bean.planned_thaw_date
+        ? `Thaw ${formatShortDay(bean.planned_thaw_date)}`
+        : "No thaw date",
+      className: "bg-cold-wash text-cold",
+    };
   }
-  if (!bean.ready_date) return "No roast date";
-  const today = getToday();
-  if (bean.ready_date > today) {
-    const days = daysBetween(today, bean.ready_date);
-    return days === 1 ? "Ready in 1 day" : `Ready in ${days} days`;
-  }
-  return "Ready";
+  if (!bean.ready_date)
+    return { label: "No roast date", className: "bg-early-wash text-early" };
+  if (bean.ready_date > getToday())
+    return {
+      label: `Rests until ${formatShortDay(bean.ready_date)}`,
+      className: "bg-rest-wash text-rest",
+    };
+  return { label: "Ready", className: "bg-ok-wash text-ok" };
 }
 
 export default function BeanList({
@@ -53,23 +60,7 @@ export default function BeanList({
     fetcher
   );
 
-  // Use the same date range as Calendar so SWR returns the cached result
-  const scheduleKey = useMemo(() => {
-    const start = (() => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - 2);
-      d.setDate(1);
-      return d.toISOString().split("T")[0];
-    })();
-    const end = (() => {
-      const d = new Date();
-      d.setMonth(d.getMonth() + 4);
-      return d.toISOString().split("T")[0];
-    })();
-    return `/api/schedule?start=${start}&end=${end}`;
-  }, []);
-
-  const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey, fetcher);
+  const { data: schedule } = useSWR<ScheduleDay[]>(scheduleKey(), fetcher);
 
   // Compute effective age-at-finish for each bean (frozen days subtracted)
   const ageAtFinish = useMemo(() => {
@@ -105,6 +96,11 @@ export default function BeanList({
     [schedule]
   );
 
+  const startDates = useMemo(
+    () => (schedule ? extractBeanStartDates(schedule) : new Map<string, string>()),
+    [schedule]
+  );
+
   const freezeSuggestions = useMemo(() => {
     const suggestions = new Map<string, string>();
     if (!beans || !schedule) return suggestions;
@@ -118,7 +114,7 @@ export default function BeanList({
       if (!bean.ready_date || bean.ready_date > todayStr) continue;
       const age = ageAtFinish.get(bean.id);
       if (age && age > 60) {
-        suggestions.set(bean.id, "Will go stale \u2014 consider freezing");
+        suggestions.set(bean.id, "Will go stale — consider freezing");
       }
     }
 
@@ -144,7 +140,7 @@ export default function BeanList({
       if (lastRested) {
         suggestions.set(
           lastRested.id,
-          "Low frozen stock \u2014 consider freezing"
+          "Low frozen stock — consider freezing"
         );
       }
     }
@@ -160,11 +156,15 @@ export default function BeanList({
     () => (beans ? beans.filter((b) => b.is_frozen) : []),
     [beans]
   );
+  const finishedBeans = useMemo(
+    () =>
+      beans ? beans.filter((b) => !b.is_frozen && b.remaining_grams <= 0) : [],
+    [beans]
+  );
 
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    active: false,
-    frozen: true,
-  });
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({ active: false, frozen: true, finished: true });
 
   const toggleSection = useCallback((key: string) => {
     setCollapsedSections((prev) => {
@@ -188,31 +188,28 @@ export default function BeanList({
     }
   }, []);
 
-  const handleSelectBean = useCallback((id: string) => {
-    if (scrollRef.current) {
-      persistedScrollTop = scrollRef.current.scrollTop;
-    }
-    onSelectBean(id);
-  }, [onSelectBean]);
+  const handleSelectBean = useCallback(
+    (id: string) => {
+      if (scrollRef.current) {
+        persistedScrollTop = scrollRef.current.scrollTop;
+      }
+      onSelectBean(id);
+    },
+    [onSelectBean]
+  );
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, beanId: string) => {
-      setDragId(beanId);
-      e.dataTransfer.effectAllowed = "move";
-    },
-    []
-  );
+  const handleDragStart = useCallback((e: React.DragEvent, beanId: string) => {
+    setDragId(beanId);
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, beanId: string) => {
-      e.preventDefault();
-      setDragOverId(beanId);
-    },
-    []
-  );
+  const handleDragOver = useCallback((e: React.DragEvent, beanId: string) => {
+    e.preventDefault();
+    setDragOverId(beanId);
+  }, []);
 
   const handleDrop = useCallback(
     async (e: React.DragEvent, targetId: string) => {
@@ -269,14 +266,17 @@ export default function BeanList({
   }, [activeBeans]);
 
   if (error)
-    return <div className="p-4 text-red-400">Failed to load beans</div>;
-  if (!beans) return <div className="p-4 text-gray-400">Loading...</div>;
+    return <div className="p-4 text-[13px] text-alert">Failed to load beans</div>;
+  if (!beans)
+    return <div className="p-4 text-[13px] text-ink-faint">Loading…</div>;
 
   if (beans.length === 0) {
     return (
-      <div className="p-4 text-gray-400 text-center">
-        <p className="mb-2">No beans imported yet.</p>
-        <p className="text-sm">Use the Import button to get started.</p>
+      <div className="px-4 py-10 text-center">
+        <p className="text-[13.5px] text-ink-muted">No bags yet.</p>
+        <p className="mt-1.5 text-[12.5px] text-ink-faint">
+          Import a BeanConqueror export to get started.
+        </p>
       </div>
     );
   }
@@ -284,6 +284,15 @@ export default function BeanList({
   const renderBean = (bean: BeanWithComputed, draggable: boolean) => {
     const roasterColor = getRoasterColor(bean.roaster);
     const isInProgress = bean.id === inProgressBeanId;
+    const isSelected = selectedBeanId === bean.id;
+    const pill = status(bean, isInProgress);
+    const early = earlyStarts.get(bean.id);
+    const finishAge = ageAtFinish.get(bean.id) ?? 0;
+    const startAge = ageAtStart.get(bean.id);
+    const suggestion = freezeSuggestions.get(bean.id);
+    const consumed = bean.weight_grams - bean.remaining_grams;
+    const showProgress = bean.weight_grams > 0 && consumed > 0 && bean.remaining_grams > 0;
+
     return (
       <div
         key={bean.id}
@@ -300,72 +309,91 @@ export default function BeanList({
             }
           : {})}
         onClick={() => handleSelectBean(bean.id)}
-        className={`w-full text-left p-3 hover:bg-gray-800 transition-colors ${
-          draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        className={`flex gap-2.5 border-b border-l-[3px] border-b-rule py-3.5 pr-4 transition-colors ${
+          draggable ? "cursor-grab pl-[13px] active:cursor-grabbing" : "cursor-pointer pl-[27px]"
         } ${
-          selectedBeanId === bean.id
-            ? "bg-amber-950 border-l-2 border-amber-500"
+          isSelected
+            ? "border-l-accent bg-accent-wash/60"
             : isInProgress
-              ? "border-l-2 border-green-500"
-              : ""
-        } ${dragOverId === bean.id ? "bg-amber-950/50 border-t-2 border-amber-500" : ""}`}
+              ? "border-l-accent bg-[#1f1b17]"
+              : "border-l-transparent hover:bg-raised"
+        } ${dragOverId === bean.id ? "border-t-2 border-t-accent" : ""}`}
       >
-        <div className="flex justify-between items-start">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-gray-300 truncate">{bean.name}</p>
-              {bean.display_order != null && (
-                <span className="text-xs font-mono shrink-0 px-1 py-0.5 rounded bg-amber-900/50 text-amber-400">#{bean.display_order}</span>
-              )}
+        {draggable && (
+          <div className="flex shrink-0 flex-col items-center gap-1.5 pt-0.5 text-ink-faint">
+            <GripIcon />
+            {bean.display_order != null && (
+              <span className="font-mono text-[10.5px] tabular-nums">
+                {bean.display_order}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex items-start gap-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13.5px] font-semibold tracking-[-0.005em]">
+                {bean.name}
+              </p>
+              <div className="mt-[3px] flex items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: roasterColor.border }}
+                />
+                <span className="truncate text-[12px] text-ink-muted">
+                  {bean.roaster}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-gray-400 truncate">
-              <span
-                className="inline-block w-2 h-2 rounded-full mr-1"
-                style={{ backgroundColor: roasterColor.border }}
-              />
-              {bean.roaster}
-            </p>
+            <span
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${pill.className}`}
+            >
+              {pill.dot && (
+                <span className="h-[5px] w-[5px] rounded-full bg-current" />
+              )}
+              {pill.label}
+            </span>
           </div>
-          <span
-            className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${isInProgress ? "bg-green-900/50 text-green-300" : statusColor(bean)}`}
-          >
-            {isInProgress ? "Brewing" : statusLabel(bean)}
-          </span>
-        </div>
-        <div className="mt-1 flex gap-3 text-xs text-gray-400">
-          <span>{Math.round(bean.remaining_grams)}g remaining</span>
-          {bean.ready_date && <span>Ready {bean.ready_date}</span>}
-          {ageAtStart.has(bean.id) && (
-            <span>{ageAtStart.get(bean.id)} days old at start</span>
+
+          {showProgress && (
+            <div className="flex items-center gap-2.5">
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-track">
+                <div
+                  className="h-full rounded-full bg-accent"
+                  style={{
+                    width: `${Math.min(100, (consumed / bean.weight_grams) * 100)}%`,
+                  }}
+                />
+              </div>
+              <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-ink-muted">
+                {Math.round(bean.remaining_grams)} / {bean.weight_grams} g
+              </span>
+            </div>
           )}
-          {bean.freeze_after_grams != null && !bean.is_frozen && (
-            <span className="text-blue-400/60">Freeze at {bean.freeze_after_grams}g</span>
-          )}
-        </div>
-        {earlyStarts.has(bean.id) && (
-          <p className="mt-0.5 text-xs font-medium text-orange-400">
-            Starts {earlyStarts.get(bean.id)} day
-            {earlyStarts.get(bean.id) === 1 ? "" : "s"} before ready ({bean.ready_date})
-          </p>
-        )}
-        {(ageAtFinish.get(bean.id) ?? 0) > 60 && (
-          <p className="mt-0.5 text-xs font-medium text-red-400">
-            Finishes day {ageAtFinish.get(bean.id)}
-          </p>
-        )}
-        {bean.weight_grams > 0 && bean.remaining_grams < bean.weight_grams && (
-          <div className="mt-1.5 h-1 bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-amber-600 rounded-full transition-all"
-              style={{ width: `${Math.min(100, ((bean.weight_grams - bean.remaining_grams) / bean.weight_grams) * 100)}%` }}
-            />
+
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-[11.5px] tabular-nums text-ink-faint">
+            {!showProgress && (
+              <span>{Math.round(bean.remaining_grams)} g</span>
+            )}
+            {startAge != null && <span>day {startAge} at the first cup</span>}
+            {finishAge > 60 && (
+              <span className="text-alert">day {finishAge} at the last</span>
+            )}
+            {bean.freeze_after_grams != null && !bean.is_frozen && (
+              <span className="text-cold">freeze at {bean.freeze_after_grams} g</span>
+            )}
           </div>
-        )}
-        {freezeSuggestions.has(bean.id) && (
-          <p className="mt-0.5 text-xs font-medium text-blue-400">
-            {freezeSuggestions.get(bean.id)}
-          </p>
-        )}
+
+          {early != null && (
+            <Callout tone="early">
+              Starts {startDates.get(bean.id) ? formatShortDay(startDates.get(bean.id)!) : "soon"},{" "}
+              {early} {early === 1 ? "day" : "days"} before it is rested.
+            </Callout>
+          )}
+
+          {suggestion && <Callout tone="cold">{suggestion}</Callout>}
+        </div>
       </div>
     );
   };
@@ -373,55 +401,117 @@ export default function BeanList({
   const renderSectionHeader = (
     label: string,
     count: number,
-    sectionKey?: string
+    sectionKey: string,
+    icon?: React.ReactNode
   ) => {
-    const collapsed = sectionKey ? collapsedSections[sectionKey] : false;
+    const collapsed = collapsedSections[sectionKey];
     return (
-      <div
+      <button
         key={`header-${label}`}
-        onClick={sectionKey ? () => toggleSection(sectionKey) : undefined}
-        className={`text-xs uppercase tracking-wide text-gray-500 px-3 py-2 bg-gray-900/50 flex items-center gap-2 select-none ${
-          sectionKey ? "cursor-pointer hover:bg-gray-800" : ""
-        }`}
+        onClick={() => toggleSection(sectionKey)}
+        className="flex w-full select-none items-center gap-2 border-b border-rule bg-raised px-4 py-2.5 text-left transition-colors hover:bg-elevated"
       >
-        {sectionKey && (
-          <span className="text-[10px] text-gray-500">{collapsed ? "\u203A" : "\u2039"}</span>
-        )}
-        <span>{label}</span>
-        <span className="ml-auto bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+        <ChevronRight
+          size={12}
+          className={`shrink-0 text-ink-faint transition-transform ${collapsed ? "" : "rotate-90"}`}
+        />
+        {icon}
+        <span className="text-[10.5px] uppercase tracking-[0.09em] text-ink-faint">
+          {label}
+        </span>
+        <span className="ml-auto font-mono text-[11px] tabular-nums text-ink-faint">
           {count}
         </span>
-      </div>
+      </button>
     );
   };
 
+  const section = (key: string, children: React.ReactNode) => (
+    <div
+      className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+      style={{ gridTemplateRows: collapsedSections[key] ? "0fr" : "1fr" }}
+    >
+      <div className="overflow-hidden">{children}</div>
+    </div>
+  );
+
+  const stockedGrams = [...activeBeans, ...frozenBeans].reduce(
+    (sum, b) => sum + Math.max(0, b.remaining_grams),
+    0
+  );
+
   return (
-    <div ref={scrollRef} className="divide-y divide-gray-700 max-h-[calc(100vh-12rem)] overflow-y-auto">
-      {renderSectionHeader("Active", activeBeans.length, "active")}
-      <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-        style={{ gridTemplateRows: collapsedSections.active ? "0fr" : "1fr" }}
-      >
-        <div className="overflow-hidden">
-          {activeBeans.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-gray-500 text-center">
-              No active beans — thaw or import beans to continue.
-            </div>
-          ) : (
-            activeBeans.map((bean) => renderBean(bean, true))
-          )}
+    <div
+      ref={scrollRef}
+      className="overflow-y-auto lg:max-h-[calc(100vh-13rem)]"
+    >
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-rule bg-panel px-4 py-3.5">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em]">
+            Backlog
+          </h2>
+          <span className="font-mono text-[12px] tabular-nums text-ink-faint">
+            {activeBeans.length + frozenBeans.length} bags ·{" "}
+            {stockedGrams >= 1000
+              ? `${(stockedGrams / 1000).toFixed(1)} kg`
+              : `${Math.round(stockedGrams)} g`}
+          </span>
         </div>
+        <span className="hidden text-[11.5px] text-ink-faint lg:block">
+          Drag to reorder
+        </span>
       </div>
 
-      {renderSectionHeader("Frozen", frozenBeans.length, "frozen")}
-      <div
-        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-        style={{ gridTemplateRows: collapsedSections.frozen ? "0fr" : "1fr" }}
-      >
-        <div className="overflow-hidden">
-          {frozenBeans.map((bean) => renderBean(bean, false))}
-        </div>
-      </div>
+      {renderSectionHeader("In the queue", activeBeans.length, "active")}
+      {section(
+        "active",
+        activeBeans.length === 0 ? (
+          <p className="px-4 py-5 text-center text-[12.5px] text-ink-faint">
+            Nothing in the queue — thaw a bag or import more.
+          </p>
+        ) : (
+          activeBeans.map((bean) => renderBean(bean, true))
+        )
+      )}
+
+      {renderSectionHeader(
+        "Freezer",
+        frozenBeans.length,
+        "frozen",
+        <SnowflakeIcon size={12} className="shrink-0 text-cold" />
+      )}
+      {section("frozen", frozenBeans.map((bean) => renderBean(bean, false)))}
+
+      {finishedBeans.length > 0 && (
+        <>
+          {renderSectionHeader("Finished", finishedBeans.length, "finished")}
+          {section(
+            "finished",
+            finishedBeans.map((bean) => renderBean(bean, false))
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Callout({
+  tone,
+  children,
+}: {
+  tone: "early" | "cold";
+  children: React.ReactNode;
+}) {
+  const toneClass =
+    tone === "early" ? "bg-early-wash text-early" : "bg-cold-wash text-cold";
+  return (
+    <div className={`flex items-start gap-2 rounded-md px-2.5 py-2 ${toneClass}`}>
+      {tone === "early" ? (
+        <WarningIcon size={13} className="mt-px shrink-0" />
+      ) : (
+        <SnowflakeIcon size={13} className="mt-px shrink-0" />
+      )}
+      <span className="text-[11.5px] leading-[1.45] text-pretty">{children}</span>
     </div>
   );
 }

@@ -1,20 +1,23 @@
 /**
  * Deterministic color assignment per roaster.
  * Uses a hash of the roaster name to pick from a palette.
+ *
+ * Each entry is one hue at a shared lightness and chroma, so no roaster shouts
+ * louder than another: `border` is the 5px rail on a calendar bar and the dot
+ * in the backlog, `bg` the tint behind the bar, `text` the label on that tint.
+ * Palette order is load-bearing — changing it reshuffles every roaster's color.
  */
-const FG = "#C9D1D9";
-
 const PALETTE = [
-  { bg: "#1c1a10", border: "#D29922", text: FG }, // amber
-  { bg: "#10131e", border: "#58A6FF", text: FG }, // blue
-  { bg: "#101a11", border: "#3FB950", text: FG }, // green
-  { bg: "#1c1012", border: "#FF7B72", text: FG }, // pink
-  { bg: "#14101c", border: "#BC8CFF", text: FG }, // purple
-  { bg: "#1c1510", border: "#FFA657", text: FG }, // orange
-  { bg: "#101c18", border: "#56D364", text: FG }, // teal
-  { bg: "#101619", border: "#A5D6FF", text: FG }, // cyan
-  { bg: "#12101c", border: "#D2A8FF", text: FG }, // indigo
-  { bg: "#1c1010", border: "#F85149", text: FG }, // red
+  { bg: "#2d2114", border: "#e1b581", text: "#efdcc4" }, // amber
+  { bg: "#172632", border: "#8fc4f1", text: "#d5e5f3" }, // blue
+  { bg: "#19281c", border: "#96cea1", text: "#d8ecdc" }, // green
+  { bg: "#311e1f", border: "#efa8ac", text: "#f4dcde" }, // rose
+  { bg: "#262131", border: "#c6b2ed", text: "#e5ddf6" }, // violet
+  { bg: "#301f18", border: "#edad90", text: "#f3ded3" }, // orange
+  { bg: "#112927", border: "#78d0ca", text: "#cdeeeb" }, // teal
+  { bg: "#12272e", border: "#7ccbe4", text: "#cfebf3" }, // cyan
+  { bg: "#202333", border: "#adbaf5", text: "#dee3fa" }, // indigo
+  { bg: "#311e1d", border: "#f0a9a2", text: "#f5dcda" }, // red
 ];
 
 function hashString(str: string): number {

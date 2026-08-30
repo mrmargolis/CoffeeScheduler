@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
+import { getRoasterColor } from "@/lib/colors";
+import Modal from "./Modal";
+import { CloseIcon, PlusIcon } from "./icons";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -9,6 +12,9 @@ interface RoasterDefault {
   roaster: string;
   rest_days: number;
 }
+
+const inputClass =
+  "h-11 w-full rounded-[9px] border border-rule-strong bg-[#191614] px-3 font-mono text-[13.5px] tabular-nums text-ink placeholder:font-sans placeholder:text-ink-faint focus:border-accent-dim focus:outline-none lg:h-[38px]";
 
 export default function SettingsPanel({
   isOpen,
@@ -62,134 +68,149 @@ export default function SettingsPanel({
     }
   };
 
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-300">Settings</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-300"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-6">
+    <Modal title="Settings" onClose={onClose} widthClass="max-w-md">
+      <div className="flex flex-col gap-[18px] px-[18px] pb-[18px] pt-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Daily consumption (grams)
+            <label
+              htmlFor="daily-consumption"
+              className="mb-1.5 block text-[11.5px] text-ink-muted"
+            >
+              Coffee per day (grams)
             </label>
             <input
+              id="daily-consumption"
               type="number"
               value={dailyGrams}
               onChange={(e) => setDailyGrams(Number(e.target.value))}
-              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-300"
+              className={inputClass}
               min={1}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Default rest days
+            <label
+              htmlFor="default-rest"
+              className="mb-1.5 block text-[11.5px] text-ink-muted"
+            >
+              Default rest (days)
             </label>
             <input
+              id="default-rest"
               type="number"
               value={defaultRestDays}
               onChange={(e) => setDefaultRestDays(Number(e.target.value))}
-              className="w-full border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-gray-300"
+              className={inputClass}
               min={0}
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Per-roaster rest days
-            </label>
-            {roasterDefaults.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {roasterDefaults.map((rd) => (
-                  <div
-                    key={rd.roaster}
-                    className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2"
-                  >
-                    <span className="text-sm text-gray-300">{rd.roaster}</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={rd.rest_days}
-                        onChange={(e) =>
-                          setRoasterDefaults(
-                            roasterDefaults.map((r) =>
-                              r.roaster === rd.roaster
-                                ? { ...r, rest_days: Number(e.target.value) }
-                                : r
-                            )
-                          )
-                        }
-                        className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-1 text-sm text-gray-300"
-                        min={0}
-                      />
-                      <span className="text-xs text-gray-400">days</span>
-                      <button
-                        onClick={() =>
-                          setRoasterDefaults(
-                            roasterDefaults.filter(
-                              (r) => r.roaster !== rd.roaster
-                            )
-                          )
-                        }
-                        className="text-red-400 hover:text-red-600 text-sm"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newRoaster}
-                onChange={(e) => setNewRoaster(e.target.value)}
-                placeholder="Roaster name"
-                className="flex-1 border border-gray-700 bg-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300"
-              />
-              <input
-                type="number"
-                value={newRestDays}
-                onChange={(e) => setNewRestDays(Number(e.target.value))}
-                className="w-16 border border-gray-700 bg-gray-800 rounded px-2 py-2 text-sm text-gray-300"
-                min={0}
-              />
-              <button
-                onClick={addRoasterDefault}
-                className="px-3 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600 text-gray-300"
-              >
-                Add
-              </button>
-            </div>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10.5px] uppercase tracking-[0.09em] text-ink-faint">
+              Rest by roaster
+            </span>
+            <span className="text-[11.5px] text-ink-faint">
+              overrides the default
+            </span>
           </div>
 
+          {roasterDefaults.length > 0 && (
+            <div className="flex flex-col overflow-hidden rounded-[10px] border border-rule">
+              {roasterDefaults.map((rd) => (
+                <div
+                  key={rd.roaster}
+                  className="flex items-center gap-2.5 border-t border-rule bg-raised px-3 py-2.5 first:border-t-0"
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{
+                      backgroundColor: getRoasterColor(rd.roaster).border,
+                    }}
+                  />
+                  <span className="flex-1 truncate text-[13px]">
+                    {rd.roaster}
+                  </span>
+                  <input
+                    type="number"
+                    aria-label={`Rest days for ${rd.roaster}`}
+                    value={rd.rest_days}
+                    onChange={(e) =>
+                      setRoasterDefaults(
+                        roasterDefaults.map((r) =>
+                          r.roaster === rd.roaster
+                            ? { ...r, rest_days: Number(e.target.value) }
+                            : r
+                        )
+                      )
+                    }
+                    className={`${inputClass} h-[30px] w-[74px] px-2.5 text-[12.5px] lg:h-[30px]`}
+                    min={0}
+                  />
+                  <button
+                    onClick={() =>
+                      setRoasterDefaults(
+                        roasterDefaults.filter((r) => r.roaster !== rd.roaster)
+                      )
+                    }
+                    aria-label={`Remove ${rd.roaster}`}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-elevated hover:text-ink"
+                  >
+                    <CloseIcon size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2.5">
+            <input
+              type="text"
+              value={newRoaster}
+              onChange={(e) => setNewRoaster(e.target.value)}
+              placeholder="Add a roaster…"
+              aria-label="Roaster name"
+              className={`${inputClass} flex-1 font-sans`}
+            />
+            <input
+              type="number"
+              value={newRestDays}
+              onChange={(e) => setNewRestDays(Number(e.target.value))}
+              aria-label="Rest days"
+              className={`${inputClass} w-[74px] shrink-0 px-2.5`}
+              min={0}
+            />
+            <button
+              onClick={addRoasterDefault}
+              aria-label="Add roaster default"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] border border-rule-strong text-ink-muted transition-colors hover:bg-elevated hover:text-ink lg:h-[38px] lg:w-[38px]"
+            >
+              <PlusIcon />
+            </button>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-400 hover:text-gray-200"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800"
-          >
-            Save
-          </button>
+        <div className="flex items-center justify-between gap-3 border-t border-rule pt-3.5">
+          <p className="flex-1 text-[11.5px] leading-[1.5] text-ink-faint text-pretty">
+            Doses round to 15 g. Remnants under 12 g are discarded.
+          </p>
+          <div className="flex shrink-0 gap-2.5">
+            <button
+              onClick={onClose}
+              className="h-11 rounded-[9px] px-3.5 text-[13px] text-ink-muted transition-colors hover:text-ink lg:h-[38px]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="h-11 rounded-[9px] bg-accent px-[18px] text-[13px] font-semibold text-on-accent transition-colors hover:bg-[#f0b878] lg:h-[38px]"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
