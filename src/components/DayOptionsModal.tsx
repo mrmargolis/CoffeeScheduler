@@ -8,6 +8,8 @@ interface DayOptionsModalProps {
   date: string;
   isSkipDay: boolean;
   existingOverride: ConsumptionOverride | null;
+  defaultDailyGrams: number;
+  defaultDoseSize: number;
   onClose: () => void;
   onToggleSkip: (date: string) => Promise<void>;
   onSaveOverride: (override: {
@@ -26,25 +28,31 @@ export default function DayOptionsModal({
   date,
   isSkipDay,
   existingOverride,
+  defaultDailyGrams,
+  defaultDoseSize,
   onClose,
   onToggleSkip,
   onSaveOverride,
   onClearOverride,
 }: DayOptionsModalProps) {
-  const [dailyGrams, setDailyGrams] = useState(
-    existingOverride?.daily_grams?.toString() || "40"
+  const [dailyGrams, setDailyGrams] = useState(() =>
+    (existingOverride?.daily_grams ?? defaultDailyGrams).toString()
   );
-  const [doseSize, setDoseSize] = useState(
-    existingOverride?.dose_size_grams?.toString() || "20"
+  const [doseSize, setDoseSize] = useState(() =>
+    (existingOverride?.dose_size_grams ?? defaultDoseSize).toString()
   );
   const [saving, setSaving] = useState(false);
 
+  // Follow whichever day is selected: its override if it has one, the
+  // configured defaults otherwise.
   useEffect(() => {
-    if (existingOverride) {
-      setDailyGrams(existingOverride.daily_grams.toString());
-      setDoseSize(existingOverride.dose_size_grams.toString());
-    }
-  }, [existingOverride]);
+    setDailyGrams(
+      (existingOverride?.daily_grams ?? defaultDailyGrams).toString()
+    );
+    setDoseSize(
+      (existingOverride?.dose_size_grams ?? defaultDoseSize).toString()
+    );
+  }, [date, existingOverride, defaultDailyGrams, defaultDoseSize]);
 
   const formattedDate = new Date(date + "T00:00:00").toLocaleDateString(
     undefined,

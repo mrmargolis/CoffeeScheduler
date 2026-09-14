@@ -5,7 +5,10 @@ import { ScheduleDay } from "./types";
 const MIN_DOSE_GRAMS = 12;
 
 /** Typical dose size used for rounding on transition days. */
-const DOSE_SIZE_GRAMS = 15;
+export const DOSE_SIZE_GRAMS = 15;
+
+/** Daily consumption assumed when the setting is missing or unreadable. */
+export const DEFAULT_DAILY_GRAMS = 45;
 
 export interface SchedulerBean {
   id: string;

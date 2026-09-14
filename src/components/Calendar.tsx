@@ -10,6 +10,7 @@ import { ScheduleDay, SkipDayRange, ConsumptionOverride } from "@/lib/types";
 import { buildCalendarEvents } from "@/lib/calendar-utils";
 import { today as getToday, scheduleKey } from "@/lib/date-utils";
 import { ChevronLeft, ChevronRight } from "./icons";
+import { DEFAULT_DAILY_GRAMS, DOSE_SIZE_GRAMS } from "@/lib/scheduler";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -42,6 +43,12 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
   const { data: consumptionOverrides, mutate: mutateOverrides } = useSWR<
     ConsumptionOverride[]
   >("/api/consumption-overrides", fetcher);
+
+  // The day modal pre-fills with the configured daily amount, not a literal.
+  const { data: settings } = useSWR<{ daily_consumption_grams: number }>(
+    "/api/settings",
+    fetcher
+  );
 
   const { events } = useMemo(
     () =>
@@ -257,6 +264,10 @@ export default function Calendar({ onSelectBean }: CalendarProps) {
           date={selectedDate}
           isSkipDay={isSkipDay}
           existingOverride={existingOverride}
+          defaultDailyGrams={
+            settings?.daily_consumption_grams ?? DEFAULT_DAILY_GRAMS
+          }
+          defaultDoseSize={DOSE_SIZE_GRAMS}
           onClose={() => setSelectedDate(null)}
           onToggleSkip={handleToggleSkip}
           onSaveOverride={handleSaveOverride}

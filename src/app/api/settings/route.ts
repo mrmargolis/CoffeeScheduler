@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { DEFAULT_DAILY_GRAMS } from "@/lib/scheduler";
 
 export async function GET() {
   const db = getDb();
@@ -15,7 +16,7 @@ export async function GET() {
     .all();
 
   return NextResponse.json({
-    daily_consumption_grams: Number(settings.daily_consumption_grams) || 45,
+    daily_consumption_grams: Number(settings.daily_consumption_grams) || DEFAULT_DAILY_GRAMS,
     default_rest_days: Number(settings.default_rest_days) || 30,
     roaster_defaults: roasterDefaults,
   });

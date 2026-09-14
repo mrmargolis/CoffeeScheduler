@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
-import { computeSchedule, DayOverride, SchedulerBean } from "./scheduler";
+import {
+  computeSchedule,
+  DayOverride,
+  DEFAULT_DAILY_GRAMS,
+  SchedulerBean,
+} from "./scheduler";
 import { dateRange } from "./date-utils";
 import { queryBeanRowsRaw } from "./bean-queries";
 import { computeFrozenDays } from "./freeze-utils";
@@ -22,7 +27,7 @@ export function loadScheduleData(
     .all() as { key: string; value: string }[];
   const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
   const dailyConsumptionGrams =
-    Number(settings.daily_consumption_grams) || 45;
+    Number(settings.daily_consumption_grams) || DEFAULT_DAILY_GRAMS;
 
   // Get all beans (including archived) so past brews can resolve names.
   const beanRows = queryBeanRowsRaw(db);
