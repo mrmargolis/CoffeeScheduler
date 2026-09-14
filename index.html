@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Coffee Schedule</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 8h16v2h3a4 4 0 0 1 0 8h-3v2a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8z' fill='%238B6914'/%3E%3Cpath d='M22 10h3a2 2 0 0 1 0 4h-3v-4z' fill='%23A07D1A'/%3E%3Cpath d='M8 10h12v9a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3v-9z' fill='%23C4942A'/%3E%3Cpath d='M8 10h12v2H8z' fill='%23D4A43A' opacity='0.6'/%3E%3Cpath d='M7 26h14a1 1 0 0 1 0 2H7a1 1 0 0 1 0-2z' fill='%238B6914'/%3E%3Cellipse cx='14' cy='6' rx='2' ry='2' fill='%23D4A43A' opacity='0.4'/%3E%3Cellipse cx='11' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3Cellipse cx='17' cy='5' rx='1.5' ry='1.5' fill='%23D4A43A' opacity='0.3'/%3E%3C/svg%3E">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+[hidden]{display:none!important}
+:root{
+  --canvas:#141110;--panel:#1c1917;--raised:#241f1b;--rule:#2c2723;--rule-strong:#3d3833;--track:#322c26;
+  --ink:#e9e6e0;--ink-muted:#aea8a1;--ink-faint:#807b74;
+  --accent:#e5a152;--on-accent:#211603;
+  --ok:#91cb9c;--ok-wash:#182a1c;--alert:#ea8e82;--alert-wash:#2f1b18;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+body{
+  background:var(--canvas);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding:16px 14px calc(24px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Header */
+.page-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+h1{font-size:19px;font-weight:600;letter-spacing:-0.02em}
+.stamp{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+
+/* Runway */
+.runway{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;margin-bottom:22px}
+.runway-num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:32px;font-weight:500;line-height:1;color:var(--ok)}
+.runway.alert .runway-num{color:var(--accent)}
+.runway-text{font-size:14px;color:var(--ink-muted);display:flex;flex-direction:column}
+.runway-sub{font-size:12.5px;color:var(--alert);margin-top:2px}
+
+/* Week picker */
+.weeknav{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;background:var(--canvas);padding:6px 0 10px;margin-bottom:2px}
+.weeklabel{flex:1;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;font-weight:500;letter-spacing:-0.01em}
+.navbtn{
+  width:38px;height:38px;flex:none;border:1px solid var(--rule-strong);border-radius:10px;
+  background:var(--panel);color:var(--ink);font-size:19px;line-height:1;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.navbtn:active{background:var(--raised)}
+.navbtn:disabled{opacity:0.32;cursor:default}
+
+/* Day list */
+.week{margin-bottom:22px}
+.days{list-style:none}
+.day{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--rule)}
+.day:last-child{border-bottom:0}
+.day-date{display:flex;flex-direction:column;align-items:center;width:34px;flex:none;padding-top:1px}
+.dow{font-family:var(--mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint)}
+.dnum{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:16px;color:var(--ink-muted);line-height:1.25}
+.day-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.brew{display:grid;grid-template-columns:3px 1fr;column-gap:9px;align-items:baseline}
+.rail{grid-row:1/3;border-radius:2px;align-self:stretch}
+.brew-name{font-size:14px;font-weight:500;text-wrap:pretty;overflow-wrap:anywhere}
+.brew-meta{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-faint);margin-top:2px}
+.note{font-size:13px;color:var(--ink-faint)}
+.note.alert{color:var(--alert)}
+
+/* Today, and the days behind it */
+.day.past{opacity:0.55}
+.day.today .dnum{background:var(--accent);color:var(--on-accent);border-radius:11px;font-weight:500;min-width:22px;text-align:center}
+.day.today .dow{color:var(--accent)}
+.day.today .day-date::after{content:"Today";font-family:var(--mono);font-size:8.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent);margin-top:3px}
+
+/* Bag key */
+.bags{border-top:1px solid var(--rule);padding-top:18px}
+.bags h2{font-size:15px;font-weight:600;letter-spacing:-0.01em;margin-bottom:6px}
+.bag{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.bag:last-child{border-bottom:0}
+.bag-rail{width:3px;border-radius:2px;flex:none;align-self:stretch}
+.bag-name{font-size:14px;font-weight:500;text-wrap:pretty}
+.bag-meta{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-faint);margin-top:3px}
+
+.footer{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:22px}
+
+</style>
+</head>
+<body>
+<div class="page-head"><h1>Coffee schedule</h1><span class="stamp">Sep 13, 2026, 7:58 PM</span></div>
+<div class="runway alert"><span class="runway-num">29</span><span class="runway-text">days of coffee<span class="runway-sub">then a gap from Oct 13</span></span></div>
+<nav class="weeknav"><button type="button" id="week-prev" class="navbtn" aria-label="Previous week">‹</button><span id="week-label" class="weeklabel">Sep 7 – Sep 13</span><button type="button" id="week-next" class="navbtn" aria-label="Next week">›</button></nav>
+<section class="week" data-start="2026-09-01" data-end="2026-09-06" data-label="Sep 1 – Sep 6" hidden><ol class="days"><li class="day past" data-date="2026-09-01"><div class="day-date"><span class="dow">Tue</span><span class="dnum">1</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia Efren Rodriguez</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-02"><div class="day-date"><span class="dow">Wed</span><span class="dnum">2</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia Efren Rodriguez</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-03"><div class="day-date"><span class="dow">Thu</span><span class="dnum">3</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia Efren Rodriguez</span><span class="brew-meta">30 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-04"><div class="day-date"><span class="dow">Fri</span><span class="dnum">4</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Ecuador Juan Peña Mejorado</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-05"><div class="day-date"><span class="dow">Sat</span><span class="dnum">5</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Ecuador Juan Peña Mejorado</span><span class="brew-meta">15 g · H&amp;S Coffee Roasters</span></div><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kii AA</span><span class="brew-meta">30 g · Delicate Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-06"><div class="day-date"><span class="dow">Sun</span><span class="dnum">6</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kii AA</span><span class="brew-meta">45 g · Delicate Coffee Roasters</span></div></div></li></ol></section>
+<section class="week" data-start="2026-09-07" data-end="2026-09-13" data-label="Sep 7 – Sep 13"><ol class="days"><li class="day past" data-date="2026-09-07"><div class="day-date"><span class="dow">Mon</span><span class="dnum">7</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kii AA</span><span class="brew-meta">45 g · Delicate Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-08"><div class="day-date"><span class="dow">Tue</span><span class="dnum">8</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kathima AB</span><span class="brew-meta">45 g · Delicate Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-09"><div class="day-date"><span class="dow">Wed</span><span class="dnum">9</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kathima AB</span><span class="brew-meta">45 g · Delicate Coffee Roasters</span></div></div></li><li class="day past" data-date="2026-09-10"><div class="day-date"><span class="dow">Thu</span><span class="dnum">10</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#c6b2ed"></span><span class="brew-name">kathima AB</span><span class="brew-meta">30 g · Delicate Coffee Roasters</span></div><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Fincas Del Putushio - Washed Mejorado</span><span class="brew-meta">15 g · September Coffee Company</span></div></div></li><li class="day past" data-date="2026-09-11"><div class="day-date"><span class="dow">Fri</span><span class="dnum">11</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Fincas Del Putushio - Washed Mejorado</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day past" data-date="2026-09-12"><div class="day-date"><span class="dow">Sat</span><span class="dnum">12</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Fincas Del Putushio - Washed Mejorado</span><span class="brew-meta">30 g · September Coffee Company</span></div><div class="brew"><span class="rail" style="background:#8fc4f1"></span><span class="brew-name">Paola Trujillo - Patio Bonito - SL28 Washed</span><span class="brew-meta">15 g · Love Letters Charming Coffees</span></div></div></li><li class="day today" data-date="2026-09-13"><div class="day-date"><span class="dow">Sun</span><span class="dnum">13</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#8fc4f1"></span><span class="brew-name">Paola Trujillo - Patio Bonito - SL28 Washed</span><span class="brew-meta">45 g · Love Letters Charming Coffees</span></div></div></li></ol></section>
+<section class="week" data-start="2026-09-14" data-end="2026-09-20" data-label="Sep 14 – Sep 20" hidden><ol class="days"><li class="day" data-date="2026-09-14"><div class="day-date"><span class="dow">Mon</span><span class="dnum">14</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#8fc4f1"></span><span class="brew-name">Paola Trujillo - Patio Bonito - SL28 Washed</span><span class="brew-meta">45 g · Love Letters Charming Coffees</span></div></div></li><li class="day" data-date="2026-09-15"><div class="day-date"><span class="dow">Tue</span><span class="dnum">15</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#8fc4f1"></span><span class="brew-name">Paola Trujillo - Patio Bonito - SL28 Washed</span><span class="brew-meta">15 g · Love Letters Charming Coffees</span></div><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Fincas Del Putushio - Washed Mejorado</span><span class="brew-meta">30 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-16"><div class="day-date"><span class="dow">Wed</span><span class="dnum">16</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Arturo Paz - Gesha</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-17"><div class="day-date"><span class="dow">Thu</span><span class="dnum">17</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Arturo Paz - Gesha</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-18"><div class="day-date"><span class="dow">Fri</span><span class="dnum">18</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Arturo Paz - Gesha</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-19"><div class="day-date"><span class="dow">Sat</span><span class="dnum">19</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Arturo Paz - Gesha</span><span class="brew-meta">15 g · Thankfully Coffee</span></div><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">30 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-20"><div class="day-date"><span class="dow">Sun</span><span class="dnum">20</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li></ol></section>
+<section class="week" data-start="2026-09-21" data-end="2026-09-27" data-label="Sep 21 – Sep 27" hidden><ol class="days"><li class="day" data-date="2026-09-21"><div class="day-date"><span class="dow">Mon</span><span class="dnum">21</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-22"><div class="day-date"><span class="dow">Tue</span><span class="dnum">22</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-23"><div class="day-date"><span class="dow">Wed</span><span class="dnum">23</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-24"><div class="day-date"><span class="dow">Thu</span><span class="dnum">24</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Mullugeta Muntasha</span><span class="brew-meta">30 g · September Coffee Company</span></div><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Finca Lerida</span><span class="brew-meta">15 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-25"><div class="day-date"><span class="dow">Fri</span><span class="dnum">25</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Finca Lerida</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-26"><div class="day-date"><span class="dow">Sat</span><span class="dnum">26</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Finca Lerida</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li><li class="day" data-date="2026-09-27"><div class="day-date"><span class="dow">Sun</span><span class="dnum">27</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#96cea1"></span><span class="brew-name">Finca Lerida</span><span class="brew-meta">45 g · Thankfully Coffee</span></div></div></li></ol></section>
+<section class="week" data-start="2026-09-28" data-end="2026-10-04" data-label="Sep 28 – Oct 4" hidden><ol class="days"><li class="day" data-date="2026-09-28"><div class="day-date"><span class="dow">Mon</span><span class="dnum">28</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-29"><div class="day-date"><span class="dow">Tue</span><span class="dnum">29</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-09-30"><div class="day-date"><span class="dow">Wed</span><span class="dnum">30</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-10-01"><div class="day-date"><span class="dow">Thu</span><span class="dnum">1</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-10-02"><div class="day-date"><span class="dow">Fri</span><span class="dnum">2</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">45 g · September Coffee Company</span></div></div></li><li class="day" data-date="2026-10-03"><div class="day-date"><span class="dow">Sat</span><span class="dnum">3</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#7ccbe4"></span><span class="brew-name">Moata Raya</span><span class="brew-meta">15 g · September Coffee Company</span></div><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Pink Bourbon</span><span class="brew-meta">30 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day" data-date="2026-10-04"><div class="day-date"><span class="dow">Sun</span><span class="dnum">4</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Pink Bourbon</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li></ol></section>
+<section class="week" data-start="2026-10-05" data-end="2026-10-11" data-label="Oct 5 – Oct 11" hidden><ol class="days"><li class="day" data-date="2026-10-05"><div class="day-date"><span class="dow">Mon</span><span class="dnum">5</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Pink Bourbon</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day" data-date="2026-10-06"><div class="day-date"><span class="dow">Tue</span><span class="dnum">6</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Bourbon Aji</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day" data-date="2026-10-07"><div class="day-date"><span class="dow">Wed</span><span class="dnum">7</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Bourbon Aji</span><span class="brew-meta">45 g · H&amp;S Coffee Roasters</span></div></div></li><li class="day" data-date="2026-10-08"><div class="day-date"><span class="dow">Thu</span><span class="dnum">8</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#e1b581"></span><span class="brew-name">Colombia La Fortuna Bourbon Aji</span><span class="brew-meta">30 g · H&amp;S Coffee Roasters</span></div><div class="brew"><span class="rail" style="background:#f0a9a2"></span><span class="brew-name">Bombe Ayla 74110 - 74158 Natural</span><span class="brew-meta">15 g · Datura</span></div></div></li><li class="day" data-date="2026-10-09"><div class="day-date"><span class="dow">Fri</span><span class="dnum">9</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#f0a9a2"></span><span class="brew-name">Bombe Ayla 74110 - 74158 Natural</span><span class="brew-meta">45 g · Datura</span></div></div></li><li class="day" data-date="2026-10-10"><div class="day-date"><span class="dow">Sat</span><span class="dnum">10</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#f0a9a2"></span><span class="brew-name">Bombe Ayla 74110 - 74158 Natural</span><span class="brew-meta">45 g · Datura</span></div></div></li><li class="day" data-date="2026-10-11"><div class="day-date"><span class="dow">Sun</span><span class="dnum">11</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#f0a9a2"></span><span class="brew-name">Bombe Ayla 74110 - 74158 Natural</span><span class="brew-meta">45 g · Datura</span></div></div></li></ol></section>
+<section class="week" data-start="2026-10-12" data-end="2026-10-18" data-label="Oct 12 – Oct 18" hidden><ol class="days"><li class="day" data-date="2026-10-12"><div class="day-date"><span class="dow">Mon</span><span class="dnum">12</span></div><div class="day-body"><div class="brew"><span class="rail" style="background:#f0a9a2"></span><span class="brew-name">Bombe Ayla 74110 - 74158 Natural</span><span class="brew-meta">45 g · Datura</span></div></div></li><li class="day run gap" data-date="2026-10-13" data-end="2026-10-18"><div class="day-date"><span class="dow">Tue</span><span class="dnum">13</span></div><div class="day-body"><div class="note alert">Nothing available · 6 days through Oct 18</div></div></li></ol></section>
+<section class="week" data-start="2026-10-19" data-end="2026-10-25" data-label="Oct 19 – Oct 25" hidden><ol class="days"><li class="day run gap" data-date="2026-10-19" data-end="2026-10-25"><div class="day-date"><span class="dow">Mon</span><span class="dnum">19</span></div><div class="day-body"><div class="note alert">Nothing available · 7 days through Oct 25</div></div></li></ol></section>
+<section class="week" data-start="2026-10-26" data-end="2026-10-31" data-label="Oct 26 – Oct 31" hidden><ol class="days"><li class="day run gap" data-date="2026-10-26" data-end="2026-10-31"><div class="day-date"><span class="dow">Mon</span><span class="dnum">26</span></div><div class="day-body"><div class="note alert">Nothing available · 6 days through Oct 31</div></div></li></ol></section>
+<section class="bags"><h2>Bags in this schedule</h2><div class="bag"><span class="bag-rail" style="background:#e1b581"></span><div class="bag-text"><div class="bag-name">Colombia Efren Rodriguez</div><div class="bag-meta">H&amp;S Coffee Roasters · Sep 1 → Sep 3 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#e1b581"></span><div class="bag-text"><div class="bag-name">Ecuador Juan Peña Mejorado</div><div class="bag-meta">H&amp;S Coffee Roasters · Sep 4 → Sep 5 · 60 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#c6b2ed"></span><div class="bag-text"><div class="bag-name">kii AA</div><div class="bag-meta">Delicate Coffee Roasters · Sep 5 → Sep 7 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#c6b2ed"></span><div class="bag-text"><div class="bag-name">kathima AB</div><div class="bag-meta">Delicate Coffee Roasters · Sep 8 → Sep 10 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#7ccbe4"></span><div class="bag-text"><div class="bag-name">Fincas Del Putushio - Washed Mejorado</div><div class="bag-meta">September Coffee Company · Sep 10 → Sep 15 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#8fc4f1"></span><div class="bag-text"><div class="bag-name">Paola Trujillo - Patio Bonito - SL28 Washed</div><div class="bag-meta">Love Letters Charming Coffees · Sep 12 → Sep 15 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#96cea1"></span><div class="bag-text"><div class="bag-name">Arturo Paz - Gesha</div><div class="bag-meta">Thankfully Coffee · Sep 16 → Sep 19 · 150 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#7ccbe4"></span><div class="bag-text"><div class="bag-name">Mullugeta Muntasha</div><div class="bag-meta">September Coffee Company · Sep 19 → Sep 24 · 240 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#96cea1"></span><div class="bag-text"><div class="bag-name">Finca Lerida</div><div class="bag-meta">Thankfully Coffee · Sep 24 → Sep 27 · 150 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#7ccbe4"></span><div class="bag-text"><div class="bag-name">Moata Raya</div><div class="bag-meta">September Coffee Company · Sep 28 → Oct 3 · 240 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#e1b581"></span><div class="bag-text"><div class="bag-name">Colombia La Fortuna Pink Bourbon</div><div class="bag-meta">H&amp;S Coffee Roasters · Oct 3 → Oct 5 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#e1b581"></span><div class="bag-text"><div class="bag-name">Colombia La Fortuna Bourbon Aji</div><div class="bag-meta">H&amp;S Coffee Roasters · Oct 6 → Oct 8 · 120 g</div></div></div><div class="bag"><span class="bag-rail" style="background:#f0a9a2"></span><div class="bag-text"><div class="bag-name">Bombe Ayla 74110 - 74158 Natural</div><div class="bag-meta">Datura · Oct 8 → Oct 12 · 195 g</div></div></div></section>
+<div class="footer">Every day, and the bag it comes from</div>
+<script>
+(function(){
+  var weeks=[].slice.call(document.querySelectorAll(".week"));
+  if(!weeks.length)return;
+  var now=new Date();
+  var iso=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+
+  document.querySelectorAll(".day").forEach(function(row){
+    var start=row.getAttribute("data-date");
+    var end=row.getAttribute("data-end")||start;
+    row.classList.remove("today","past");
+    if(end<iso)row.classList.add("past");
+    else if(start<=iso)row.classList.add("today");
+  });
+
+  var idx=weeks.length-1;
+  for(var i=0;i<weeks.length;i++){
+    if(iso<=weeks[i].getAttribute("data-end")){idx=i;break;}
+  }
+
+  var label=document.getElementById("week-label");
+  var prev=document.getElementById("week-prev");
+  var next=document.getElementById("week-next");
+
+  function show(n){
+    idx=Math.max(0,Math.min(weeks.length-1,n));
+    for(var i=0;i<weeks.length;i++)weeks[i].hidden=(i!==idx);
+    label.textContent=weeks[idx].getAttribute("data-label");
+    prev.disabled=(idx===0);
+    next.disabled=(idx===weeks.length-1);
+  }
+
+  prev.addEventListener("click",function(){show(idx-1);});
+  next.addEventListener("click",function(){show(idx+1);});
+  document.addEventListener("keydown",function(e){
+    if(e.key==="ArrowLeft")show(idx-1);
+    else if(e.key==="ArrowRight")show(idx+1);
+  });
+  show(idx);
+})();
+</script>
+</body>
+</html>
