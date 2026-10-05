@@ -287,7 +287,7 @@ export default function BeanList({
     const isSelected = selectedBeanId === bean.id;
     const pill = status(bean, isInProgress);
     const early = earlyStarts.get(bean.id);
-    const finishAge = ageAtFinish.get(bean.id) ?? 0;
+    const finishAge = ageAtFinish.get(bean.id);
     const startAge = ageAtStart.get(bean.id);
     const suggestion = freezeSuggestions.get(bean.id);
     const consumed = bean.weight_grams - bean.remaining_grams;
@@ -377,8 +377,10 @@ export default function BeanList({
               <span>{Math.round(bean.remaining_grams)} g</span>
             )}
             {startAge != null && <span>day {startAge} at the first cup</span>}
-            {finishAge > 60 && (
-              <span className="text-alert">day {finishAge} at the last</span>
+            {finishAge != null && (
+              <span className={finishAge > 60 ? "text-alert" : undefined}>
+                day {finishAge} at the last
+              </span>
             )}
             {bean.freeze_after_grams != null && !bean.is_frozen && (
               <span className="text-cold">freeze at {bean.freeze_after_grams} g</span>
