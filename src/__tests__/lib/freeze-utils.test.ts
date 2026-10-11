@@ -92,6 +92,40 @@ describe("computeFrozenDays", () => {
     expect(result.get("b1")).toBe(36); // Jan 10 → Feb 15
   });
 
+  it("stops an active freeze at today when not projecting to the planned thaw", () => {
+    db.prepare(
+      "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('b1', 'freeze', '2026-01-10')"
+    ).run();
+    db.prepare(
+      "UPDATE beans SET is_frozen = 1, planned_thaw_date = '2026-02-15' WHERE id = 'b1'"
+    ).run();
+
+    const result = computeFrozenDays(db, "2026-02-01", {
+      projectToPlannedThaw: false,
+    });
+    expect(result.get("b1")).toBe(22); // Jan 10 → Feb 1, not Feb 15
+  });
+
+  it("keeps completed cycles when not projecting", () => {
+    db.prepare(
+      "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('b1', 'freeze', '2026-01-10')"
+    ).run();
+    db.prepare(
+      "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('b1', 'thaw', '2026-01-20')"
+    ).run();
+    db.prepare(
+      "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('b1', 'freeze', '2026-02-01')"
+    ).run();
+    db.prepare(
+      "UPDATE beans SET is_frozen = 1, planned_thaw_date = '2026-03-01' WHERE id = 'b1'"
+    ).run();
+
+    const result = computeFrozenDays(db, "2026-02-05", {
+      projectToPlannedThaw: false,
+    });
+    expect(result.get("b1")).toBe(14); // 10 + 4
+  });
+
   it("combines a completed freeze cycle with a still-active freeze", () => {
     db.prepare(
       "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('b1', 'freeze', '2026-01-10')"

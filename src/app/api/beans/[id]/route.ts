@@ -4,6 +4,7 @@ import { autoThawBeans } from "@/lib/auto-thaw";
 import { autoFreezeBeans } from "@/lib/auto-freeze";
 import { queryBean } from "@/lib/bean-queries";
 import { today as getToday } from "@/lib/date-utils";
+import { computeFrozenDays } from "@/lib/freeze-utils";
 
 export async function GET(
   _request: NextRequest,
@@ -32,8 +33,17 @@ export async function GET(
     )
     .all(params.id);
 
+  // Frozen time so far, for the bag's age today. bean.frozen_days projects
+  // an active freeze to its planned thaw, which is right for the ready date
+  // but would make a frozen bag look younger than it is.
+  const frozenDaysToDate =
+    computeFrozenDays(db, today, { projectToPlannedThaw: false }).get(
+      params.id
+    ) ?? 0;
+
   return NextResponse.json({
     ...bean,
+    frozen_days_to_date: frozenDaysToDate,
     freeze_events: freezeEvents,
     recent_brews: recentBrews,
   });
