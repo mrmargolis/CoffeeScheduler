@@ -10,6 +10,9 @@ final class AppModel {
     private(set) var archivedBeans: [Bean] = []
     /// Skip ranges from today on.
     private(set) var skipRanges: [SkipRange] = []
+    private(set) var roasterDefaults: [RoasterDefault] = []
+    /// Roasters in the beans, for adding a roaster default.
+    private(set) var roasters: [String] = []
     /// Consumption overrides within the schedule window.
     private(set) var consumptionOverrides: [ConsumptionOverride] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
@@ -86,6 +89,8 @@ final class AppModel {
         try store.autoFreeze(today: today)
 
         settings = try store.settings()
+        roasterDefaults = try store.roasterDefaults()
+        roasters = try store.roasters()
         activeBeans = try store.beans(archived: false, today: today)
         archivedBeans = try store.beans(archived: true, today: today)
         skipRanges = try store.skipRanges(from: today)
@@ -242,6 +247,14 @@ final class AppModel {
     func deleteConsumptionOverride(id: Int) {
         perform("Couldn't clear the override") {
             try store?.deleteConsumptionOverride(id: id)
+            try save()
+        }
+    }
+
+    /// Set a roaster's default rest days, or remove it with nil.
+    func setRoasterRestDays(_ roaster: String, _ restDays: Int?) {
+        perform("Couldn't save the roaster default") {
+            try store?.setRoasterRestDays(roaster, restDays)
             try save()
         }
     }

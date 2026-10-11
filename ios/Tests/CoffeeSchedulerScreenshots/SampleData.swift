@@ -70,6 +70,8 @@ enum SampleData {
         try event("gesha", "freeze", "2026-08-16")
 
         try db.run("INSERT INTO skip_days (start_date, end_date, reason) VALUES ('2026-10-16', '2026-10-18', 'Away')")
+        // Same as the global default, so the schedule is unchanged
+        try db.run("INSERT INTO roaster_defaults (roaster, rest_days) VALUES ('Coffee Collective', 30)")
         try db.run(
             "INSERT INTO consumption_overrides (start_date, end_date, daily_grams, dose_size_grams) VALUES ('2026-10-14', '2026-10-14', 60, 20)"
         )

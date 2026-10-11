@@ -49,6 +49,34 @@ public final class CoffeeStore {
         }
     }
 
+    /// Roaster rest-day defaults, by roaster name.
+    public func roasterDefaults() throws -> [RoasterDefault] {
+        try db.query("SELECT roaster, rest_days FROM roaster_defaults ORDER BY roaster").compactMap { row in
+            guard let roaster = row.string("roaster"), let days = row.int("rest_days") else { return nil }
+            return RoasterDefault(roaster: roaster, restDays: days)
+        }
+    }
+
+    /// Set a roaster's default rest days, or remove it with nil, as
+    /// `PATCH /api/settings` does for each `roaster_defaults` entry.
+    public func setRoasterRestDays(_ roaster: String, _ restDays: Int?) throws {
+        if let restDays {
+            guard restDays >= 0 else { throw BeanSettingsError.negativeRestDays }
+            try db.run(
+                "INSERT OR REPLACE INTO roaster_defaults (roaster, rest_days) VALUES (?, ?)",
+                [.text(roaster), .int(Int64(restDays))]
+            )
+        } else {
+            try db.run("DELETE FROM roaster_defaults WHERE roaster = ?", [.text(roaster)])
+        }
+    }
+
+    /// Every roaster that appears in the beans, for picking one to set a default for.
+    public func roasters() throws -> [String] {
+        try db.query("SELECT DISTINCT roaster FROM beans WHERE roaster != '' ORDER BY roaster COLLATE NOCASE")
+            .compactMap { $0.string("roaster") }
+    }
+
     /// Render whole numbers without a trailing ".0", as JavaScript's String() does,
     /// so the web app reads the same text back.
     private static func format(_ value: Double) -> String {
