@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import ZIPFoundation
+
 @testable import CoffeeCore
 
 // Ported from src/__tests__/lib/bc-json-parser.test.ts.
@@ -33,13 +34,15 @@ func bcBean(_ overrides: [String: Any] = [:]) -> [String: Any] {
         "cost": 16.5,
         "aromatics": "Floral, Citrus",
         "finished": false,
-        "bean_information": [[
-            "country": "Ethiopia",
-            "region": "Yirgacheffe",
-            "variety": "Heirloom",
-            "processing": "Washed",
-        ]],
-        "config": ["uuid": "uuid-1", "unix_timestamp": 1700000000],
+        "bean_information": [
+            [
+                "country": "Ethiopia",
+                "region": "Yirgacheffe",
+                "variety": "Heirloom",
+                "processing": "Washed",
+            ]
+        ],
+        "config": ["uuid": "uuid-1", "unix_timestamp": 1_700_000_000],
     ]
     bean.merge(overrides) { _, new in new }
     return bean
@@ -50,7 +53,7 @@ func bcBrew(_ overrides: [String: Any] = [:]) -> [String: Any] {
         "bean": "uuid-1",
         "grind_weight": 15,
         "rating": 4,
-        "config": ["uuid": "brew-1", "unix_timestamp": 1706788800], // 2024-02-01 12:00 UTC
+        "config": ["uuid": "brew-1", "unix_timestamp": 1_706_788_800],  // 2024-02-01 12:00 UTC
     ]
     brew.merge(overrides) { _, new in new }
     return brew
@@ -60,12 +63,15 @@ func bcBrew(_ overrides: [String: Any] = [:]) -> [String: Any] {
     @Test func parsesBeanFields() throws {
         let result = BeanConquerorParser.parse(zipData: try makeExport(beans: [bcBean()]), timeZone: utc)
         #expect(result.errors.isEmpty)
-        #expect(result.beans == [BeanConquerorParser.RawBean(
-            id: "uuid-1", name: "Test Bean", roaster: "Test Roaster", roastDate: "2026-01-15",
-            weightGrams: 250, cost: 16.5, flavourProfile: "Floral, Citrus", country: "Ethiopia",
-            region: "Yirgacheffe", variety: "Heirloom", processing: "Washed",
-            archived: false, isFrozen: false
-        )])
+        #expect(
+            result.beans == [
+                BeanConquerorParser.RawBean(
+                    id: "uuid-1", name: "Test Bean", roaster: "Test Roaster", roastDate: "2026-01-15",
+                    weightGrams: 250, cost: 16.5, flavourProfile: "Floral, Citrus", country: "Ethiopia",
+                    region: "Yirgacheffe", variety: "Heirloom", processing: "Washed",
+                    archived: false, isFrozen: false
+                )
+            ])
     }
 
     @Test func emptyAndZeroFieldsBecomeNil() throws {
@@ -105,34 +111,41 @@ func bcBrew(_ overrides: [String: Any] = [:]) -> [String: Any] {
     @Test func parsesBrews() throws {
         let bean = bcBean(["roastingDate": "2024-01-15T00:00:00.000Z"])
         let result = BeanConquerorParser.parse(zipData: try makeExport(beans: [bean], brews: [bcBrew()]), timeZone: utc)
-        #expect(result.brews == [.init(
-            beanID: "uuid-1", groundCoffeeGrams: 15, creationDate: "2024-02-01", beanAgeDays: 17, rating: 4
-        )])
+        #expect(
+            result.brews == [
+                .init(
+                    beanID: "uuid-1", groundCoffeeGrams: 15, creationDate: "2024-02-01", beanAgeDays: 17, rating: 4
+                )
+            ])
     }
 
     @Test func mergesAndDedupesSplitBrewFiles() throws {
         let data = try makeExport(
             beans: [bcBean()],
             brews: [bcBrew()],
-            extra: ["Beanconqueror_Brews_1.json": [
-                bcBrew(), // duplicate of the main file's brew
-                bcBrew(["config": ["uuid": "brew-2", "unix_timestamp": 1706875200]]),
-            ]]
+            extra: [
+                "Beanconqueror_Brews_1.json": [
+                    bcBrew(),  // duplicate of the main file's brew
+                    bcBrew(["config": ["uuid": "brew-2", "unix_timestamp": 1_706_875_200]]),
+                ]
+            ]
         )
         let result = BeanConquerorParser.parse(zipData: data, timeZone: utc)
         #expect(result.brews.map(\.creationDate) == ["2024-02-01", "2024-02-02"])
     }
 
     @Test func skipsBrewsWithoutBeanOrDate() throws {
-        let result = BeanConquerorParser.parse(zipData: try makeExport(brews: [
-            bcBrew(["bean": "", "config": ["uuid": "a", "unix_timestamp": 1706788800]]),
-            bcBrew(["config": ["uuid": "b"]]),
-        ]))
+        let result = BeanConquerorParser.parse(
+            zipData: try makeExport(brews: [
+                bcBrew(["bean": "", "config": ["uuid": "a", "unix_timestamp": 1_706_788_800]]),
+                bcBrew(["config": ["uuid": "b"]]),
+            ]))
         #expect(result.brews.isEmpty)
-        #expect(result.errors == [
-            "Brew index 0: missing bean reference, skipping",
-            "Brew index 1: invalid creation date, skipping",
-        ])
+        #expect(
+            result.errors == [
+                "Brew index 0: missing bean reference, skipping",
+                "Brew index 1: invalid creation date, skipping",
+            ])
     }
 
     @Test func missingMainFile() throws {

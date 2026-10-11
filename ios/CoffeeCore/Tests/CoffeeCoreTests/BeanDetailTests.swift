@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 func makeDetailBean(
@@ -58,7 +59,7 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         let detail = BeanDetail(bean: makeDetailBean(), schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01")
         #expect(detail.consumedGrams == 100)
         #expect(detail.fractionConsumed == 0.4)
-        #expect(detail.daysLeft == 3) // 150 g / 45 g = 3.33
+        #expect(detail.daysLeft == 3)  // 150 g / 45 g = 3.33
     }
 
     @Test func noDaysLeftWhenEmptyOrNoRate() {
@@ -77,8 +78,8 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         let detail = BeanDetail(bean: makeDetailBean(frozenDays: 10), schedule: schedule, dailyConsumptionGrams: 45, today: "2026-02-01")
         #expect(detail.calendarAge == 31)
         #expect(detail.currentAge == 21)
-        #expect(detail.startAge == 29) // Feb 9 is 39 calendar days after roast
-        #expect(detail.finishAge == 31) // Feb 11 is 41 calendar days after roast
+        #expect(detail.startAge == 29)  // Feb 9 is 39 calendar days after roast
+        #expect(detail.finishAge == 31)  // Feb 11 is 41 calendar days after roast
     }
 
     @Test func startAgeOfABagAlreadyStartedIgnoresFreezerTimeToCome() {
@@ -91,7 +92,7 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
 
     @Test func ageRangesByBag() {
         let ranges = Scheduler.ageRanges(schedule, beans: [makeDetailBean()], today: "2026-02-01")
-        #expect(ranges == ["b1": AgeRange(start: 39, finish: 41)]) // "other" isn't a known bag
+        #expect(ranges == ["b1": AgeRange(start: 39, finish: 41)])  // "other" isn't a known bag
         #expect(Scheduler.ageRanges(schedule, beans: [makeDetailBean(roastDate: nil)], today: "2026-02-01").isEmpty)
     }
 
@@ -100,7 +101,7 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         let bean = makeDetailBean(frozenDays: 25, frozenDaysToDate: 10)
         let detail = BeanDetail(bean: bean, schedule: schedule, dailyConsumptionGrams: 45, today: "2026-02-01")
         #expect(detail.currentAge == 21)
-        #expect(detail.finishAge == 16) // Feb 11: 41 calendar days - 25 frozen
+        #expect(detail.finishAge == 16)  // Feb 11: 41 calendar days - 25 frozen
     }
 
     @Test func ageTrackToProjectedFinish() throws {
@@ -116,7 +117,7 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         let detail = BeanDetail(bean: makeDetailBean(), schedule: [], dailyConsumptionGrams: 45, today: "2026-01-21")
         let track = try #require(detail.ageTrack)
         #expect(track.end == "2026-01-21")
-        #expect(track.restFraction == 1) // still resting: rest runs past today
+        #expect(track.restFraction == 1)  // still resting: rest runs past today
         #expect(track.todayFraction == 1)
     }
 
@@ -127,11 +128,13 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
 
     @Test func provenance() {
         let full = makeDetailBean(country: "Ethiopia", region: "Guji", variety: "Heirloom", processing: "Natural")
-        #expect(BeanDetail(bean: full, schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01").provenance
-            == "Ethiopia, Guji · Heirloom · Natural")
+        #expect(
+            BeanDetail(bean: full, schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01").provenance
+                == "Ethiopia, Guji · Heirloom · Natural")
         let partial = makeDetailBean(region: "Huila", processing: "Washed")
-        #expect(BeanDetail(bean: partial, schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01").provenance
-            == "Huila · Washed")
+        #expect(
+            BeanDetail(bean: partial, schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01").provenance
+                == "Huila · Washed")
         #expect(BeanDetail(bean: makeDetailBean(), schedule: [], dailyConsumptionGrams: 45, today: "2026-02-01").provenance == "")
     }
 }
@@ -147,7 +150,7 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
     @Test func recentBrewsNewestFirstAndLimited() throws {
         let store = try CoffeeStore.inMemory()
         let brews = (1...12).map { i in
-            bcBrew(["config": ["uuid": "brew-\(i)", "unix_timestamp": 1706788800 + i * 86_400], "rating": i % 2 == 0 ? 4 : 0])
+            bcBrew(["config": ["uuid": "brew-\(i)", "unix_timestamp": 1_706_788_800 + i * 86_400], "rating": i % 2 == 0 ? 4 : 0])
         }
         _ = try store.importExport(BeanConquerorParser.parse(zipData: try makeExport(beans: [bcBean()], brews: brews), timeZone: utc))
 
@@ -162,13 +165,15 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
     @Test func freezeEventsOldestFirst() throws {
         let store = try CoffeeStore.inMemory()
         _ = try store.importExport(BeanConquerorParser.parse(zipData: try makeExport(beans: [bcBean()]), timeZone: utc))
-        try store.db.execute("""
+        try store.db.execute(
+            """
             INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('uuid-1', 'thaw', '2026-02-10');
             INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('uuid-1', 'freeze', '2026-01-20');
             """)
-        #expect(try store.freezeEvents(beanID: "uuid-1") == [
-            FreezeEvent(kind: .freeze, date: "2026-01-20"),
-            FreezeEvent(kind: .thaw, date: "2026-02-10"),
-        ])
+        #expect(
+            try store.freezeEvents(beanID: "uuid-1") == [
+                FreezeEvent(kind: .freeze, date: "2026-01-20"),
+                FreezeEvent(kind: .thaw, date: "2026-02-10"),
+            ])
     }
 }

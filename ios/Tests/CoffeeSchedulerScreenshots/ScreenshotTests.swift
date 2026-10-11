@@ -2,6 +2,7 @@ import CoffeeCore
 import SwiftUI
 import UIKit
 import XCTest
+
 @testable import CoffeeScheduler
 
 /// Renders each screen over `SampleData` in light and dark mode and writes

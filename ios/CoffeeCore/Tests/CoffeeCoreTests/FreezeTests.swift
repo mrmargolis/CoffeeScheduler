@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 // Ported from src/__tests__/lib/freeze-utils.test.ts.
@@ -93,7 +94,7 @@ import Testing
         let bean = try #require(try store.bean(id: "b1", today: "2026-02-01"))
         #expect(bean.frozenDays == 36)
         #expect(bean.frozenDaysToDate == 22)
-        #expect(bean.readyDate == "2026-03-08") // Jan 1 + 30 rest + 36 frozen
+        #expect(bean.readyDate == "2026-03-08")  // Jan 1 + 30 rest + 36 frozen
     }
 
     @Test func completedCyclePlusActiveFreeze() throws {
@@ -129,9 +130,10 @@ import Testing
         store = try CoffeeStore.inMemory()
         for (i, id) in ["b1", "b2", "b3"].enumerated() {
             try store.db.run(
-                "INSERT INTO beans (id, name, roaster, roast_date, weight_grams, archived, display_order) VALUES (?, 'Bean', 'Roaster', '2026-01-01', 250, 0, ?)",
-                [.text(id), .int(Int64(i + 1))]
-            )
+                """
+                INSERT INTO beans (id, name, roaster, roast_date, weight_grams, archived, display_order)
+                VALUES (?, 'Bean', 'Roaster', '2026-01-01', 250, 0, ?)
+                """, [.text(id), .int(Int64(i + 1))])
         }
     }
 

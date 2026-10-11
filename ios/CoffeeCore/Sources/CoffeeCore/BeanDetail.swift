@@ -40,7 +40,7 @@ extension Bean {
         // already drunk can't have waited for.
         let frozenAtStart = start <= today ? frozenDaysToDate : frozenDays
         guard let startAge = effectiveAge(roastDate: roastDate, asOf: start, frozenDays: frozenAtStart),
-              let finishAge = effectiveAge(roastDate: roastDate, asOf: finish, frozenDays: frozenDays)
+            let finishAge = effectiveAge(roastDate: roastDate, asOf: finish, frozenDays: frozenDays)
         else { return nil }
         return AgeRange(start: startAge, finish: finishAge)
     }
@@ -102,7 +102,8 @@ public struct BeanDetail: Sendable {
 
         consumedGrams = max(0, bean.weightGrams - bean.remainingGrams)
         fractionConsumed = bean.weightGrams > 0 ? min(1, consumedGrams / bean.weightGrams) : 0
-        daysLeft = dailyConsumptionGrams > 0 && bean.remainingGrams > 0
+        daysLeft =
+            dailyConsumptionGrams > 0 && bean.remainingGrams > 0
             ? Int((bean.remainingGrams / dailyConsumptionGrams).rounded())
             : nil
 

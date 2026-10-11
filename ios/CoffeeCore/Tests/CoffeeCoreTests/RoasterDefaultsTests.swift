@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 // Ported from src/__tests__/api/settings.test.ts, plus the store methods the
@@ -31,10 +32,11 @@ import Testing
     @Test func managesRoasterDefaultsInNameOrder() throws {
         try store.setRoasterRestDays("Tim Wendelboe", 21)
         try store.setRoasterRestDays("Square Mile", 28)
-        #expect(try store.roasterDefaults() == [
-            RoasterDefault(roaster: "Square Mile", restDays: 28),
-            RoasterDefault(roaster: "Tim Wendelboe", restDays: 21),
-        ])
+        #expect(
+            try store.roasterDefaults() == [
+                RoasterDefault(roaster: "Square Mile", restDays: 28),
+                RoasterDefault(roaster: "Tim Wendelboe", restDays: 21),
+            ])
     }
 
     @Test func upsertsRoasterDefaults() throws {

@@ -55,6 +55,13 @@ queries, import) on the same SQLite schema. Changes to scheduling rules, the
 schema, or import behavior must be mirrored there; run `swift test` in
 `ios/CoffeeCore` to check.
 
+Swift is formatted with `swift format` and linted with SwiftLint: run
+`./lint.sh --fix` in `ios/` (Linux or WSL) to reformat, then `./lint.sh` to
+check. It fails on any finding, including the size and complexity caps in
+`ios/.swiftlint.yml`. When new code trips a cap, split it up rather than
+adding a `swiftlint:disable` comment. Compiler warnings are errors in both
+packages.
+
 ### Testing patterns
 
 Vitest with happy-dom. Tests in `src/__tests__/` mirroring `src/` structure. API and DB tests use `createTestDb()` for isolated in-memory databases. Scheduler tests use a `makeBean()` helper with sensible defaults.

@@ -12,85 +12,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    LabeledContent("Daily coffee") {
-                        Stepper(
-                            "\(Format.grams(model.settings.dailyConsumptionGrams))g",
-                            value: setting(\.dailyConsumptionGrams),
-                            in: 15...150,
-                            step: 5
-                        )
-                    }
-                    LabeledContent("Default rest") {
-                        Stepper(
-                            "\(model.settings.defaultRestDays) days",
-                            value: setting(\.defaultRestDays),
-                            in: 0...90
-                        )
-                    }
-                } header: {
-                    Text("Schedule")
-                }
-
-                Section {
-                    ForEach(model.roasterDefaults) { entry in
-                        LabeledContent(entry.roaster) {
-                            Stepper(
-                                "\(entry.restDays) days",
-                                value: Binding(
-                                    get: { entry.restDays },
-                                    set: { model.setRoasterRestDays(entry.roaster, $0) }
-                                ),
-                                in: 0...90
-                            )
-                        }
-                    }
-                    .onDelete { offsets in
-                        for roaster in offsets.map({ model.roasterDefaults[$0].roaster }) {
-                            model.setRoasterRestDays(roaster, nil)
-                        }
-                    }
-                    let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
-                    if !unset.isEmpty {
-                        // A pushed list, not a Menu: iOS 26 menus can't be
-                        // reached by UI tests. Picking a roaster adds it at the
-                        // default rest and comes back here.
-                        NavigationLink {
-                            AddRoasterList(roasters: unset)
-                        } label: {
-                            Label("Add a roaster", systemImage: "plus")
-                        }
-                    }
-                } header: {
-                    Text("Rest by roaster")
-                } footer: {
-                    Text("A bag rests for its own days if set, else its roaster's, else the default rest above. Swipe a roaster to remove it.")
-                }
-
-                Section {
-                    if model.skipRanges.isEmpty {
-                        Text("None").foregroundStyle(.secondary)
-                    }
-                    ForEach(model.skipRanges) { range in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(range.startDate == range.endDate
-                                 ? Format.mediumDay(range.startDate)
-                                 : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
-                            if let reason = range.reason, !reason.isEmpty {
-                                Text(reason).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .onDelete { offsets in
-                        for id in offsets.map({ model.skipRanges[$0].id }) {
-                            model.deleteSkipRange(id: id)
-                        }
-                    }
-                } header: {
-                    Text("Skip days")
-                } footer: {
-                    Text("Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
-                }
+                scheduleSection
+                roasterSection
+                skipDaysSection
 
                 Section {
                     Button("Import BeanConqueror export…") { pick(.export) }
@@ -103,7 +27,9 @@ struct SettingsView: View {
                 } header: {
                     Text("Storage")
                 } footer: {
-                    Text("The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. The web app's data/coffee.db can be dropped in here too.")
+                    Text(
+                        "The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. The web app's data/coffee.db can be dropped in here too."
+                    )
                 }
             }
             .navigationTitle("Settings")
@@ -118,6 +44,97 @@ struct SettingsView: View {
                     model.importExport(at: url)
                 }
             }
+        }
+    }
+
+    private var scheduleSection: some View {
+        Section {
+            LabeledContent("Daily coffee") {
+                Stepper(
+                    "\(Format.grams(model.settings.dailyConsumptionGrams))g",
+                    value: setting(\.dailyConsumptionGrams),
+                    in: 15...150,
+                    step: 5
+                )
+            }
+            LabeledContent("Default rest") {
+                Stepper(
+                    "\(model.settings.defaultRestDays) days",
+                    value: setting(\.defaultRestDays),
+                    in: 0...90
+                )
+            }
+        } header: {
+            Text("Schedule")
+        }
+    }
+
+    private var roasterSection: some View {
+        Section {
+            ForEach(model.roasterDefaults) { entry in
+                LabeledContent(entry.roaster) {
+                    Stepper(
+                        "\(entry.restDays) days",
+                        value: Binding(
+                            get: { entry.restDays },
+                            set: { model.setRoasterRestDays(entry.roaster, $0) }
+                        ),
+                        in: 0...90
+                    )
+                }
+            }
+            .onDelete { offsets in
+                for roaster in offsets.map({ model.roasterDefaults[$0].roaster }) {
+                    model.setRoasterRestDays(roaster, nil)
+                }
+            }
+            let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
+            if !unset.isEmpty {
+                // A pushed list, not a Menu: iOS 26 menus can't be
+                // reached by UI tests. Picking a roaster adds it at the
+                // default rest and comes back here.
+                NavigationLink {
+                    AddRoasterList(roasters: unset)
+                } label: {
+                    Label("Add a roaster", systemImage: "plus")
+                }
+            }
+        } header: {
+            Text("Rest by roaster")
+        } footer: {
+            Text(
+                """
+                A bag rests for its own days if set, else its roaster's, else the default rest above. \
+                Swipe a roaster to remove it.
+                """)
+        }
+    }
+
+    private var skipDaysSection: some View {
+        Section {
+            if model.skipRanges.isEmpty {
+                Text("None").foregroundStyle(.secondary)
+            }
+            ForEach(model.skipRanges) { range in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        range.startDate == range.endDate
+                            ? Format.mediumDay(range.startDate)
+                            : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
+                    if let reason = range.reason, !reason.isEmpty {
+                        Text(reason).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .onDelete { offsets in
+                for id in offsets.map({ model.skipRanges[$0].id }) {
+                    model.deleteSkipRange(id: id)
+                }
+            }
+        } header: {
+            Text("Skip days")
+        } footer: {
+            Text("Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
         }
     }
 

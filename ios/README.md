@@ -63,6 +63,43 @@ msedge --headless=new --hide-scrollbars --force-device-scale-factor=1 `
   --window-size=1024,1024 --screenshot="$PWD\Support\AppIcon.png" "$PWD\Support\AppIcon.svg"
 ```
 
+## Linting
+
+```bash
+cd ios
+./lint.sh          # check formatting and lint; every finding is an error
+./lint.sh --fix    # reformat, and apply the fixes SwiftLint can make itself
+```
+
+`lint.sh` runs two tools (Linux or WSL), and CI runs the same script:
+
+- `swift format`, which comes with the Swift toolchain, checks the layout
+  against `.swift-format` (4 spaces, 150 columns). Run `./lint.sh --fix`
+  before committing rather than laying code out by hand. Its output can
+  change between Swift releases, so format with the toolchain CI uses (6.4).
+- SwiftLint, a pinned and checksum-verified download. `.swiftlint.yml` holds
+  the rules, including caps on size and complexity: cyclomatic complexity 10,
+  50 lines per function, 60 per closure, 5 parameters, 250 lines per type and
+  400 per file. Nothing is exempt: when code trips a cap, split it up rather
+  than adding a `swiftlint:disable` comment.
+
+[Periphery](https://github.com/peripheryapp/periphery) finds unused code. It
+isn't part of `lint.sh` or CI: it has no Linux binary (build it from source
+with `swift build -c release`), and its findings need judgement, since fields
+mirrored from the web app's models show up as assign-only. To run it over the
+app and CoffeeCore together, build with xtool first and point it at that
+build's index:
+
+```bash
+cd ios
+xtool dev build
+periphery scan --skip-build --index-store-path .build/out
+```
+
+The compiler is strict as well: `Package.swift` in both packages turns
+warnings into errors (deprecations excepted) and enables the `ExistentialAny`
+and `MemberImportVisibility` upcoming features.
+
 ## Tests
 
 ```bash
@@ -70,8 +107,8 @@ cd ios/CoffeeCore
 swift test        # needs libsqlite3-dev on Linux
 ```
 
-CI (`.github/workflows/ios.yml`) runs these on Linux (Swift 6.4) and type-checks the app
-against the iOS SDK on a macOS runner. On an iOS Simulator it also:
+CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4) and
+type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
 - renders every screen over sample data, light and dark, and uploads the
   images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);
@@ -128,6 +165,6 @@ The app shows the schedule, the bean queue, each bag's detail, and the
 settings, and can edit a bag's settings, freeze or thaw it, reorder the
 queue, mark skip days, set a day's consumption, and set rest days by
 roaster, with a month view with roaster colours and a bag key. The web app's
-runway summary (days of coffee, the bag in progress) is left off the phone's
-schedule; `RunwaySummary` in CoffeeCore still computes it. Publishing is only
-in the web app for now (tracked in issue #6).
+runway summary (days of coffee, the bag in progress) is deliberately left
+off the phone, which opens straight on the calendar. Publishing is only in
+the web app for now (tracked in issue #6).

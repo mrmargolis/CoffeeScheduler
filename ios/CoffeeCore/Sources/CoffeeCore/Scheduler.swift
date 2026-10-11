@@ -98,7 +98,7 @@ public enum Scheduler {
 
     private static func compare(_ a: Bean, _ b: Bean) -> Int {
         switch (a.displayOrder, b.displayOrder) {
-        case let (ao?, bo?): return ao == bo ? 0 : (ao < bo ? -1 : 1)
+        case (let ao?, let bo?): return ao == bo ? 0 : (ao < bo ? -1 : 1)
         case (.some, nil): return -1
         case (nil, .some): return 1
         case (nil, nil): break
@@ -110,7 +110,7 @@ public enum Scheduler {
         if !aInProgress && bInProgress { return 1 }
 
         switch (readyDate(a), readyDate(b)) {
-        case let (ar?, br?): return ar == br ? 0 : (ar < br ? -1 : 1)
+        case (let ar?, let br?): return ar == br ? 0 : (ar < br ? -1 : 1)
         case (.some, nil): return -1
         case (nil, .some): return 1
         case (nil, nil): return 0
@@ -148,7 +148,7 @@ public enum Scheduler {
         endDate: String,
         dailyConsumptionGrams: Double,
         beans: [Bean],
-        actualBrews: [Brew],
+        actualBrews: [Brew] = [],
         today: String,
         skipDays: Set<String> = [],
         consumptionOverrides: [String: DayOverride] = [:]
@@ -158,151 +158,174 @@ public enum Scheduler {
             brewsByDate[brew.creationDate, default: []].append(brew)
         }
 
-        // Non-frozen (or frozen with a planned thaw) beans with coffee left
-        let activeBeans = sortQueue(beans.filter {
-            (!$0.isFrozen || $0.plannedThawDate != nil) && $0.remainingGrams > minDoseGrams
-        })
-
-        var remaining: [String: Double] = [:]
-        for bean in activeBeans { remaining[bean.id] = bean.remainingGrams }
-
-        let beanMap = Dictionary(beans.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
+        var projection = Projection(
+            beans: beans, dailyGrams: dailyConsumptionGrams, overrides: consumptionOverrides
+        )
         var schedule: [ScheduleDay] = []
-
         for date in DateUtils.dateRange(startDate, endDate) {
-            let isPast = date < today
-            let isToday = date == today
             let dayBrews = brewsByDate[date] ?? []
+            let recorded = recordedDay(
+                date, brews: dayBrews, today: today, isSkip: skipDays.contains(date), beans: projection.beans
+            )
+            schedule.append(recorded ?? projection.day(date, preLogged: dayBrews))
+        }
+        return schedule
+    }
 
-            if skipDays.contains(date) {
-                // Past day with actual brews overrides the skip
-                if isPast && !dayBrews.isEmpty {
-                    schedule.append(ScheduleDay(
-                        date: date, consumptions: aggregate(dayBrews, beans: beanMap),
-                        isGap: false, isSurplus: false, isActual: true, isSkip: false
-                    ))
-                } else {
-                    // Skip day: no consumption, no deduction
-                    schedule.append(ScheduleDay(
-                        date: date, consumptions: [],
-                        isGap: false, isSurplus: false, isActual: false, isSkip: true
-                    ))
-                }
-                continue
-            }
+    /// The day as it happened or was skipped, or nil when it has to be projected.
+    private static func recordedDay(
+        _ date: String, brews: [Brew], today: String, isSkip: Bool, beans: [String: Bean]
+    ) -> ScheduleDay? {
+        let isPast = date < today
+        // Past days (and today, once brewed) use actual brew data. On a past
+        // day, actual brews override a skip.
+        if !brews.isEmpty && (isPast || (date == today && !isSkip)) {
+            return ScheduleDay(
+                date: date, consumptions: aggregate(brews, beans: beans),
+                isGap: false, isSurplus: false, isActual: true, isSkip: false
+            )
+        }
+        if isSkip {
+            // Skip day: no consumption, no deduction
+            return ScheduleDay(
+                date: date, consumptions: [],
+                isGap: false, isSurplus: false, isActual: false, isSkip: true
+            )
+        }
+        if isPast {
+            return ScheduleDay(
+                date: date, consumptions: [],
+                isGap: true, isSurplus: false, isActual: true, isSkip: false
+            )
+        }
+        return nil
+    }
+}
 
-            // Past days (and today, once brewed) use actual brew data
-            if isPast || isToday {
-                if !dayBrews.isEmpty {
-                    schedule.append(ScheduleDay(
-                        date: date, consumptions: aggregate(dayBrews, beans: beanMap),
-                        isGap: false, isSurplus: false, isActual: true, isSkip: false
-                    ))
-                    continue
-                }
-                if isPast {
-                    schedule.append(ScheduleDay(
-                        date: date, consumptions: [],
-                        isGap: true, isSurplus: false, isActual: true, isSkip: false
-                    ))
-                    continue
-                }
-            }
+// MARK: - Projecting future days
 
-            // Future days (or today with no brews): project consumption
-            let dayOverride = consumptionOverrides[date]
+extension Scheduler {
+    /// The queue and what is left in each bag, as days are projected in order.
+    private struct Projection {
+        /// Non-frozen (or frozen with a planned thaw) beans with coffee left.
+        let queue: [Bean]
+        let beans: [String: Bean]
+        let dailyGrams: Double
+        let overrides: [String: DayOverride]
+        var remaining: [String: Double] = [:]
+
+        init(beans: [Bean], dailyGrams: Double, overrides: [String: DayOverride]) {
+            queue = sortQueue(
+                beans.filter {
+                    (!$0.isFrozen || $0.plannedThawDate != nil) && $0.remainingGrams > minDoseGrams
+                })
+            self.beans = Dictionary(beans.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            self.dailyGrams = dailyGrams
+            self.overrides = overrides
+            for bean in queue { remaining[bean.id] = bean.remainingGrams }
+        }
+
+        /// A future day (or today with no brews): project consumption.
+        mutating func day(_ date: String, preLogged: [Brew]) -> ScheduleDay {
+            let dayOverride = overrides[date]
             let doseSize = dayOverride?.doseSize ?? doseSizeGrams
-            var gramsNeeded = dayOverride?.dailyGrams ?? dailyConsumptionGrams
-            var consumptions: [Consumption] = []
+            var gramsNeeded = dayOverride?.dailyGrams ?? dailyGrams
 
             // Pre-logged brews for future days count toward the daily target
             // and deduct from the bean's remaining supply.
-            let hasPreLogged = !dayBrews.isEmpty
-            if hasPreLogged {
-                for c in aggregate(dayBrews, beans: beanMap) {
-                    consumptions.append(c)
-                    remaining[c.beanID] = max(0, (remaining[c.beanID] ?? 0) - c.grams)
-                    gramsNeeded -= c.grams
-                }
+            var consumptions = aggregate(preLogged, beans: beans)
+            let hasPreLogged = !consumptions.isEmpty
+            for c in consumptions {
+                remaining[c.beanID] = max(0, (remaining[c.beanID] ?? 0) - c.grams)
+                gramsNeeded -= c.grams
             }
 
-            // Count how many beans are ready on this date
-            var readyCount = 0
-            for bean in activeBeans {
-                let rem = remaining[bean.id] ?? 0
-                guard let ready = readyDate(bean), ready <= date, rem > minDoseGrams else { continue }
-                // Skip bean if projected consumption has reached its freeze-after target
-                if rem - freezeFloor(bean) <= minDoseGrams { continue }
-                readyCount += 1
-            }
+            let readyCount = readyCount(on: date)
 
-            // Consume from the queue in order. Queue position is authoritative: a
-            // bag that hasn't finished resting is still used rather than passed
-            // over, and the consumption records how many days early it started.
-            for bean in activeBeans {
+            // Consume from the queue in order.
+            for bean in queue {
                 if gramsNeeded <= 0 { break }
                 // Don't start a new bean just to fill a gap smaller than a minimum dose
                 if !consumptions.isEmpty && gramsNeeded <= minDoseGrams { break }
-
-                // No roast date means no ready date to be early against, and the
-                // bag would otherwise block the queue forever.
-                guard let ready = readyDate(bean) else { continue }
-                if isInFreezer(bean, on: date) { continue }
-                let daysEarly = ready > date ? DateUtils.daysBetween(date, ready) : 0
-
-                let rem = remaining[bean.id] ?? 0
-                if rem <= minDoseGrams { continue }
-
-                // Cap available grams to respect the freeze-after target
-                let floor = freezeFloor(bean)
-                let effectiveRem = rem - floor
-                if effectiveRem <= minDoseGrams { continue }
-
-                var consume = min(gramsNeeded, effectiveRem)
-
-                // If this bean can't fill the day, round down to whole doses.
-                // The sub-dose remainder is wasted (or frozen).
-                if consume < gramsNeeded {
-                    let doses = (consume / doseSize).rounded(.down)
-                    remaining[bean.id] = floor
-                    if doses == 0 { continue }
-                    consume = doses * doseSize
-                } else {
-                    remaining[bean.id] = rem - consume
-                }
-
-                consumptions.append(Consumption(
-                    beanID: bean.id, beanName: bean.name, roaster: bean.roaster,
-                    grams: consume, daysEarly: daysEarly > 0 ? daysEarly : nil
-                ))
-                gramsNeeded -= consume
+                guard let taken = take(from: bean, on: date, upTo: gramsNeeded, doseSize: doseSize)
+                else { continue }
+                consumptions.append(taken)
+                gramsNeeded -= taken.grams
             }
 
-            // Merge pre-logged and projected consumptions for the same bean
-            // (e.g. 15g pre-logged + 30g projected → 45g)
             if hasPreLogged && consumptions.count > 1 {
-                var merged: [Consumption] = []
-                for c in consumptions {
-                    if let i = merged.firstIndex(where: { $0.beanID == c.beanID }) {
-                        merged[i].grams += c.grams
-                        // Pre-logged entries carry no earliness; keep the projected half's
-                        if merged[i].daysEarly == nil { merged[i].daysEarly = c.daysEarly }
-                    } else {
-                        merged.append(c)
-                    }
-                }
-                consumptions = merged
+                consumptions = mergedByBean(consumptions)
             }
 
-            schedule.append(ScheduleDay(
+            return ScheduleDay(
                 date: date, consumptions: consumptions,
                 isGap: consumptions.isEmpty && gramsNeeded > 0,
                 isSurplus: readyCount > 1, isActual: false, isSkip: false
-            ))
+            )
         }
 
-        return schedule
+        /// How many beans are ready on this date.
+        private func readyCount(on date: String) -> Int {
+            queue.count { bean in
+                let rem = remaining[bean.id] ?? 0
+                guard let ready = readyDate(bean), ready <= date, rem > minDoseGrams else { return false }
+                // Skip bean if projected consumption has reached its freeze-after target
+                return rem - freezeFloor(bean) > minDoseGrams
+            }
+        }
+
+        /// What `bean` gives toward the `needed` grams on `date`, or nil when
+        /// it gives nothing. Queue position is authoritative: a bag that
+        /// hasn't finished resting is still used rather than passed over, and
+        /// the consumption records how many days early it started.
+        private mutating func take(
+            from bean: Bean, on date: String, upTo needed: Double, doseSize: Double
+        ) -> Consumption? {
+            // No roast date means no ready date to be early against, and the
+            // bag would otherwise block the queue forever.
+            guard let ready = readyDate(bean), !isInFreezer(bean, on: date) else { return nil }
+
+            // Cap available grams to respect the freeze-after target
+            let rem = remaining[bean.id] ?? 0
+            let floor = freezeFloor(bean)
+            let available = rem - floor
+            guard rem > minDoseGrams, available > minDoseGrams else { return nil }
+
+            var consume = min(needed, available)
+
+            // If this bean can't fill the day, round down to whole doses.
+            // The sub-dose remainder is wasted (or frozen).
+            if consume < needed {
+                let doses = (consume / doseSize).rounded(.down)
+                remaining[bean.id] = floor
+                if doses == 0 { return nil }
+                consume = doses * doseSize
+            } else {
+                remaining[bean.id] = rem - consume
+            }
+
+            let daysEarly = ready > date ? DateUtils.daysBetween(date, ready) : 0
+            return Consumption(
+                beanID: bean.id, beanName: bean.name, roaster: bean.roaster,
+                grams: consume, daysEarly: daysEarly > 0 ? daysEarly : nil
+            )
+        }
+    }
+
+    /// Merge pre-logged and projected consumptions for the same bean
+    /// (e.g. 15g pre-logged + 30g projected → 45g).
+    private static func mergedByBean(_ consumptions: [Consumption]) -> [Consumption] {
+        var merged: [Consumption] = []
+        for c in consumptions {
+            if let i = merged.firstIndex(where: { $0.beanID == c.beanID }) {
+                merged[i].grams += c.grams
+                // Pre-logged entries carry no earliness; keep the projected half's
+                if merged[i].daysEarly == nil { merged[i].daysEarly = c.daysEarly }
+            } else {
+                merged.append(c)
+            }
+        }
+        return merged
     }
 
     /// Last scheduled date for each bean: its projected finish date.

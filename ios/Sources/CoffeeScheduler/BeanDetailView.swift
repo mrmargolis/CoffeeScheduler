@@ -38,25 +38,10 @@ struct BeanDetailView: View {
 
     private func content(_ detail: BeanDetail, history: AppModel.BeanHistory) -> some View {
         let bean = detail.bean
-        let today = model.today
 
         return List {
             Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(bean.name).font(.title2.weight(.semibold))
-                    Text(detail.provenance.isEmpty ? bean.roaster : "\(bean.roaster) · \(detail.provenance)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    if let flavour = bean.flavourProfile {
-                        Text(flavour).font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if bean.isFrozen || bean.archived {
-                        Label(bean.archived ? "Finished" : "Frozen", systemImage: bean.archived ? "checkmark.circle" : "snowflake")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(bean.archived ? Color.secondary : Color.cyan)
-                    }
-                }
-                .padding(.vertical, 4)
+                header(detail)
             }
 
             Section {
@@ -66,55 +51,12 @@ struct BeanDetailView: View {
             if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
                 Section("Age") {
                     AgeBar(track: track)
-                    HStack {
-                        Text("Roasted \(Format.shortDay(roast))")
-                        Spacer()
-                        // Without a scheduled run, the rest date stands in for the first cup
-                        if let startAge = detail.startAge {
-                            Text("First cup, day \(startAge)")
-                        } else {
-                            Text("Rested \(Format.shortDay(ready))")
-                        }
-                        Spacer()
-                        if let finishAge = detail.finishAge {
-                            Text("Last cup, day \(finishAge)")
-                                .foregroundStyle(finishAge > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
-                        }
-                    }
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    AgeCaptions(detail: detail, roast: roast, ready: ready)
                 }
             }
 
             Section {
-                LabeledContent("Roast date") {
-                    if let roast = bean.roastDate {
-                        Text(Format.mediumDay(roast))
-                    } else {
-                        Text("Not set").foregroundStyle(.orange)
-                    }
-                }
-                if let age = detail.currentAge {
-                    LabeledContent("Current age") {
-                        if bean.frozenDaysToDate > 0, let calendar = detail.calendarAge {
-                            Text("\(age) d (\(calendar) calendar, \(bean.frozenDaysToDate) frozen)")
-                        } else {
-                            Text("\(age) d")
-                        }
-                    }
-                }
-                LabeledContent("Rest required", value: "\(bean.effectiveRestDays) d")
-                if let ready = bean.readyDate {
-                    LabeledContent(ready <= today ? "Ready since" : "Ready date", value: Format.mediumDay(ready))
-                } else {
-                    LabeledContent("Ready date") { Text("Unknown").foregroundStyle(.orange) }
-                }
-                if !bean.isFrozen, let grams = bean.freezeAfterGrams {
-                    LabeledContent("Freeze after", value: "\(Format.grams(grams)) g consumed")
-                }
-                if bean.isFrozen, let thaw = bean.plannedThawDate {
-                    LabeledContent("Planned thaw", value: Format.mediumDay(thaw))
-                }
+                BeanFacts(detail: detail, today: model.today)
             }
             .monospacedDigit()
 
@@ -129,33 +71,134 @@ struct BeanDetailView: View {
                 }
             }
 
-            if !history.recentBrews.isEmpty {
-                Section("Recent brews") {
-                    ForEach(Array(history.recentBrews.enumerated()), id: \.offset) { _, brew in
-                        HStack {
-                            Text(Format.shortDay(brew.creationDate)).foregroundStyle(.secondary)
-                            Text("\(Format.grams(brew.groundCoffeeGrams)) g")
-                            Spacer()
-                            if let rating = brew.rating {
-                                Text("★ \(Format.grams(rating))").foregroundStyle(.orange)
-                            } else {
-                                Text("—").foregroundStyle(.tertiary)
-                            }
-                        }
-                        .font(.callout.monospacedDigit())
-                    }
+            BeanHistorySections(history: history)
+        }
+    }
+
+    private func header(_ detail: BeanDetail) -> some View {
+        let bean = detail.bean
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(bean.name).font(.title2.weight(.semibold))
+            Text(detail.provenance.isEmpty ? bean.roaster : "\(bean.roaster) · \(detail.provenance)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            if let flavour = bean.flavourProfile {
+                Text(flavour).font(.footnote).foregroundStyle(.secondary)
+            }
+            if bean.isFrozen || bean.archived {
+                Label(bean.archived ? "Finished" : "Frozen", systemImage: bean.archived ? "checkmark.circle" : "snowflake")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(bean.archived ? Color.secondary : Color.cyan)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Under the age bar: the roast date, then the age at the first and last cup.
+private struct AgeCaptions: View {
+    let detail: BeanDetail
+    let roast: String
+    let ready: String
+
+    var body: some View {
+        HStack {
+            Text("Roasted \(Format.shortDay(roast))")
+            Spacer()
+            // Without a scheduled run, the rest date stands in for the first cup
+            if let startAge = detail.startAge {
+                Text("First cup, day \(startAge)")
+            } else {
+                Text("Rested \(Format.shortDay(ready))")
+            }
+            Spacer()
+            if let finishAge = detail.finishAge {
+                Text("Last cup, day \(finishAge)")
+                    .foregroundStyle(finishAge > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
+    }
+}
+
+/// The bag's dates and settings, one per row.
+private struct BeanFacts: View {
+    let detail: BeanDetail
+    let today: String
+
+    var body: some View {
+        let bean = detail.bean
+        LabeledContent("Roast date") {
+            if let roast = bean.roastDate {
+                Text(Format.mediumDay(roast))
+            } else {
+                Text("Not set").foregroundStyle(.orange)
+            }
+        }
+        if let age = detail.currentAge {
+            LabeledContent("Current age") {
+                if bean.frozenDaysToDate > 0, let calendar = detail.calendarAge {
+                    Text("\(age) d (\(calendar) calendar, \(bean.frozenDaysToDate) frozen)")
+                } else {
+                    Text("\(age) d")
                 }
             }
+        }
+        LabeledContent("Rest required", value: "\(bean.effectiveRestDays) d")
+        if let ready = bean.readyDate {
+            LabeledContent(ready <= today ? "Ready since" : "Ready date", value: Format.mediumDay(ready))
+        } else {
+            LabeledContent("Ready date") { Text("Unknown").foregroundStyle(.orange) }
+        }
+        FreezePlanFacts(bean: bean)
+    }
+}
 
-            if !history.freezeEvents.isEmpty {
-                Section("Freezer") {
-                    ForEach(Array(history.freezeEvents.enumerated()), id: \.offset) { _, event in
-                        Label(
-                            "\(event.kind == .freeze ? "Frozen" : "Thawed") \(Format.mediumDay(event.date))",
-                            systemImage: event.kind == .freeze ? "snowflake" : "drop"
-                        )
-                        .font(.callout)
+private struct FreezePlanFacts: View {
+    let bean: Bean
+
+    var body: some View {
+        if !bean.isFrozen, let grams = bean.freezeAfterGrams {
+            LabeledContent("Freeze after", value: "\(Format.grams(grams)) g consumed")
+        }
+        if bean.isFrozen, let thaw = bean.plannedThawDate {
+            LabeledContent("Planned thaw", value: Format.mediumDay(thaw))
+        }
+    }
+}
+
+/// The latest brews and the freezer history, each only when there is any.
+private struct BeanHistorySections: View {
+    let history: AppModel.BeanHistory
+
+    var body: some View {
+        if !history.recentBrews.isEmpty {
+            Section("Recent brews") {
+                ForEach(Array(history.recentBrews.enumerated()), id: \.offset) { _, brew in
+                    HStack {
+                        Text(Format.shortDay(brew.creationDate)).foregroundStyle(.secondary)
+                        Text("\(Format.grams(brew.groundCoffeeGrams)) g")
+                        Spacer()
+                        if let rating = brew.rating {
+                            Text("★ \(Format.grams(rating))").foregroundStyle(.orange)
+                        } else {
+                            Text("—").foregroundStyle(.tertiary)
+                        }
                     }
+                    .font(.callout.monospacedDigit())
+                }
+            }
+        }
+
+        if !history.freezeEvents.isEmpty {
+            Section("Freezer") {
+                ForEach(Array(history.freezeEvents.enumerated()), id: \.offset) { _, event in
+                    Label(
+                        "\(event.kind == .freeze ? "Frozen" : "Thawed") \(Format.mediumDay(event.date))",
+                        systemImage: event.kind == .freeze ? "snowflake" : "drop"
+                    )
+                    .font(.callout)
                 }
             }
         }

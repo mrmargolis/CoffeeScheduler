@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CoffeeCore
 
 @Suite struct DateUtilsTests {
@@ -36,7 +37,7 @@ import Testing
     }
 
     @Test func isoStringUsesTimeZone() {
-        let date = Date(timeIntervalSince1970: 1706788800) // 2024-02-01 12:00 UTC
+        let date = Date(timeIntervalSince1970: 1_706_788_800)  // 2024-02-01 12:00 UTC
         #expect(DateUtils.isoString(date, timeZone: TimeZone(identifier: "UTC")!) == "2024-02-01")
         #expect(DateUtils.isoString(date, timeZone: TimeZone(identifier: "Pacific/Kiritimati")!) == "2024-02-02")
     }

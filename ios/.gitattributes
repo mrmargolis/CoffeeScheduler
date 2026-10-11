@@ -1,0 +1,5 @@
+# Check Swift and shell scripts out with LF on Windows too. The code is built
+# and linted in WSL: SwiftLint reads a CRLF file as twice as many lines, and
+# bash can't run a CRLF script.
+*.swift text eol=lf
+*.sh text eol=lf
