@@ -1,7 +1,8 @@
 import CoffeeCore
 import SwiftUI
 
-/// The bean queue in the order the scheduler will use it, plus finished bags.
+/// The bean queue in the order the scheduler will use it, plus frozen bags.
+/// Finished bags aren't listed; BeanConqueror is the place to look back.
 /// Edit mode drags bags into a manual order (like the web app's drag to
 /// reorder); swipe a bag to freeze or thaw it, or back to automatic order.
 struct BeansView: View {
@@ -46,11 +47,6 @@ struct BeansView: View {
                             row(bean)
                                 .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
                         }
-                    }
-                }
-                if !model.archivedBeans.isEmpty {
-                    Section("Finished") {
-                        ForEach(model.archivedBeans) { row($0) }
                     }
                 }
             }
@@ -98,7 +94,7 @@ private struct BeanRow: View {
     private var details: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                if let order = bean.displayOrder, !bean.isFrozen, !bean.archived {
+                if let order = bean.displayOrder, !bean.isFrozen {
                     Text("\(order)")
                         .font(.caption.monospacedDigit().weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -110,18 +106,21 @@ private struct BeanRow: View {
                 Text(bean.roaster).font(.subheadline).foregroundStyle(.secondary)
             }
             HStack(spacing: 12) {
-                if !bean.archived {
-                    Text("\(Format.grams(max(0, bean.remainingGrams)))g left")
-                }
+                Text("\(Format.grams(max(0, bean.remainingGrams)))g left")
                 // A frozen bag's thaw date matters more than its ready date
                 if bean.isFrozen {
                     Text(bean.plannedThawDate.map { "Thaws \(Format.shortDay($0))" } ?? "No thaw date")
                         .foregroundStyle(.cyan)
-                } else if let ready = bean.readyDate, !bean.archived {
+                } else if let ready = bean.readyDate {
                     Text(ready <= today ? "Ready" : "Ready \(Format.shortDay(ready))")
                         .foregroundStyle(ready <= today ? Color.green : Color.secondary)
                 }
-                if let roast = bean.roastDate {
+                // Age at first and last cup says more than the roast date;
+                // a bag that isn't scheduled has only the roast date.
+                if let ages = model.ageRanges[bean.id] {
+                    Text("Age \(Format.ages(ages))")
+                        .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
+                } else if let roast = bean.roastDate {
                     Text("Roasted \(Format.shortDay(roast))").foregroundStyle(.secondary)
                 }
             }

@@ -1,8 +1,8 @@
 import CoffeeCore
 import SwiftUI
 
-/// Upcoming days, a week per section starting with the current week, or a
-/// month grid with the bag key.
+/// A month grid with the bag key, or a list of upcoming days, a week per
+/// section starting with the current week.
 struct ScheduleView: View {
     enum Layout: Hashable { case list, month }
 
@@ -14,7 +14,7 @@ struct ScheduleView: View {
     /// First of the month the grid shows; nil for the current month.
     @State private var month: String?
 
-    init(layout: Layout = .list) {
+    init(layout: Layout = .month) {
         _layout = State(initialValue: layout)
     }
 
@@ -24,11 +24,6 @@ struct ScheduleView: View {
                 if !model.hasFolder {
                     Section {
                         FolderPrompt { pickingFolder = true }
-                    }
-                }
-                if !model.schedule.isEmpty {
-                    Section {
-                        RunwayView(summary: model.runway) { path.append(BeanRoute(id: $0)) }
                     }
                 }
                 if !model.schedule.isEmpty {
@@ -243,6 +238,11 @@ enum Format {
     static func mediumDay(_ iso: String) -> String { mediumDayFormatter.string(from: date(iso)) }
     static func longDay(_ iso: String) -> String { longDayFormatter.string(from: date(iso)) }
     static func monthTitle(_ iso: String) -> String { monthFormatter.string(from: date(iso)) }
+
+    /// A bag's age in days since roast at its first and last cup: "day 18–32".
+    static func ages(_ range: AgeRange) -> String {
+        range.start == range.finish ? "day \(range.start)" : "day \(range.start)–\(range.finish)"
+    }
 
     /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
     static func weekdayIndex(_ iso: String) -> Int {

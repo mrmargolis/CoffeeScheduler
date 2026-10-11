@@ -69,7 +69,12 @@ struct BeanDetailView: View {
                     HStack {
                         Text("Roasted \(Format.shortDay(roast))")
                         Spacer()
-                        Text("Rested \(Format.shortDay(ready))")
+                        // Without a scheduled run, the rest date stands in for the first cup
+                        if let startAge = detail.startAge {
+                            Text("First cup, day \(startAge)")
+                        } else {
+                            Text("Rested \(Format.shortDay(ready))")
+                        }
                         Spacer()
                         if let finishAge = detail.finishAge {
                             Text("Last cup, day \(finishAge)")

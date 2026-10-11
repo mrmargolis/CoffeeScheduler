@@ -22,7 +22,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Coffee
+        CFBundleDisplayName: Coffee Scheduler
         UILaunchScreen: {}
     settings:
       base:

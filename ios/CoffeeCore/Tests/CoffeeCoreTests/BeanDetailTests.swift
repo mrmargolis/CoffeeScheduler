@@ -77,7 +77,22 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         let detail = BeanDetail(bean: makeDetailBean(frozenDays: 10), schedule: schedule, dailyConsumptionGrams: 45, today: "2026-02-01")
         #expect(detail.calendarAge == 31)
         #expect(detail.currentAge == 21)
+        #expect(detail.startAge == 29) // Feb 9 is 39 calendar days after roast
         #expect(detail.finishAge == 31) // Feb 11 is 41 calendar days after roast
+    }
+
+    @Test func startAgeOfABagAlreadyStartedIgnoresFreezerTimeToCome() {
+        // Started Feb 9, frozen 10 days so far and 25 by the planned thaw
+        let bean = makeDetailBean(frozenDays: 25, frozenDaysToDate: 10)
+        let detail = BeanDetail(bean: bean, schedule: schedule, dailyConsumptionGrams: 45, today: "2026-02-10")
+        #expect(detail.startAge == 29)
+        #expect(detail.finishAge == 16)
+    }
+
+    @Test func ageRangesByBag() {
+        let ranges = Scheduler.ageRanges(schedule, beans: [makeDetailBean()], today: "2026-02-01")
+        #expect(ranges == ["b1": AgeRange(start: 39, finish: 41)]) // "other" isn't a known bag
+        #expect(Scheduler.ageRanges(schedule, beans: [makeDetailBean(roastDate: nil)], today: "2026-02-01").isEmpty)
     }
 
     @Test func currentAgeCountsFreezerTimeOnlyToToday() {

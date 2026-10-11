@@ -26,6 +26,38 @@ public func effectiveAge(roastDate: String?, asOf date: String, frozenDays: Int)
     return max(0, DateUtils.daysBetween(roastDate, date) - frozenDays)
 }
 
+/// A bag's age on its first and last scheduled day, frozen time excluded.
+public struct AgeRange: Hashable, Sendable {
+    public let start: Int
+    public let finish: Int
+}
+
+extension Bean {
+    /// Age on the first and last day of a run through the schedule. Nil
+    /// without a roast date.
+    public func ageRange(start: String, finish: String, today: String) -> AgeRange? {
+        // frozenDays runs ahead to the planned thaw, which a first cup
+        // already drunk can't have waited for.
+        let frozenAtStart = start <= today ? frozenDaysToDate : frozenDays
+        guard let startAge = effectiveAge(roastDate: roastDate, asOf: start, frozenDays: frozenAtStart),
+              let finishAge = effectiveAge(roastDate: roastDate, asOf: finish, frozenDays: frozenDays)
+        else { return nil }
+        return AgeRange(start: startAge, finish: finishAge)
+    }
+}
+
+extension Scheduler {
+    /// Each scheduled bag's age at its first and last cup, by bean ID.
+    public static func ageRanges(_ schedule: [ScheduleDay], beans: [CoffeeCore.Bean], today: String) -> [String: AgeRange] {
+        let beansByID = Dictionary(beans.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var ranges: [String: AgeRange] = [:]
+        for run in bagRuns(schedule) {
+            ranges[run.beanID] = beansByID[run.beanID]?.ageRange(start: run.start, finish: run.end, today: today)
+        }
+        return ranges
+    }
+}
+
 /// Everything the bean detail screen derives from a bag, the projected
 /// schedule and the settings. Mirrors the calculations in
 /// `src/components/BeanDetail.tsx`.
@@ -43,9 +75,10 @@ public struct BeanDetail: Sendable {
     /// Roughly how many more days the bag lasts at the daily rate.
     public let daysLeft: Int?
 
-    /// Age today and on the projected last day, frozen time excluded.
+    /// Age today and on the first and projected last day, frozen time excluded.
     public let currentAge: Int?
     public let calendarAge: Int?
+    public let startAge: Int?
     public let finishAge: Int?
 
     /// Roast → ready → today along the bag's whole life (roast to last cup, or
@@ -76,7 +109,11 @@ public struct BeanDetail: Sendable {
         // Freezer time so far: bean.frozenDays runs ahead to the planned thaw.
         currentAge = effectiveAge(roastDate: bean.roastDate, asOf: today, frozenDays: bean.frozenDaysToDate)
         calendarAge = bean.roastDate.map { DateUtils.daysBetween($0, today) }
-        finishAge = finish.flatMap { effectiveAge(roastDate: bean.roastDate, asOf: $0, frozenDays: bean.frozenDays) }
+        let ages = start.flatMap { start in
+            finish.flatMap { bean.ageRange(start: start, finish: $0, today: today) }
+        }
+        startAge = ages?.start
+        finishAge = ages?.finish
         ageTrack = Self.ageTrack(bean: bean, finish: finish, today: today)
     }
 
