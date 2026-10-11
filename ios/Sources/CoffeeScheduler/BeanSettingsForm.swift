@@ -31,63 +31,70 @@ struct BeanSettingsForm: View {
 
     var body: some View {
         Form {
-            Section {
-                LabeledContent("Rest days") {
-                    TextField(
-                        "Rest days",
-                        value: $restDays,
-                        format: .number,
-                        prompt: Text("\(bean.effectiveRestDays), inherited")
-                    )
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                }
-            } footer: {
-                Text("Leave empty to use the roaster's default, or the default in Settings.")
-            }
-
-            if bean.roastDate == nil {
+            Group {
                 Section {
-                    Toggle("Set roast date", isOn: $setsRoastDate)
-                    if setsRoastDate {
-                        DatePicker("Roast date", selection: $roastDate, displayedComponents: .date)
+                    LabeledContent("Rest days") {
+                        TextField(
+                            "Rest days",
+                            value: $restDays,
+                            format: .number,
+                            prompt: Text("\(bean.effectiveRestDays), inherited")
+                        )
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
                     }
                 } footer: {
-                    Text("BeanConqueror didn't include one. Without it the bag has no ready date and isn't scheduled.")
+                    Text("Leave empty to use the roaster's default, or the default in Settings.")
                 }
-            }
 
-            if bean.isFrozen {
-                Section {
-                    Toggle("Planned thaw", isOn: $hasPlannedThaw)
-                    if hasPlannedThaw {
-                        DatePicker("Thaw on", selection: $plannedThaw, displayedComponents: .date)
-                    }
-                } footer: {
-                    Text("The bag comes out of the freezer on this day and is scheduled from then. Without a date it stays out of the schedule.")
-                }
-            } else {
-                Section {
-                    LabeledContent("Freeze after") {
-                        HStack(spacing: 4) {
-                            TextField("Grams", value: $freezeAfterGrams, format: .number, prompt: Text("e.g. 125"))
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                            Text("g used").foregroundStyle(.secondary)
+                if bean.roastDate == nil {
+                    Section {
+                        Toggle("Set roast date", isOn: $setsRoastDate)
+                        if setsRoastDate {
+                            DatePicker("Roast date", selection: $roastDate, displayedComponents: .date)
                         }
+                    } footer: {
+                        Text("BeanConqueror didn't include one. Without it the bag has no ready date and isn't scheduled.")
                     }
-                } footer: {
-                    Text("Freeze the rest of the bag automatically once this much has been brewed. The bag is \(Format.grams(bean.weightGrams)) g.")
                 }
-            }
 
-            if let error {
-                Section {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                if bean.isFrozen {
+                    Section {
+                        Toggle("Planned thaw", isOn: $hasPlannedThaw)
+                        if hasPlannedThaw {
+                            DatePicker("Thaw on", selection: $plannedThaw, displayedComponents: .date)
+                        }
+                    } footer: {
+                        Text("The bag comes out of the freezer on this day and is scheduled from then. Without a date it stays out of the schedule.")
+                    }
+                } else {
+                    Section {
+                        LabeledContent("Freeze after") {
+                            HStack(spacing: 4) {
+                                TextField("Grams", value: $freezeAfterGrams, format: .number, prompt: Text("e.g. 125"))
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                Text("g used").foregroundStyle(.secondary)
+                            }
+                        }
+                    } footer: {
+                        Text(
+                            "Freeze the rest of the bag automatically once this much has been brewed. The bag is \(Format.grams(bean.weightGrams)) g."
+                        )
+                    }
+                }
+
+                if let error {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(Theme.gapText)
+                    }
                 }
             }
+            .listRowBackground(Theme.card)
+            .listRowSeparatorTint(Theme.hairline)
         }
+        .themedList()
         // Dates are calendar days; pick them in UTC so they can't shift.
         .environment(\.timeZone, Format.utc)
         .navigationTitle("Edit bag")

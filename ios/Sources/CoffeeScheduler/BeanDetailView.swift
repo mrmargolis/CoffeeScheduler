@@ -17,12 +17,18 @@ struct BeanDetailView: View {
 
     var body: some View {
         if let detail = model.detail(forBean: beanID) {
-            content(detail, history: model.history(forBean: beanID))
+            content(detail)
                 .navigationTitle(detail.bean.name)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    // The name is the screen's own heading, so the bar doesn't repeat it
+                    ToolbarItem(placement: .principal) {
+                        Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
+                    }
                     if !detail.bean.archived {
-                        Button("Edit") { editing = true }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Edit") { editing = true }
+                        }
                     }
                 }
                 .sheet(isPresented: $editing) {
@@ -36,236 +42,191 @@ struct BeanDetailView: View {
         }
     }
 
-    private func content(_ detail: BeanDetail, history: AppModel.BeanHistory) -> some View {
+    private func content(_ detail: BeanDetail) -> some View {
         let bean = detail.bean
-
-        return List {
-            Section {
-                header(detail)
-            }
-
-            Section {
-                ConsumptionMeter(detail: detail)
-            }
-
-            if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
-                Section("Age") {
-                    AgeBar(track: track)
-                    AgeCaptions(detail: detail, roast: roast, ready: ready)
+        let color = model.rail(bean.roaster)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                BagHeader(detail: detail, color: color)
+                RemainingCard(detail: detail, color: color)
+                if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
+                    AgeCard(detail: detail, track: track, roast: roast, ready: ready, color: color)
                 }
-            }
-
-            Section {
-                BeanFacts(detail: detail, today: model.today)
-            }
-            .monospacedDigit()
-
-            if !bean.archived {
-                Section {
-                    Button {
-                        confirmingFreeze = bean
-                    } label: {
-                        Label(bean.isFrozen ? "Thaw bag" : "Freeze bag", systemImage: bean.isFrozen ? "sun.max" : "snowflake")
-                    }
-                    .tint(bean.isFrozen ? .orange : .cyan)
+                BagFacts(bean: bean, today: model.today, restSource: restSource(bean))
+                if !bean.archived {
+                    FreezeButton(isFrozen: bean.isFrozen) { confirmingFreeze = bean }
                 }
+                BagHistory(history: model.history(forBean: beanID))
             }
-
-            BeanHistorySections(history: history)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .background(Theme.ground)
+        .foregroundStyle(Theme.text)
     }
 
-    private func header(_ detail: BeanDetail) -> some View {
-        let bean = detail.bean
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(bean.name).font(.title2.weight(.semibold))
-            Text(detail.provenance.isEmpty ? bean.roaster : "\(bean.roaster) · \(detail.provenance)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let flavour = bean.flavourProfile {
-                Text(flavour).font(.footnote).foregroundStyle(.secondary)
-            }
-            if bean.isFrozen || bean.archived {
-                Label(bean.archived ? "Finished" : "Frozen", systemImage: bean.archived ? "checkmark.circle" : "snowflake")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(bean.archived ? Color.secondary : Color.cyan)
-            }
-        }
-        .padding(.vertical, 4)
+    /// Where the bag's rest days come from.
+    private func restSource(_ bean: Bean) -> String {
+        if bean.restDays != nil { return "Set on this bag" }
+        return model.roasterDefaults.contains { $0.roaster == bean.roaster } ? "Roaster default" : "Default rest"
     }
 }
 
-/// Under the age bar: the roast date, then the age at the first and last cup.
-private struct AgeCaptions: View {
+/// Roaster, name, origin and flavour notes.
+private struct BagHeader: View {
     let detail: BeanDetail
-    let roast: String
-    let ready: String
-
-    var body: some View {
-        HStack {
-            Text("Roasted \(Format.shortDay(roast))")
-            Spacer()
-            // Without a scheduled run, the rest date stands in for the first cup
-            if let startAge = detail.startAge {
-                Text("First cup, day \(startAge)")
-            } else {
-                Text("Rested \(Format.shortDay(ready))")
-            }
-            Spacer()
-            if let finishAge = detail.finishAge {
-                Text("Last cup, day \(finishAge)")
-                    .foregroundStyle(finishAge > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
-            }
-        }
-        .font(.caption.monospacedDigit())
-        .foregroundStyle(.secondary)
-    }
-}
-
-/// The bag's dates and settings, one per row.
-private struct BeanFacts: View {
-    let detail: BeanDetail
-    let today: String
-
-    var body: some View {
-        let bean = detail.bean
-        LabeledContent("Roast date") {
-            if let roast = bean.roastDate {
-                Text(Format.mediumDay(roast))
-            } else {
-                Text("Not set").foregroundStyle(.orange)
-            }
-        }
-        if let age = detail.currentAge {
-            LabeledContent("Current age") {
-                if bean.frozenDaysToDate > 0, let calendar = detail.calendarAge {
-                    Text("\(age) d (\(calendar) calendar, \(bean.frozenDaysToDate) frozen)")
-                } else {
-                    Text("\(age) d")
-                }
-            }
-        }
-        LabeledContent("Rest required", value: "\(bean.effectiveRestDays) d")
-        if let ready = bean.readyDate {
-            LabeledContent(ready <= today ? "Ready since" : "Ready date", value: Format.mediumDay(ready))
-        } else {
-            LabeledContent("Ready date") { Text("Unknown").foregroundStyle(.orange) }
-        }
-        FreezePlanFacts(bean: bean)
-    }
-}
-
-private struct FreezePlanFacts: View {
-    let bean: Bean
-
-    var body: some View {
-        if !bean.isFrozen, let grams = bean.freezeAfterGrams {
-            LabeledContent("Freeze after", value: "\(Format.grams(grams)) g consumed")
-        }
-        if bean.isFrozen, let thaw = bean.plannedThawDate {
-            LabeledContent("Planned thaw", value: Format.mediumDay(thaw))
-        }
-    }
-}
-
-/// The latest brews and the freezer history, each only when there is any.
-private struct BeanHistorySections: View {
-    let history: AppModel.BeanHistory
-
-    var body: some View {
-        if !history.recentBrews.isEmpty {
-            Section("Recent brews") {
-                ForEach(Array(history.recentBrews.enumerated()), id: \.offset) { _, brew in
-                    HStack {
-                        Text(Format.shortDay(brew.creationDate)).foregroundStyle(.secondary)
-                        Text("\(Format.grams(brew.groundCoffeeGrams)) g")
-                        Spacer()
-                        if let rating = brew.rating {
-                            Text("★ \(Format.grams(rating))").foregroundStyle(.orange)
-                        } else {
-                            Text("—").foregroundStyle(.tertiary)
-                        }
-                    }
-                    .font(.callout.monospacedDigit())
-                }
-            }
-        }
-
-        if !history.freezeEvents.isEmpty {
-            Section("Freezer") {
-                ForEach(Array(history.freezeEvents.enumerated()), id: \.offset) { _, event in
-                    Label(
-                        "\(event.kind == .freeze ? "Frozen" : "Thawed") \(Format.mediumDay(event.date))",
-                        systemImage: event.kind == .freeze ? "snowflake" : "drop"
-                    )
-                    .font(.callout)
-                }
-            }
-        }
-    }
-}
-
-private struct ConsumptionMeter: View {
-    let detail: BeanDetail
+    let color: Color
 
     var body: some View {
         let bean = detail.bean
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(Format.grams(max(0, bean.remainingGrams).rounded()))
-                    .font(.title.weight(.medium).monospacedDigit())
-                Text("g of \(Format.grams(bean.weightGrams)) left")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let days = detail.daysLeft {
-                    Text("≈ \(days) more \(days == 1 ? "day" : "days")")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+            if !bean.roaster.isEmpty {
+                HStack(spacing: 8) {
+                    Circle().fill(color).frame(width: 10, height: 10)
+                    Text(bean.roaster)
+                        .font(.footnote.weight(.semibold))
+                        .tracking(0.8)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Theme.text2)
                 }
             }
-            ProgressView(value: detail.fractionConsumed)
-                .tint(.orange)
-            HStack {
-                Text("\(Format.grams(bean.totalBrewedGrams.rounded())) g brewed")
-                Spacer()
-                if let start = detail.start, let finish = detail.finish {
-                    Text("\(Format.shortDay(start)) → \(Format.shortDay(finish))")
-                }
+            Text(bean.name).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+            if !detail.provenance.isEmpty {
+                Text(detail.provenance).font(.subheadline).foregroundStyle(Theme.text2)
             }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
+            let notes = Self.notes(bean.flavourProfile)
+            if !notes.isEmpty || bean.isFrozen || bean.archived {
+                FlowLayout(spacing: 6) {
+                    if bean.archived {
+                        Badge(text: "Finished", color: Theme.text2, background: Theme.raised)
+                    } else if bean.isFrozen {
+                        Badge(text: "Frozen", color: Theme.frozenText, background: Theme.frozen.opacity(0.18))
+                    }
+                    ForEach(notes, id: \.self) { note in
+                        Badge(text: note, color: Theme.text, background: Theme.raised)
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.top, 8)
+    }
+
+    /// "Red apple, panela" as separate notes.
+    static func notes(_ flavour: String?) -> [String] {
+        (flavour ?? "")
+            .split(whereSeparator: { ",;/".contains($0) })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
     }
 }
 
-/// Roast → ready (resting, muted) → today (accent) along the bag's life,
-/// with a tick at today.
-private struct AgeBar: View {
-    let track: BeanDetail.AgeTrack
+/// How much is left, as a large figure over a bar, and when it's scheduled.
+private struct RemainingCard: View {
+    let detail: BeanDetail
+    let color: Color
 
     var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let rest = width * track.restFraction
-            let now = width * track.todayFraction
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.secondary.opacity(0.2))
-                Capsule().fill(Color.secondary.opacity(0.5)).frame(width: rest)
-                Rectangle().fill(Color.orange)
-                    .frame(width: max(0, now - rest))
-                    .offset(x: rest)
-                Rectangle().fill(Color.primary)
-                    .frame(width: 2, height: 12)
-                    .offset(x: min(max(0, now - 1), width - 2))
+        let bean = detail.bean
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(Format.grams(max(0, bean.remainingGrams).rounded()))
+                    .font(.system(size: 40, weight: .bold))
+                Text("g of \(Format.grams(bean.weightGrams)) left")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.text2)
+                Spacer(minLength: 8)
+                if let days = detail.daysLeft {
+                    Text("about \(Format.days(days))").font(.footnote).foregroundStyle(Theme.text2)
+                }
             }
-            .frame(height: 4)
-            .frame(maxHeight: .infinity)
+            MeterBar(fraction: 1 - detail.fractionConsumed, color: color, height: 8)
+            HStack(spacing: 4) {
+                Text(detail.consumedGrams > 0 ? "\(Format.grams(bean.totalBrewedGrams.rounded())) g brewed" : "Unopened")
+                Spacer(minLength: 8)
+                if let start = detail.start, let finish = detail.finish {
+                    Text("Scheduled")
+                    Text(Format.span(start, finish)).fontWeight(.semibold).foregroundStyle(Theme.text)
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(Theme.text2)
         }
-        .frame(height: 14)
-        .accessibilityElement()
-        .accessibilityLabel("Age")
-        .accessibilityValue("\(Int(track.todayFraction * 100)) percent of the way from roast to last cup")
+        .monospacedDigit()
+        .lineLimit(1)
+        .cardBackground(Theme.card)
+    }
+}
+
+/// The bag's settings and dates, two tiles to a row.
+private struct BagFacts: View {
+    let bean: Bean
+    let today: String
+    let restSource: String
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible())], spacing: 10) {
+            FactTile(label: "Rest required", value: Format.days(bean.effectiveRestDays), note: restSource)
+            if let ready = bean.readyDate {
+                let wait = DateUtils.daysBetween(today, ready)
+                FactTile(
+                    label: wait > 0 ? "Ready" : "Ready since", value: Format.shortDay(ready),
+                    note: wait > 0 ? "in \(Format.days(wait))" : "Rested"
+                )
+            } else {
+                FactTile(label: "Ready", value: "Unknown", note: "No roast date", isWarning: true)
+            }
+            if !bean.isFrozen, let grams = bean.freezeAfterGrams {
+                FactTile(label: "Freeze after", value: "\(Format.grams(grams)) g", note: "brewed, then frozen")
+            }
+            if bean.isFrozen, let thaw = bean.plannedThawDate {
+                FactTile(label: "Planned thaw", value: Format.shortDay(thaw), note: "Back in the schedule")
+            }
+        }
+    }
+}
+
+private struct FactTile: View {
+    let label: String
+    let value: String
+    let note: String
+    var isWarning = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(Theme.text3)
+            Text(value).font(.title3.bold()).monospacedDigit()
+            Text(note).font(.caption).foregroundStyle(isWarning ? Theme.accent : Theme.text2)
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+    }
+}
+
+/// Outlined, cool for a freeze and gold for a thaw.
+private struct FreezeButton: View {
+    let isFrozen: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let color = isFrozen ? Theme.accent : Theme.frozen
+        let shape = RoundedRectangle(cornerRadius: Theme.tileRadius)
+        Button(action: action) {
+            Label(isFrozen ? "Thaw bag" : "Freeze bag", systemImage: isFrozen ? "sun.max" : "snowflake")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(isFrozen ? Theme.accent : Theme.frozenText)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(shape.fill(color.opacity(0.1)))
+                .overlay(shape.strokeBorder(color.opacity(0.5), lineWidth: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
