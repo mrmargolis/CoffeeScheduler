@@ -167,7 +167,7 @@ private struct WidgetWeek: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(Palette.accent, lineWidth: 1.5)
+                        .strokeBorder(Palette.accent, lineWidth: 2.5)
                         .padding(.horizontal, 0.5)
                         .padding(.vertical, 0.5)
                 )
