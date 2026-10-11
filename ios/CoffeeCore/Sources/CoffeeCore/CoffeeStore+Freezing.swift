@@ -77,12 +77,14 @@ extension CoffeeStore {
 
     /// Freeze beans whose brewed grams have reached their freeze-after target.
     public func autoFreeze(today: String) throws {
-        let due = try db.query("""
+        let due = try db.query(
+            """
             SELECT b.id FROM beans b
             WHERE b.is_frozen = 0
               AND b.freeze_after_grams IS NOT NULL
               AND (SELECT COALESCE(SUM(br.ground_coffee_grams), 0) FROM brews br WHERE br.bean_id = b.id) + 12 >= b.freeze_after_grams
-            """).compactMap { $0.string("id") }
+            """
+        ).compactMap { $0.string("id") }
         guard !due.isEmpty else { return }
 
         try db.transaction {

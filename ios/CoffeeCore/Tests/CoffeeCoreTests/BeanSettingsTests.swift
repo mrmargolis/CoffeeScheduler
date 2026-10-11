@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 @Suite struct BeanSettingsTests {
@@ -34,7 +35,7 @@ import Testing
         #expect(saved.restDays == nil)
         #expect(saved.roastDate == nil)
         #expect(saved.freezeAfterGrams == nil)
-        #expect(saved.effectiveRestDays == 21) // roaster default
+        #expect(saved.effectiveRestDays == 21)  // roaster default
         #expect(saved.readyDate == nil)
     }
 

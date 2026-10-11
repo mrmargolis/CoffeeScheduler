@@ -79,7 +79,7 @@ final class DatabaseLocation {
     /// Copy the working copy out to the iCloud folder.
     func push() throws {
         guard let remote = remoteFile,
-              FileManager.default.fileExists(atPath: workingCopy.path)
+            FileManager.default.fileExists(atPath: workingCopy.path)
         else { return }
 
         try coordinate(writing: remote) { destination in
@@ -109,7 +109,7 @@ final class DatabaseLocation {
 
     private func coordinate(reading url: URL, _ body: (URL) throws -> Void) throws {
         var coordinatorError: NSError?
-        var bodyError: Error?
+        var bodyError: (any Error)?
         NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { url in
             do { try body(url) } catch { bodyError = error }
         }
@@ -118,7 +118,7 @@ final class DatabaseLocation {
 
     private func coordinate(writing url: URL, _ body: (URL) throws -> Void) throws {
         var coordinatorError: NSError?
-        var bodyError: Error?
+        var bodyError: (any Error)?
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinatorError) { url in
             do { try body(url) } catch { bodyError = error }
         }

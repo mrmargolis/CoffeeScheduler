@@ -13,36 +13,7 @@ struct BeansView: View {
         let queue = model.activeBeans.filter { !$0.isFrozen }
         NavigationStack {
             List {
-                Section {
-                    ForEach(queue) { bean in
-                        row(bean)
-                            .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
-                            .swipeActions(edge: .leading) {
-                                if bean.displayOrder != nil {
-                                    Button {
-                                        model.clearQueueOrder(id: bean.id)
-                                    } label: {
-                                        Label("Auto order", systemImage: "arrow.uturn.backward")
-                                    }
-                                    .tint(.gray)
-                                }
-                            }
-                    }
-                    .onMove { from, to in
-                        var ids = queue.map(\.id)
-                        ids.move(fromOffsets: from, toOffset: to)
-                        model.reorderQueue(ids)
-                    }
-                } header: {
-                    Text("Queue")
-                } footer: {
-                    if !queue.isEmpty {
-                        Text("""
-                            Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that \
-                            order; the rest follow, in-progress first, then by ready date.
-                            """)
-                    }
-                }
+                queueSection(queue)
                 let frozen = model.activeBeans.filter(\.isFrozen)
                 if !frozen.isEmpty {
                     Section("Frozen") {
@@ -71,6 +42,40 @@ struct BeansView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func queueSection(_ queue: [Bean]) -> some View {
+        Section {
+            ForEach(queue) { bean in
+                row(bean)
+                    .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                    .swipeActions(edge: .leading) {
+                        if bean.displayOrder != nil {
+                            Button {
+                                model.clearQueueOrder(id: bean.id)
+                            } label: {
+                                Label("Auto order", systemImage: "arrow.uturn.backward")
+                            }
+                            .tint(.gray)
+                        }
+                    }
+            }
+            .onMove { from, to in
+                var ids = queue.map(\.id)
+                ids.move(fromOffsets: from, toOffset: to)
+                model.reorderQueue(ids)
+            }
+        } header: {
+            Text("Queue")
+        } footer: {
+            if !queue.isEmpty {
+                Text(
+                    """
+                    Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that \
+                    order; the rest follow, in-progress first, then by ready date.
+                    """)
             }
         }
     }

@@ -27,7 +27,9 @@ struct SettingsView: View {
                 } header: {
                     Text("Storage")
                 } footer: {
-                    Text("The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. The web app's data/coffee.db can be dropped in here too.")
+                    Text(
+                        "The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. The web app's data/coffee.db can be dropped in here too."
+                    )
                 }
             }
             .navigationTitle("Settings")
@@ -100,7 +102,8 @@ struct SettingsView: View {
         } header: {
             Text("Rest by roaster")
         } footer: {
-            Text("""
+            Text(
+                """
                 A bag rests for its own days if set, else its roaster's, else the default rest above. \
                 Swipe a roaster to remove it.
                 """)
@@ -114,9 +117,10 @@ struct SettingsView: View {
             }
             ForEach(model.skipRanges) { range in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(range.startDate == range.endDate
-                         ? Format.mediumDay(range.startDate)
-                         : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
+                    Text(
+                        range.startDate == range.endDate
+                            ? Format.mediumDay(range.startDate)
+                            : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
                     if let reason = range.reason, !reason.isEmpty {
                         Text(reason).font(.caption).foregroundStyle(.secondary)
                     }

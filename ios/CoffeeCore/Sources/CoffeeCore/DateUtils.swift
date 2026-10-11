@@ -8,8 +8,8 @@ public enum DateUtils {
     public static func dayNumber(_ iso: String) -> Int? {
         let parts = iso.split(separator: "-")
         guard parts.count == 3,
-              let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]),
-              (1...12).contains(m), (1...31).contains(d)
+            let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]),
+            (1...12).contains(m), (1...31).contains(d)
         else { return nil }
         return daysFromCivil(y, m, d)
     }

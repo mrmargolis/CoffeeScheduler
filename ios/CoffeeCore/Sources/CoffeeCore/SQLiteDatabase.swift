@@ -1,8 +1,9 @@
 import Foundation
+
 #if canImport(SQLite3)
-import SQLite3
+    import SQLite3
 #else
-import CSQLite
+    import CSQLite
 #endif
 
 public enum SQLValue: Equatable, Sendable {
@@ -118,12 +119,13 @@ public final class SQLiteDatabase {
     private func bind(_ params: [SQLValue], to stmt: OpaquePointer?) throws {
         for (i, value) in params.enumerated() {
             let index = Int32(i + 1)
-            let rc: Int32 = switch value {
-            case .null: sqlite3_bind_null(stmt, index)
-            case .int(let v): sqlite3_bind_int64(stmt, index, v)
-            case .double(let v): sqlite3_bind_double(stmt, index, v)
-            case .text(let v): sqlite3_bind_text(stmt, index, v, -1, Self.transient)
-            }
+            let rc: Int32 =
+                switch value {
+                case .null: sqlite3_bind_null(stmt, index)
+                case .int(let v): sqlite3_bind_int64(stmt, index, v)
+                case .double(let v): sqlite3_bind_double(stmt, index, v)
+                case .text(let v): sqlite3_bind_text(stmt, index, v, -1, Self.transient)
+                }
             guard rc == SQLITE_OK else { throw SQLiteError(message: lastError) }
         }
     }
@@ -133,12 +135,13 @@ public final class SQLiteDatabase {
         var values: [String: SQLValue] = [:]
         for col in 0..<sqlite3_column_count(stmt) {
             let name = String(cString: sqlite3_column_name(stmt, col))
-            values[name] = switch sqlite3_column_type(stmt, col) {
-            case SQLITE_INTEGER: .int(sqlite3_column_int64(stmt, col))
-            case SQLITE_FLOAT: .double(sqlite3_column_double(stmt, col))
-            case SQLITE_TEXT: .text(String(cString: sqlite3_column_text(stmt, col)))
-            default: .null
-            }
+            values[name] =
+                switch sqlite3_column_type(stmt, col) {
+                case SQLITE_INTEGER: .int(sqlite3_column_int64(stmt, col))
+                case SQLITE_FLOAT: .double(sqlite3_column_double(stmt, col))
+                case SQLITE_TEXT: .text(String(cString: sqlite3_column_text(stmt, col)))
+                default: .null
+                }
         }
         return SQLRow(values: values)
     }

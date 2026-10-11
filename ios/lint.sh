@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Lint the Swift code with a pinned SwiftLint, as CI does:
+# Check the Swift code's formatting (swift format) and lint it (SwiftLint),
+# as CI does:
 #
-#   ./lint.sh            # every warning is an error (--strict)
-#   ./lint.sh --fix      # apply the corrections SwiftLint can make itself
+#   ./lint.sh            # every finding is an error
+#   ./lint.sh --fix      # reformat, and apply SwiftLint's own corrections
 #
-# Linux only (WSL included). The release binary is downloaded once to
-# ~/.cache and checked against the SHA-256 below; to upgrade, change the
-# version and both checksums together. Rules and caps are in .swiftlint.yml.
+# Linux only (WSL included), with `swift` on the PATH. The SwiftLint release
+# binary is downloaded once to ~/.cache and checked against the SHA-256
+# below; to upgrade, change the version and both checksums together. Rules
+# and caps are in .swiftlint.yml; arguments are passed on to SwiftLint.
 set -euo pipefail
 
 VERSION=0.65.1
@@ -35,8 +37,14 @@ if [ ! -x "$bin" ]; then
 fi
 
 cd "$(dirname "$0")"
+# The formatter comes with the Swift toolchain; .swift-format configures it.
+# Keep this list in step with `included` in .swiftlint.yml.
+sources=(Package.swift Sources Tests E2E CoffeeCore/Package.swift CoffeeCore/Sources CoffeeCore/Tests)
+
 if [ "${1:-}" = --fix ]; then
   shift
+  swift format format --in-place --recursive --parallel "${sources[@]}"
   exec "$bin" lint --fix "$@"
 fi
+swift format lint --strict --recursive --parallel "${sources[@]}"
 exec "$bin" lint --strict "$@"

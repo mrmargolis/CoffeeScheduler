@@ -8,16 +8,16 @@ public struct RoasterColor: Hashable, Sendable {
 
     /// Palette order is load-bearing: changing it reshuffles every roaster's colour.
     public static let palette = [
-        RoasterColor(bg: "#2d2114", border: "#e1b581", text: "#efdcc4"), // amber
-        RoasterColor(bg: "#172632", border: "#8fc4f1", text: "#d5e5f3"), // blue
-        RoasterColor(bg: "#19281c", border: "#96cea1", text: "#d8ecdc"), // green
-        RoasterColor(bg: "#311e1f", border: "#efa8ac", text: "#f4dcde"), // rose
-        RoasterColor(bg: "#262131", border: "#c6b2ed", text: "#e5ddf6"), // violet
-        RoasterColor(bg: "#301f18", border: "#edad90", text: "#f3ded3"), // orange
-        RoasterColor(bg: "#112927", border: "#78d0ca", text: "#cdeeeb"), // teal
-        RoasterColor(bg: "#12272e", border: "#7ccbe4", text: "#cfebf3"), // cyan
-        RoasterColor(bg: "#202333", border: "#adbaf5", text: "#dee3fa"), // indigo
-        RoasterColor(bg: "#311e1d", border: "#f0a9a2", text: "#f5dcda"), // red
+        RoasterColor(bg: "#2d2114", border: "#e1b581", text: "#efdcc4"),  // amber
+        RoasterColor(bg: "#172632", border: "#8fc4f1", text: "#d5e5f3"),  // blue
+        RoasterColor(bg: "#19281c", border: "#96cea1", text: "#d8ecdc"),  // green
+        RoasterColor(bg: "#311e1f", border: "#efa8ac", text: "#f4dcde"),  // rose
+        RoasterColor(bg: "#262131", border: "#c6b2ed", text: "#e5ddf6"),  // violet
+        RoasterColor(bg: "#301f18", border: "#edad90", text: "#f3ded3"),  // orange
+        RoasterColor(bg: "#112927", border: "#78d0ca", text: "#cdeeeb"),  // teal
+        RoasterColor(bg: "#12272e", border: "#7ccbe4", text: "#cfebf3"),  // cyan
+        RoasterColor(bg: "#202333", border: "#adbaf5", text: "#dee3fa"),  // indigo
+        RoasterColor(bg: "#311e1d", border: "#f0a9a2", text: "#f5dcda"),  // red
     ]
 
     /// Coprime with the palette size, so probing visits every slot, and large

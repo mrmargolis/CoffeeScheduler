@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 // Ported from src/__tests__/lib/colors.test.ts.
@@ -85,7 +86,7 @@ private func makeDay(
         let spans = beanEvents(events)
         #expect(spans.count == 1)
         #expect(spans.first?.start == "2026-03-01")
-        #expect(spans.first?.end == "2026-03-04") // exclusive
+        #expect(spans.first?.end == "2026-03-04")  // exclusive
         #expect(spans.first?.title == "Ethiopia")
         #expect(spans.first?.meta == "3 d · 135 g")
     }
@@ -147,10 +148,11 @@ private func makeDay(
     }
 
     @Test func flagsASpanStartedBeforeTheBagRested() {
-        let spans = beanEvents(CalendarSpans.events(schedule: [
-            makeDay("2026-03-01", [("b1", 45, 4)]),
-            makeDay("2026-03-02", [("b1", 45, nil)]),
-        ]))
+        let spans = beanEvents(
+            CalendarSpans.events(schedule: [
+                makeDay("2026-03-01", [("b1", 45, 4)]),
+                makeDay("2026-03-02", [("b1", 45, nil)]),
+            ]))
         #expect(spans.count == 1)
         #expect(spans.first?.daysEarly == 4)
     }

@@ -16,9 +16,10 @@ concurrency:
 
 jobs:
   lint:
-    # Style, size and complexity caps from ios/.swiftlint.yml. lint.sh pins
-    # the SwiftLint release and verifies its checksum.
-    name: SwiftLint
+    # Formatting (swift format, from the image's toolchain) and the style,
+    # size and complexity caps in ios/.swiftlint.yml. lint.sh pins the
+    # SwiftLint release and verifies its checksum.
+    name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:

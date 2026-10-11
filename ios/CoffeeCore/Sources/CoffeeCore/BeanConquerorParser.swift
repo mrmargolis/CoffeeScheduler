@@ -142,13 +142,14 @@ public enum BeanConquerorParser {
             }
             let creationDate = DateUtils.isoString(Date(timeIntervalSince1970: ts), timeZone: timeZone)
 
-            result.brews.append(RawBrew(
-                beanID: beanID,
-                groundCoffeeGrams: br["grind_weight"].number ?? 0,
-                creationDate: creationDate,
-                beanAgeDays: roastDates[beanID].map { DateUtils.daysBetween($0, creationDate) },
-                rating: br["rating"].number.flatMap { $0 == 0 ? nil : $0 }
-            ))
+            result.brews.append(
+                RawBrew(
+                    beanID: beanID,
+                    groundCoffeeGrams: br["grind_weight"].number ?? 0,
+                    creationDate: creationDate,
+                    beanAgeDays: roastDates[beanID].map { DateUtils.daysBetween($0, creationDate) },
+                    rating: br["rating"].number.flatMap { $0 == 0 ? nil : $0 }
+                ))
         }
     }
 
@@ -169,7 +170,7 @@ public enum BeanConquerorParser {
         guard let s, s.count >= 10 else { return nil }
         let day = String(s.prefix(10))
         guard day.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil,
-              DateUtils.dayNumber(day) != nil
+            DateUtils.dayNumber(day) != nil
         else { return nil }
         return day
     }
@@ -186,14 +187,21 @@ enum JSONValue: Decodable {
     case array([JSONValue])
     case object([String: JSONValue])
 
-    init(from decoder: Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let c = try decoder.singleValueContainer()
-        if c.decodeNil() { self = .null }
-        else if let b = try? c.decode(Bool.self) { self = .bool(b) }
-        else if let n = try? c.decode(Double.self) { self = .number(n) }
-        else if let s = try? c.decode(String.self) { self = .string(s) }
-        else if let a = try? c.decode([JSONValue].self) { self = .array(a) }
-        else { self = .object(try c.decode([String: JSONValue].self)) }
+        if c.decodeNil() {
+            self = .null
+        } else if let b = try? c.decode(Bool.self) {
+            self = .bool(b)
+        } else if let n = try? c.decode(Double.self) {
+            self = .number(n)
+        } else if let s = try? c.decode(String.self) {
+            self = .string(s)
+        } else if let a = try? c.decode([JSONValue].self) {
+            self = .array(a)
+        } else {
+            self = .object(try c.decode([String: JSONValue].self))
+        }
     }
 
     subscript(key: String) -> JSONValue {

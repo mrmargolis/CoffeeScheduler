@@ -31,7 +31,8 @@ extension CoffeeStore {
     }
 
     private func upsert(_ bean: BeanConquerorParser.RawBean) throws {
-        try db.run("""
+        try db.run(
+            """
             INSERT INTO beans (id, name, roaster, roast_date, weight_grams, cost, flavour_profile, country, region, variety, processing, archived, is_frozen)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
@@ -47,7 +48,8 @@ extension CoffeeStore {
               processing = excluded.processing,
               archived = excluded.archived,
               is_frozen = MAX(beans.is_frozen, excluded.is_frozen)
-            """, [
+            """,
+            [
                 .text(bean.id), .text(bean.name), .text(bean.roaster), SQLValue(bean.roastDate),
                 .double(bean.weightGrams), SQLValue(bean.cost), SQLValue(bean.flavourProfile),
                 SQLValue(bean.country), SQLValue(bean.region), SQLValue(bean.variety),
@@ -57,10 +59,11 @@ extension CoffeeStore {
 
     /// Record a freeze for a currently frozen bean that has none yet.
     private func recordFreeze(_ event: BeanConquerorParser.FreezeInfo) throws {
-        let existing = try db.query(
-            "SELECT COUNT(*) as count FROM freeze_events WHERE bean_id = ? AND event_type = 'freeze'",
-            [.text(event.beanID)]
-        ).first?.int("count") ?? 0
+        let existing =
+            try db.query(
+                "SELECT COUNT(*) as count FROM freeze_events WHERE bean_id = ? AND event_type = 'freeze'",
+                [.text(event.beanID)]
+            ).first?.int("count") ?? 0
         guard existing == 0 else { return }
         try db.run(
             "INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES (?, 'freeze', ?)",
@@ -74,10 +77,12 @@ extension CoffeeStore {
             try db.run("DELETE FROM brews WHERE bean_id = ?", [.text(beanID)])
         }
         for brew in brews {
-            try db.run("""
+            try db.run(
+                """
                 INSERT INTO brews (bean_id, ground_coffee_grams, creation_date, bean_age_days, rating)
                 VALUES (?, ?, ?, ?, ?)
-                """, [
+                """,
+                [
                     .text(brew.beanID), .double(brew.groundCoffeeGrams), .text(brew.creationDate),
                     SQLValue(brew.beanAgeDays), SQLValue(brew.rating),
                 ])

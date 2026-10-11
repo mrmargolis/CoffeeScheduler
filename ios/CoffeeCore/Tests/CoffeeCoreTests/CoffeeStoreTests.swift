@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CoffeeCore
 
 @Suite struct CoffeeStoreTests {
@@ -11,7 +12,7 @@ import Testing
             ],
             brews: [
                 bcBrew(),
-                bcBrew(["config": ["uuid": "brew-2", "unix_timestamp": 1706875200]]),
+                bcBrew(["config": ["uuid": "brew-2", "unix_timestamp": 1_706_875_200]]),
             ]
         )
         return try store.importExport(BeanConquerorParser.parse(zipData: data, timeZone: utc))
@@ -80,7 +81,8 @@ import Testing
     @Test func frozenDaysCountClosedAndOpenFreezes() throws {
         let store = try CoffeeStore.inMemory()
         _ = try importSample(into: store)
-        try store.db.execute("""
+        try store.db.execute(
+            """
             INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('uuid-1', 'freeze', '2026-01-20');
             INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('uuid-1', 'thaw', '2026-01-25');
             INSERT INTO freeze_events (bean_id, event_type, event_date) VALUES ('uuid-1', 'freeze', '2026-02-01');

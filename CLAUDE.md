@@ -55,10 +55,12 @@ queries, import) on the same SQLite schema. Changes to scheduling rules, the
 schema, or import behavior must be mirrored there; run `swift test` in
 `ios/CoffeeCore` to check.
 
-Swift is linted with SwiftLint: run `./lint.sh` in `ios/` (Linux or WSL). It
-fails on any warning, including the size and complexity caps in
+Swift is formatted with `swift format` and linted with SwiftLint: run
+`./lint.sh --fix` in `ios/` (Linux or WSL) to reformat, then `./lint.sh` to
+check. It fails on any finding, including the size and complexity caps in
 `ios/.swiftlint.yml`. When new code trips a cap, split it up rather than
-adding a `swiftlint:disable` comment.
+adding a `swiftlint:disable` comment. Compiler warnings are errors in both
+packages.
 
 ### Testing patterns
 

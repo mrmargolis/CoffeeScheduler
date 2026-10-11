@@ -89,38 +89,33 @@ public final class CoffeeStore {
     // MARK: - Beans
 
     static let beanSelect = """
-      SELECT
-        b.*,
-        COALESCE(b.rest_days, rd.rest_days,
-          CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)
-        ) as effective_rest_days,
-        COALESCE(
-          (SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0
-        ) as total_brewed_grams
-      FROM beans b
-      LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
-    """
+          SELECT
+            b.*,
+            COALESCE(b.rest_days, rd.rest_days,
+              CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)
+            ) as effective_rest_days,
+            COALESCE(
+              (SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0
+            ) as total_brewed_grams
+          FROM beans b
+          LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
+        """
 
     /// Beans in queue order: manually ordered first, then by roast date.
     public func beans(archived: Bool, today: String = DateUtils.today()) throws -> [Bean] {
         let frozen = try frozenDays(today: today)
         let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
-        return try db.query("""
+        return try db.query(
+            """
             \(Self.beanSelect)
             WHERE b.archived = ?
             ORDER BY
               CASE WHEN b.display_order IS NOT NULL THEN 0 ELSE 1 END,
               b.display_order,
               b.roast_date
-            """, [SQLValue(archived)])
-            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
-    }
-
-    public func allBeans(today: String = DateUtils.today()) throws -> [Bean] {
-        let frozen = try frozenDays(today: today)
-        let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
-        return try db.query(Self.beanSelect)
-            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
+            """, [SQLValue(archived)]
+        )
+        .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
     }
 
     public func bean(id: String, today: String = DateUtils.today()) throws -> Bean? {
@@ -153,7 +148,7 @@ public final class CoffeeStore {
             [.text(beanID)]
         ).compactMap { row in
             guard let kind = row.string("event_type").flatMap(FreezeEvent.Kind.init(rawValue:)),
-                  let date = row.string("event_date")
+                let date = row.string("event_date")
             else { return nil }
             return FreezeEvent(kind: kind, date: date)
         }
@@ -191,15 +186,18 @@ public final class CoffeeStore {
     /// form's `PATCH /api/beans/[id]`: every field is written, and nil
     /// clears it (rest days then fall back to the roaster or global default).
     public func updateBeanSettings(id: String, _ settings: BeanSettings) throws {
-        guard let weight = try db.query("SELECT weight_grams FROM beans WHERE id = ?", [.text(id)])
-            .first?.double("weight_grams")
+        guard
+            let weight = try db.query("SELECT weight_grams FROM beans WHERE id = ?", [.text(id)])
+                .first?.double("weight_grams")
         else { throw BeanSettingsError.notFound }
         try settings.validate(weightGrams: weight)
 
-        try db.run("""
+        try db.run(
+            """
             UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
             WHERE id = ?
-            """, [
+            """,
+            [
                 SQLValue(settings.restDays), SQLValue(settings.roastDate),
                 SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
             ])

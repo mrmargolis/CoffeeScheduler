@@ -98,7 +98,7 @@ public enum Scheduler {
 
     private static func compare(_ a: Bean, _ b: Bean) -> Int {
         switch (a.displayOrder, b.displayOrder) {
-        case let (ao?, bo?): return ao == bo ? 0 : (ao < bo ? -1 : 1)
+        case (let ao?, let bo?): return ao == bo ? 0 : (ao < bo ? -1 : 1)
         case (.some, nil): return -1
         case (nil, .some): return 1
         case (nil, nil): break
@@ -110,7 +110,7 @@ public enum Scheduler {
         if !aInProgress && bInProgress { return 1 }
 
         switch (readyDate(a), readyDate(b)) {
-        case let (ar?, br?): return ar == br ? 0 : (ar < br ? -1 : 1)
+        case (let ar?, let br?): return ar == br ? 0 : (ar < br ? -1 : 1)
         case (.some, nil): return -1
         case (nil, .some): return 1
         case (nil, nil): return 0
@@ -215,9 +215,10 @@ extension Scheduler {
         var remaining: [String: Double] = [:]
 
         init(beans: [Bean], dailyGrams: Double, overrides: [String: DayOverride]) {
-            queue = sortQueue(beans.filter {
-                (!$0.isFrozen || $0.plannedThawDate != nil) && $0.remainingGrams > minDoseGrams
-            })
+            queue = sortQueue(
+                beans.filter {
+                    (!$0.isFrozen || $0.plannedThawDate != nil) && $0.remainingGrams > minDoseGrams
+                })
             self.beans = Dictionary(beans.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             self.dailyGrams = dailyGrams
             self.overrides = overrides

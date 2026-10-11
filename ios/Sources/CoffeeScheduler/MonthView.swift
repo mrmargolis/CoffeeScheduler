@@ -42,7 +42,9 @@ struct MonthView: View {
 
     private var header: some View {
         HStack {
-            Button { month = DateUtils.addMonths(month, -1) } label: {
+            Button {
+                month = DateUtils.addMonths(month, -1)
+            } label: {
                 Image(systemName: "chevron.left").padding(6)
             }
             .accessibilityLabel("Previous month")
@@ -50,7 +52,9 @@ struct MonthView: View {
             Spacer()
             Text(Format.monthTitle(month)).font(.headline)
             Spacer()
-            Button { month = DateUtils.addMonths(month, 1) } label: {
+            Button {
+                month = DateUtils.addMonths(month, 1)
+            } label: {
                 Image(systemName: "chevron.right").padding(6)
             }
             .accessibilityLabel("Next month")
@@ -72,7 +76,7 @@ struct MonthView: View {
     struct Segment: Hashable {
         let event: CalendarEvent
         let startColumn: Int
-        let endColumn: Int // inclusive
+        let endColumn: Int  // inclusive
         let lane: Int
         /// The bag's span begins in this week (as opposed to continuing from the last).
         let isStart: Bool
@@ -81,7 +85,8 @@ struct MonthView: View {
     /// The bag spans crossing one week, clipped to it and stacked into lanes.
     static func segments(_ events: [CalendarEvent], week monday: String) -> [Segment] {
         let weekEnd = DateUtils.addDays(monday, 7)
-        let crossing = events
+        let crossing =
+            events
             .filter { $0.beanID != nil && $0.start < weekEnd && $0.end > monday }
             .sorted { $0.start < $1.start }
         var laneEnds: [Int] = []
@@ -122,10 +127,13 @@ private struct WeekRow: View {
                 }
                 ForEach(segments, id: \.self) { segment in
                     bar(segment)
-                        .frame(width: column * CGFloat(segment.endColumn - segment.startColumn + 1) - 2,
-                               height: Self.laneHeight - 3)
-                        .offset(x: column * CGFloat(segment.startColumn) + 1,
-                                y: Self.dateHeight + CGFloat(segment.lane) * Self.laneHeight)
+                        .frame(
+                            width: column * CGFloat(segment.endColumn - segment.startColumn + 1) - 2,
+                            height: Self.laneHeight - 3
+                        )
+                        .offset(
+                            x: column * CGFloat(segment.startColumn) + 1,
+                            y: Self.dateHeight + CGFloat(segment.lane) * Self.laneHeight)
                 }
             }
         }
@@ -136,7 +144,9 @@ private struct WeekRow: View {
         let inMonth = DateUtils.firstOfMonth(date) == month
         let day = days[date]
         let isGap = day.map { $0.isGap && !$0.isActual } ?? false
-        return Button { openDay(date) } label: {
+        return Button {
+            openDay(date)
+        } label: {
             VStack(spacing: 2) {
                 HStack(spacing: 2) {
                     Text(String(Int(date.suffix(2)) ?? 0))
@@ -169,7 +179,9 @@ private struct WeekRow: View {
         guard case .bean(let id, let roaster) = event.kind else { return AnyView(EmptyView()) }
         let color = rail(roaster)
         return AnyView(
-            Button { openBean(id) } label: {
+            Button {
+                openBean(id)
+            } label: {
                 HStack(spacing: 3) {
                     if segment.isStart { RoasterRail(color: color, height: Self.laneHeight - 7) }
                     Text(event.title)
@@ -198,7 +210,9 @@ struct BagKey: View {
 
     var body: some View {
         ForEach(runs, id: \.beanID) { run in
-            Button { openBean(run.beanID) } label: {
+            Button {
+                openBean(run.beanID)
+            } label: {
                 HStack(spacing: 8) {
                     RoasterRail(color: model.rail(run.roaster), height: 30)
                     VStack(alignment: .leading, spacing: 1) {
@@ -207,9 +221,10 @@ struct BagKey: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text(run.start == run.end
-                             ? Format.shortDay(run.start)
-                             : "\(Format.shortDay(run.start)) – \(Format.shortDay(run.end))")
+                        Text(
+                            run.start == run.end
+                                ? Format.shortDay(run.start)
+                                : "\(Format.shortDay(run.start)) – \(Format.shortDay(run.end))")
                         if let ages = model.ageRanges[run.beanID] {
                             Text(Format.ages(ages))
                                 .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Color.red : Color.secondary)

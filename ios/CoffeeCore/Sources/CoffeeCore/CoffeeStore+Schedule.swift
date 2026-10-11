@@ -40,7 +40,8 @@ extension CoffeeStore {
         }
 
         // Future brews are projected day by day, so add them back to remaining
-        let futureTotals = try db.query("""
+        let futureTotals = try db.query(
+            """
             SELECT bean_id, SUM(ground_coffee_grams) as total_grams
             FROM brews WHERE creation_date > ?
             GROUP BY bean_id
@@ -54,7 +55,8 @@ extension CoffeeStore {
     }
 
     private func brews(from start: String, to end: String) throws -> [Scheduler.Brew] {
-        try db.query("""
+        try db.query(
+            """
             SELECT bean_id, creation_date, ground_coffee_grams
             FROM brews
             WHERE creation_date >= ? AND creation_date <= ?

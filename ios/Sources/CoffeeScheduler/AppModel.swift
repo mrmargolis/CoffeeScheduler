@@ -62,9 +62,9 @@ final class AppModel {
     /// memory with today pinned, so every run starts from the same state.
     static func forLaunch() -> AppModel {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-sample-data"), let store = try? SampleData.store() {
-            return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
-        }
+            if ProcessInfo.processInfo.arguments.contains("-sample-data"), let store = try? SampleData.store() {
+                return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
+            }
         #endif
         return AppModel()
     }
@@ -76,7 +76,7 @@ final class AppModel {
     func reloadFromICloud() {
         guard let location else { return }
         perform("Couldn't read the database from iCloud Drive") {
-            store = nil // SQLite must let go of the file before it is replaced
+            store = nil  // SQLite must let go of the file before it is replaced
             try location.pullIfNewer()
             try openStore()
         }

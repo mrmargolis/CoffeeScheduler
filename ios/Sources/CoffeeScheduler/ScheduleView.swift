@@ -1,5 +1,6 @@
 import CoffeeCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A month grid with the bag key, or a list of upcoming days, a week per
 /// section starting with the current week.
@@ -113,7 +114,7 @@ struct ScheduleView: View {
 
     /// Days from the start of this week (Monday) onward, chunked by week.
     private var weeks: [[ScheduleDay]] {
-        let weekday = Format.weekdayIndex(model.today) // 0 = Monday
+        let weekday = Format.weekdayIndex(model.today)  // 0 = Monday
         let start = DateUtils.addDays(model.today, -weekday)
         let upcoming = model.schedule.filter { $0.date >= start }
         return stride(from: 0, to: upcoming.count, by: 7).map {
@@ -173,7 +174,9 @@ private struct DayRow: View {
                 ForEach(day.consumptions, id: \.beanID) { c in
                     // One button per bag: a day can hold two, and a row-wide
                     // link couldn't tell them apart.
-                    Button { openBean(c.beanID) } label: {
+                    Button {
+                        openBean(c.beanID)
+                    } label: {
                         HStack(spacing: 6) {
                             RoasterRail(color: model.rail(c.roaster))
                             Text(c.beanName).lineLimit(1).foregroundStyle(.primary)

@@ -109,7 +109,7 @@ extension CoffeeStore {
             "SELECT * FROM consumption_overrides WHERE end_date >= ? ORDER BY start_date, id", [.text(from)]
         ).compactMap { row in
             guard let id = row.int("id"), let start = row.string("start_date"), let end = row.string("end_date"),
-                  let daily = row.double("daily_grams"), let dose = row.double("dose_size_grams")
+                let daily = row.double("daily_grams"), let dose = row.double("dose_size_grams")
             else { return nil }
             return ConsumptionOverride(id: id, startDate: start, endDate: end, dailyGrams: daily, doseSizeGrams: dose)
         }

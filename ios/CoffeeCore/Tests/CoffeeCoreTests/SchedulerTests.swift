@@ -1,4 +1,5 @@
 import Testing
+
 @testable import CoffeeCore
 
 // Ported from src/__tests__/lib/scheduler.test.ts.
@@ -102,38 +103,47 @@ func schedule(
     }
 
     @Test func transitionsBetweenBags() {
-        let days = schedule("2026-01-31", "2026-01-31", beans: [
-            makeBean(id: "b1", name: "Bean 1", weightGrams: 200, remainingGrams: 30),
-            makeBean(id: "b2", name: "Bean 2"),
-        ])
-        #expect(days[0].consumptions == [
-            Consumption(beanID: "b1", beanName: "Bean 1", roaster: "Test Roaster", grams: 30),
-            Consumption(beanID: "b2", beanName: "Bean 2", roaster: "Test Roaster", grams: 15),
-        ])
+        let days = schedule(
+            "2026-01-31", "2026-01-31",
+            beans: [
+                makeBean(id: "b1", name: "Bean 1", weightGrams: 200, remainingGrams: 30),
+                makeBean(id: "b2", name: "Bean 2"),
+            ])
+        #expect(
+            days[0].consumptions == [
+                Consumption(beanID: "b1", beanName: "Bean 1", roaster: "Test Roaster", grams: 30),
+                Consumption(beanID: "b2", beanName: "Bean 2", roaster: "Test Roaster", grams: 15),
+            ])
     }
 
     @Test func roundsPartialBagToDoses() {
-        let days = schedule("2026-01-31", "2026-01-31", beans: [
-            makeBean(id: "b1", weightGrams: 200, remainingGrams: 40),
-            makeBean(id: "b2"),
-        ])
+        let days = schedule(
+            "2026-01-31", "2026-01-31",
+            beans: [
+                makeBean(id: "b1", weightGrams: 200, remainingGrams: 40),
+                makeBean(id: "b2"),
+            ])
         #expect(days[0].consumptions.map(\.beanID) == ["b1", "b2"])
         #expect(days[0].consumptions.map(\.grams) == [30, 15])
     }
 
     @Test func singleBagFillsLargerTarget() {
-        let days = schedule("2026-01-31", "2026-01-31", beans: [
-            makeBean(id: "b1"), makeBean(id: "b2"),
-        ], daily: 50)
+        let days = schedule(
+            "2026-01-31", "2026-01-31",
+            beans: [
+                makeBean(id: "b1"), makeBean(id: "b2"),
+            ], daily: 50)
         #expect(days[0].consumptions.map(\.beanID) == ["b1"])
         #expect(days[0].consumptions.first?.grams == 50)
     }
 
     @Test func respectsDisplayOrder() {
-        let days = schedule("2026-01-31", "2026-01-31", beans: [
-            makeBean(id: "b1", displayOrder: 2),
-            makeBean(id: "b2", displayOrder: 1),
-        ])
+        let days = schedule(
+            "2026-01-31", "2026-01-31",
+            beans: [
+                makeBean(id: "b1", displayOrder: 2),
+                makeBean(id: "b2", displayOrder: 1),
+            ])
         #expect(days[0].consumptions.first?.beanID == "b2")
     }
 
@@ -158,8 +168,9 @@ func schedule(
 
     @Test func pastDaysUseActualBrews() {
         let brew = Scheduler.Brew(beanID: "b1", creationDate: "2026-02-01", groundCoffeeGrams: 15)
-        let days = schedule("2026-02-01", "2026-02-03", beans: [makeBean(id: "b1")],
-                            brews: [brew, brew], today: "2026-02-02")
+        let days = schedule(
+            "2026-02-01", "2026-02-03", beans: [makeBean(id: "b1")],
+            brews: [brew, brew], today: "2026-02-02")
         #expect(days[0].isActual)
         #expect(days[0].consumptions.count == 1)
         #expect(days[0].consumptions.first?.grams == 30)
@@ -174,8 +185,9 @@ func schedule(
     }
 
     @Test func skipDaysConsumeNothing() {
-        let days = schedule("2026-01-31", "2026-02-01", beans: [makeBean(remainingGrams: 45)],
-                            skipDays: ["2026-01-31"])
+        let days = schedule(
+            "2026-01-31", "2026-02-01", beans: [makeBean(remainingGrams: 45)],
+            skipDays: ["2026-01-31"])
         #expect(days[0].isSkip)
         #expect(days[0].consumptions.isEmpty)
         #expect(days[1].consumptions.first?.grams == 45)
@@ -187,9 +199,11 @@ func schedule(
     }
 
     @Test func frozenBeanWaitsForPlannedThaw() {
-        let days = schedule("2026-01-31", "2026-02-02", beans: [
-            makeBean(isFrozen: true, plannedThawDate: "2026-02-02"),
-        ])
+        let days = schedule(
+            "2026-01-31", "2026-02-02",
+            beans: [
+                makeBean(isFrozen: true, plannedThawDate: "2026-02-02")
+            ])
         #expect(days[0].isGap)
         #expect(days[2].consumptions.first?.grams == 45)
     }
@@ -202,8 +216,9 @@ func schedule(
     }
 
     @Test func consumptionOverride() {
-        let days = schedule("2026-01-31", "2026-01-31", beans: [makeBean()],
-                            overrides: ["2026-01-31": .init(dailyGrams: 30, doseSize: 15)])
+        let days = schedule(
+            "2026-01-31", "2026-01-31", beans: [makeBean()],
+            overrides: ["2026-01-31": .init(dailyGrams: 30, doseSize: 15)])
         #expect(days[0].consumptions.first?.grams == 30)
     }
 

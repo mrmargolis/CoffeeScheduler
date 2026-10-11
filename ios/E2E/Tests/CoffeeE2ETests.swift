@@ -49,7 +49,8 @@ final class CoffeeE2ETests: XCTestCase {
 
     /// Wait for an element's accessibility value; "" also matches no value.
     private func expectValue(_ element: XCUIElement, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {
-        let predicate = expected.isEmpty
+        let predicate =
+            expected.isEmpty
             ? NSPredicate(format: "value == nil OR value == ''")
             : NSPredicate(format: "value == %@", expected)
         let result = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 5)
