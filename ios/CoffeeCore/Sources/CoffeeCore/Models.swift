@@ -70,6 +70,14 @@ public struct ScheduleDay: Hashable, Sendable, Identifiable {
     public var id: String { date }
 }
 
+/// A run of days with no coffee (travel etc.), inclusive. Row of `skip_days`.
+public struct SkipRange: Hashable, Sendable, Identifiable {
+    public var id: Int
+    public var startDate: String
+    public var endDate: String
+    public var reason: String?
+}
+
 public struct ScheduleSettings: Hashable, Sendable {
     public var dailyConsumptionGrams: Double
     public var defaultRestDays: Int

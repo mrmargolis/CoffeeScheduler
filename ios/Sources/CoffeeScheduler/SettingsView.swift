@@ -33,6 +33,31 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    if model.skipRanges.isEmpty {
+                        Text("None").foregroundStyle(.secondary)
+                    }
+                    ForEach(model.skipRanges) { range in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(range.startDate == range.endDate
+                                 ? Format.mediumDay(range.startDate)
+                                 : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
+                            if let reason = range.reason, !reason.isEmpty {
+                                Text(reason).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        for id in offsets.map({ model.skipRanges[$0].id }) {
+                            model.deleteSkipRange(id: id)
+                        }
+                    }
+                } header: {
+                    Text("Skip days")
+                } footer: {
+                    Text("Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
+                }
+
+                Section {
                     Button("Import BeanConqueror export…") { pick(.export) }
                 } footer: {
                     Text("You can also share the export ZIP from BeanConqueror straight to this app.")

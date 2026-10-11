@@ -42,6 +42,7 @@ final class ScreenshotTests: XCTestCase {
             ("7-edit-bag", AnyView(NavigationStack { BeanSettingsForm(bean: kenya, today: SampleData.today) }), model),
             ("8-edit-frozen-bag", AnyView(NavigationStack { BeanSettingsForm(bean: gesha, today: SampleData.today) }), model),
             ("9-reorder-queue", AnyView(BeansView().environment(\.editMode, .constant(.active))), reordered),
+            ("10-day-options", AnyView(NavigationStack { DayOptionsSheet(date: "2026-10-17") }), model),
         ]
 
         for (name, view, model) in screens {

@@ -6,6 +6,7 @@ struct ScheduleView: View {
     @Environment(AppModel.self) private var model
     @State private var pickingFolder = false
     @State private var path: [BeanRoute] = []
+    @State private var dayOptions: DayRoute?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -18,8 +19,19 @@ struct ScheduleView: View {
                 ForEach(weeks, id: \.first?.date) { week in
                     Section(Format.weekTitle(week.first!.date, today: model.today)) {
                         ForEach(week) { day in
-                            DayRow(day: day, isToday: day.date == model.today) { id in
-                                path.append(BeanRoute(id: id))
+                            DayRow(
+                                day: day,
+                                isToday: day.date == model.today,
+                                openBean: { path.append(BeanRoute(id: $0)) },
+                                openDay: { dayOptions = DayRoute(date: day.date) }
+                            )
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    model.toggleSkipDay(day.date)
+                                } label: {
+                                    Label(day.isSkip ? "Don't skip" : "Skip", systemImage: day.isSkip ? "cup.and.saucer" : "airplane")
+                                }
+                                .tint(day.isSkip ? .green : .indigo)
                             }
                         }
                     }
@@ -27,6 +39,10 @@ struct ScheduleView: View {
             }
             .navigationTitle("Schedule")
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
+            .sheet(item: $dayOptions) { day in
+                NavigationStack { DayOptionsSheet(date: day.date) }
+                    .presentationDetents([.medium])
+            }
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.chooseFolder(url) }
             }
@@ -57,18 +73,25 @@ private struct DayRow: View {
     let day: ScheduleDay
     let isToday: Bool
     let openBean: (String) -> Void
+    let openDay: () -> Void
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading) {
-                Text(Format.weekday(day.date)).font(.subheadline.weight(isToday ? .bold : .regular))
-                Text(Format.shortDay(day.date)).font(.caption).foregroundStyle(.secondary)
+            // The date opens the day's options; the bags open their detail
+            Button(action: openDay) {
+                VStack(alignment: .leading) {
+                    Text(Format.weekday(day.date)).font(.subheadline.weight(isToday ? .bold : .regular))
+                    Text(Format.shortDay(day.date)).font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(width: 56, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .frame(width: 56, alignment: .leading)
+            .buttonStyle(.plain)
+            .accessibilityHint("Day options")
 
             VStack(alignment: .leading, spacing: 2) {
                 if day.isSkip {
-                    Text("Skip").foregroundStyle(.secondary)
+                    Label("Skipped", systemImage: "airplane").foregroundStyle(.secondary)
                 } else if day.isGap {
                     Label(day.isActual ? "No brews logged" : "No coffee", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(day.isActual ? Color.secondary : Color.red)
@@ -114,6 +137,7 @@ enum Format {
     private static let weekdayFormatter = formatter("EEE")
     private static let shortDayFormatter = formatter("MMM d")
     private static let mediumDayFormatter = formatter("MMM d, yyyy")
+    private static let longDayFormatter = formatter("EEEE MMMM d")
 
     /// The ISO day a date picker's value falls on, read in UTC to match `date(_:)`.
     static func iso(_ date: Date) -> String {
@@ -125,6 +149,7 @@ enum Format {
     static func weekday(_ iso: String) -> String { weekdayFormatter.string(from: date(iso)) }
     static func shortDay(_ iso: String) -> String { shortDayFormatter.string(from: date(iso)) }
     static func mediumDay(_ iso: String) -> String { mediumDayFormatter.string(from: date(iso)) }
+    static func longDay(_ iso: String) -> String { longDayFormatter.string(from: date(iso)) }
 
     /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
     static func weekdayIndex(_ iso: String) -> Int {
