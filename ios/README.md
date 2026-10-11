@@ -91,5 +91,5 @@ example, one entered in the app); the web import clears it.
 The app shows the schedule, the bean queue, each bag's detail, and the
 settings, and can edit a bag's settings, freeze or thaw it, reorder the
 queue, mark skip days, set a day's consumption, and set rest days by
-roaster. The runway summary, the rest of the schedule view, and publishing
-are only in the web app for now (tracked in issue #6).
+roaster, with the runway summary above the schedule. The rest of the schedule
+view and publishing are only in the web app for now (tracked in issue #6).

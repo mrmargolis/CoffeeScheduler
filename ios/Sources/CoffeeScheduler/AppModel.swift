@@ -227,6 +227,11 @@ final class AppModel {
         }
     }
 
+    /// Days of coffee, the bag in progress, and what needs a look.
+    var runway: RunwaySummary {
+        RunwaySummary(schedule: schedule, beans: activeBeans, today: today)
+    }
+
     func consumptionOverride(on date: String) -> ConsumptionOverride? {
         consumptionOverrides.first { $0.covers(date) }
     }
