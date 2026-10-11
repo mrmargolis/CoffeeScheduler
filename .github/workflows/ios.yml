@@ -66,7 +66,7 @@ jobs:
 
   screenshots:
     # Renders each screen over sample data on an iOS Simulator and uploads
-    # the PNGs (light and dark) as the "screenshots" artifact.
+    # the PNGs as the "screenshots" artifact.
     name: Screenshots (iOS Simulator)
     runs-on: macos-26
     timeout-minutes: 30

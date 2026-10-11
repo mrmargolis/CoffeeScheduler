@@ -56,6 +56,6 @@ struct FreezeSwipeButton: View {
         } label: {
             Label(bean.isFrozen ? "Thaw" : "Freeze", systemImage: bean.isFrozen ? "sun.max" : "snowflake")
         }
-        .tint(bean.isFrozen ? .orange : .cyan)
+        .tint(bean.isFrozen ? Theme.accent : Theme.frozen)
     }
 }

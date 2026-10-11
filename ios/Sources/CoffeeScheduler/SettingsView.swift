@@ -12,26 +12,34 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                scheduleSection
-                roasterSection
-                skipDaysSection
+                Group {
+                    scheduleSection
+                    roasterSection
+                    skipDaysSection
 
-                Section {
-                    Button("Import BeanConqueror export…") { pick(.export) }
-                } footer: {
-                    Text("You can also share the export ZIP from BeanConqueror straight to this app.")
-                }
+                    Section {
+                        Button("Import BeanConqueror export…") { pick(.export) }
+                    } footer: {
+                        Text("You can also share the export ZIP from BeanConqueror straight to this app.")
+                    }
 
-                Section {
-                    FolderPrompt { pick(.folder) }
-                } header: {
-                    Text("Storage")
-                } footer: {
-                    Text(
-                        "The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. The web app's data/coffee.db can be dropped in here too."
-                    )
+                    Section {
+                        FolderPrompt { pick(.folder) }
+                    } header: {
+                        Text("Storage")
+                    } footer: {
+                        Text(
+                            """
+                            The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. \
+                            The web app's data/coffee.db can be dropped in here too.
+                            """
+                        )
+                    }
                 }
+                .listRowBackground(Theme.card)
+                .listRowSeparatorTint(Theme.hairline)
             }
+            .themedList()
             .navigationTitle("Settings")
             .fileImporter(
                 isPresented: $showingImporter,
@@ -185,10 +193,13 @@ private struct AddRoasterList: View {
             } label: {
                 HStack(spacing: 8) {
                     RoasterRail(color: model.rail(roaster))
-                    Text(roaster).foregroundStyle(.primary)
+                    Text(roaster).foregroundStyle(Theme.text)
                 }
             }
+            .listRowBackground(Theme.card)
+            .listRowSeparatorTint(Theme.hairline)
         }
+        .themedList()
         .navigationTitle("Add a roaster")
         .navigationBarTitleDisplayMode(.inline)
     }

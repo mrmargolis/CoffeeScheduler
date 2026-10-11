@@ -5,8 +5,7 @@ import XCTest
 
 @testable import CoffeeScheduler
 
-/// Renders each screen over `SampleData` in light and dark mode and writes
-/// PNGs to `$SCREENSHOT_DIR/screenshots` (CI uploads them as an artifact).
+/// Renders each screen over `SampleData` and writes PNGs to `$SCREENSHOT_DIR/screenshots` (CI uploads them as an artifact).
 /// Run on an iOS Simulator: `xcodebuild test` with an iPhone destination.
 /// Pass the directory as TEST_RUNNER_SCREENSHOT_DIR; xcodebuild strips the
 /// prefix for the test process.
@@ -49,16 +48,15 @@ final class ScreenshotTests: XCTestCase {
         ]
 
         for (name, view, model) in screens {
-            for style in [UIUserInterfaceStyle.light, .dark] {
-                let image = render(view.environment(model), style: style)
-                let file = "\(name)-\(style == .dark ? "dark" : "light").png"
-                try XCTUnwrap(image.pngData()).write(to: outDir.appendingPathComponent(file))
+            // The app is dark only, so the screens are too
+            let image = render(view.environment(model).coffeeTheme(), style: .dark)
+            let file = "\(name).png"
+            try XCTUnwrap(image.pngData()).write(to: outDir.appendingPathComponent(file))
 
-                let attachment = XCTAttachment(image: image)
-                attachment.name = file
-                attachment.lifetime = .keepAlways
-                add(attachment)
-            }
+            let attachment = XCTAttachment(image: image)
+            attachment.name = file
+            attachment.lifetime = .keepAlways
+            add(attachment)
         }
     }
 

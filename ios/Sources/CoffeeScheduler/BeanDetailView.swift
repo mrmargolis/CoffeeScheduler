@@ -40,39 +40,44 @@ struct BeanDetailView: View {
         let bean = detail.bean
 
         return List {
-            Section {
-                header(detail)
-            }
-
-            Section {
-                ConsumptionMeter(detail: detail)
-            }
-
-            if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
-                Section("Age") {
-                    AgeBar(track: track)
-                    AgeCaptions(detail: detail, roast: roast, ready: ready)
-                }
-            }
-
-            Section {
-                BeanFacts(detail: detail, today: model.today)
-            }
-            .monospacedDigit()
-
-            if !bean.archived {
+            Group {
                 Section {
-                    Button {
-                        confirmingFreeze = bean
-                    } label: {
-                        Label(bean.isFrozen ? "Thaw bag" : "Freeze bag", systemImage: bean.isFrozen ? "sun.max" : "snowflake")
-                    }
-                    .tint(bean.isFrozen ? .orange : .cyan)
+                    header(detail)
                 }
-            }
 
-            BeanHistorySections(history: history)
+                Section {
+                    ConsumptionMeter(detail: detail)
+                }
+
+                if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
+                    Section("Age") {
+                        AgeBar(track: track)
+                        AgeCaptions(detail: detail, roast: roast, ready: ready)
+                    }
+                }
+
+                Section {
+                    BeanFacts(detail: detail, today: model.today)
+                }
+                .monospacedDigit()
+
+                if !bean.archived {
+                    Section {
+                        Button {
+                            confirmingFreeze = bean
+                        } label: {
+                            Label(bean.isFrozen ? "Thaw bag" : "Freeze bag", systemImage: bean.isFrozen ? "sun.max" : "snowflake")
+                        }
+                        .tint(bean.isFrozen ? Theme.accent : Theme.frozen)
+                    }
+                }
+
+                BeanHistorySections(history: history)
+            }
+            .listRowBackground(Theme.card)
+            .listRowSeparatorTint(Theme.hairline)
         }
+        .themedList()
     }
 
     private func header(_ detail: BeanDetail) -> some View {
@@ -88,7 +93,7 @@ struct BeanDetailView: View {
             if bean.isFrozen || bean.archived {
                 Label(bean.archived ? "Finished" : "Frozen", systemImage: bean.archived ? "checkmark.circle" : "snowflake")
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(bean.archived ? Color.secondary : Color.cyan)
+                    .foregroundStyle(bean.archived ? Theme.text2 : Theme.frozen)
             }
         }
         .padding(.vertical, 4)
@@ -114,7 +119,7 @@ private struct AgeCaptions: View {
             Spacer()
             if let finishAge = detail.finishAge {
                 Text("Last cup, day \(finishAge)")
-                    .foregroundStyle(finishAge > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
+                    .foregroundStyle(finishAge > BeanDetail.oldFinishAge ? Theme.gapText : Theme.text2)
             }
         }
         .font(.caption.monospacedDigit())
@@ -133,7 +138,7 @@ private struct BeanFacts: View {
             if let roast = bean.roastDate {
                 Text(Format.mediumDay(roast))
             } else {
-                Text("Not set").foregroundStyle(.orange)
+                Text("Not set").foregroundStyle(Theme.accent)
             }
         }
         if let age = detail.currentAge {
@@ -149,7 +154,7 @@ private struct BeanFacts: View {
         if let ready = bean.readyDate {
             LabeledContent(ready <= today ? "Ready since" : "Ready date", value: Format.mediumDay(ready))
         } else {
-            LabeledContent("Ready date") { Text("Unknown").foregroundStyle(.orange) }
+            LabeledContent("Ready date") { Text("Unknown").foregroundStyle(Theme.accent) }
         }
         FreezePlanFacts(bean: bean)
     }
@@ -181,7 +186,7 @@ private struct BeanHistorySections: View {
                         Text("\(Format.grams(brew.groundCoffeeGrams)) g")
                         Spacer()
                         if let rating = brew.rating {
-                            Text("★ \(Format.grams(rating))").foregroundStyle(.orange)
+                            Text("★ \(Format.grams(rating))").foregroundStyle(Theme.accent)
                         } else {
                             Text("—").foregroundStyle(.tertiary)
                         }
@@ -225,7 +230,7 @@ private struct ConsumptionMeter: View {
                 }
             }
             ProgressView(value: detail.fractionConsumed)
-                .tint(.orange)
+                .tint(Theme.accent)
             HStack {
                 Text("\(Format.grams(bean.totalBrewedGrams.rounded())) g brewed")
                 Spacer()
@@ -253,7 +258,7 @@ private struct AgeBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.secondary.opacity(0.2))
                 Capsule().fill(Color.secondary.opacity(0.5)).frame(width: rest)
-                Rectangle().fill(Color.orange)
+                Rectangle().fill(Theme.accent)
                     .frame(width: max(0, now - rest))
                     .offset(x: rest)
                 Rectangle().fill(Color.primary)

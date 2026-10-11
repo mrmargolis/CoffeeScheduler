@@ -24,11 +24,12 @@ extension AppModel {
 /// The thin roaster-coloured bar beside a bag, as in the web app.
 struct RoasterRail: View {
     let color: Color
+    var width: CGFloat = 3
     var height: CGFloat = 16
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 1.5)
+        RoundedRectangle(cornerRadius: width / 2)
             .fill(color)
-            .frame(width: 3, height: height)
+            .frame(width: width, height: height)
     }
 }
