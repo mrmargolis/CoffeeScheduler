@@ -20,11 +20,14 @@ final class DatabaseLocation {
     private let syncedDateKey = "databaseLastSyncedRemoteDate"
 
     /// The local copy SQLite opens.
-    let workingCopy: URL = {
+    let workingCopy = DatabaseLocation.workingCopyURL
+
+    /// Where the local copy lives, for code that only reads it.
+    static var workingCopyURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent(DatabaseLocation.fileName)
-    }()
+        return dir.appendingPathComponent(fileName)
+    }
 
     /// The picked folder, if any. Access to it is held open for the app's lifetime.
     private(set) var folder: URL?
