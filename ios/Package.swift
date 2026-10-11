@@ -23,5 +23,14 @@ let package = Package(
                 .product(name: "CoffeeCore", package: "CoffeeCore"),
             ]
         ),
+        // Renders each screen over sample data on an iOS Simulator; CI
+        // uploads the images. Not part of the app xtool builds.
+        .testTarget(
+            name: "CoffeeSchedulerScreenshots",
+            dependencies: [
+                "CoffeeScheduler",
+                .product(name: "CoffeeCore", package: "CoffeeCore"),
+            ]
+        ),
     ]
 )

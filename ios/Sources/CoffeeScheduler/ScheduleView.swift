@@ -5,9 +5,10 @@ import SwiftUI
 struct ScheduleView: View {
     @Environment(AppModel.self) private var model
     @State private var pickingFolder = false
+    @State private var path: [BeanRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if !model.hasFolder {
                     Section {
@@ -17,12 +18,15 @@ struct ScheduleView: View {
                 ForEach(weeks, id: \.first?.date) { week in
                     Section(Format.weekTitle(week.first!.date, today: model.today)) {
                         ForEach(week) { day in
-                            DayRow(day: day, isToday: day.date == model.today)
+                            DayRow(day: day, isToday: day.date == model.today) { id in
+                                path.append(BeanRoute(id: id))
+                            }
                         }
                     }
                 }
             }
             .navigationTitle("Schedule")
+            .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.chooseFolder(url) }
             }
@@ -52,6 +56,7 @@ struct ScheduleView: View {
 private struct DayRow: View {
     let day: ScheduleDay
     let isToday: Bool
+    let openBean: (String) -> Void
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -69,14 +74,21 @@ private struct DayRow: View {
                         .foregroundStyle(day.isActual ? Color.secondary : Color.red)
                 }
                 ForEach(day.consumptions, id: \.beanID) { c in
-                    HStack {
-                        Text(c.beanName).lineLimit(1)
-                        if let early = c.daysEarly {
-                            Text("\(early)d early").font(.caption).foregroundStyle(.orange)
+                    // One button per bag: a day can hold two, and a row-wide
+                    // link couldn't tell them apart.
+                    Button { openBean(c.beanID) } label: {
+                        HStack {
+                            Text(c.beanName).lineLimit(1).foregroundStyle(.primary)
+                            if let early = c.daysEarly {
+                                Text("\(early)d early").font(.caption).foregroundStyle(.orange)
+                            }
+                            Spacer()
+                            Text("\(Format.grams(c.grams))g").monospacedDigit().foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Text("\(Format.grams(c.grams))g").monospacedDigit().foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
                     }
+                    // Plain, not borderless: borderless tints the label blue
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -101,9 +113,11 @@ enum Format {
 
     private static let weekdayFormatter = formatter("EEE")
     private static let shortDayFormatter = formatter("MMM d")
+    private static let mediumDayFormatter = formatter("MMM d, yyyy")
 
     static func weekday(_ iso: String) -> String { weekdayFormatter.string(from: date(iso)) }
     static func shortDay(_ iso: String) -> String { shortDayFormatter.string(from: date(iso)) }
+    static func mediumDay(_ iso: String) -> String { mediumDayFormatter.string(from: date(iso)) }
 
     /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
     static func weekdayIndex(_ iso: String) -> Int {

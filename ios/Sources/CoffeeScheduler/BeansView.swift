@@ -10,26 +10,33 @@ struct BeansView: View {
             List {
                 Section("Queue") {
                     ForEach(model.activeBeans.filter { !$0.isFrozen }) { bean in
-                        BeanRow(bean: bean, today: model.today)
+                        NavigationLink(value: BeanRoute(id: bean.id)) {
+                            BeanRow(bean: bean, today: model.today)
+                        }
                     }
                 }
                 let frozen = model.activeBeans.filter(\.isFrozen)
                 if !frozen.isEmpty {
                     Section("Frozen") {
                         ForEach(frozen) { bean in
+                            NavigationLink(value: BeanRoute(id: bean.id)) {
                             BeanRow(bean: bean, today: model.today)
+                        }
                         }
                     }
                 }
                 if !model.archivedBeans.isEmpty {
                     Section("Finished") {
                         ForEach(model.archivedBeans) { bean in
+                            NavigationLink(value: BeanRoute(id: bean.id)) {
                             BeanRow(bean: bean, today: model.today)
+                        }
                         }
                     }
                 }
             }
             .navigationTitle("Beans")
+            .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
         }
     }
 }
@@ -48,18 +55,20 @@ private struct BeanRow: View {
                 if !bean.archived {
                     Text("\(Format.grams(max(0, bean.remainingGrams)))g left")
                 }
-                if let ready = bean.readyDate, !bean.archived {
+                // A frozen bag's thaw date matters more than its ready date
+                if bean.isFrozen {
+                    Text(bean.plannedThawDate.map { "Thaws \(Format.shortDay($0))" } ?? "No thaw date")
+                        .foregroundStyle(.cyan)
+                } else if let ready = bean.readyDate, !bean.archived {
                     Text(ready <= today ? "Ready" : "Ready \(Format.shortDay(ready))")
                         .foregroundStyle(ready <= today ? Color.green : Color.secondary)
-                }
-                if let thaw = bean.plannedThawDate, bean.isFrozen {
-                    Text("Thaws \(Format.shortDay(thaw))")
                 }
                 if let roast = bean.roastDate {
                     Text("Roasted \(Format.shortDay(roast))").foregroundStyle(.secondary)
                 }
             }
             .font(.caption)
+            .lineLimit(1)
         }
     }
 }

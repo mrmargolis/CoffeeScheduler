@@ -25,7 +25,11 @@ public struct Bean: Identifiable, Hashable, Sendable {
     // Computed
     public var effectiveRestDays: Int
     public var totalBrewedGrams: Double
+    /// Days frozen, with an active freeze projected to its planned thaw:
+    /// what the ready date and the schedule use.
     public var frozenDays: Int
+    /// Days frozen up to today, for the bag's current age.
+    public var frozenDaysToDate: Int
 
     public var remainingGrams: Double { weightGrams - totalBrewedGrams }
 

@@ -20,14 +20,30 @@ final class AppModel {
         let body: String
     }
 
-    @ObservationIgnored private let location = DatabaseLocation()
+    /// Nil for a sample-data model, which never touches iCloud Drive.
+    @ObservationIgnored private let location: DatabaseLocation?
     @ObservationIgnored private var store: CoffeeStore?
+    @ObservationIgnored private let fixedToday: String?
+    @ObservationIgnored private let fixedFolderName: String?
 
-    var hasFolder: Bool { location.folder != nil }
-    var folderName: String? { location.folder?.lastPathComponent }
+    var hasFolder: Bool { folderName != nil }
+    var folderName: String? { fixedFolderName ?? location?.folder?.lastPathComponent }
 
     init() {
+        location = DatabaseLocation()
+        fixedToday = nil
+        fixedFolderName = nil
         reloadFromICloud()
+    }
+
+    /// A model over a given database with "today" pinned, for screenshots and
+    /// previews. Changes stay in that database; nothing goes to iCloud Drive.
+    init(store: CoffeeStore, today: String, folderName: String? = nil) {
+        location = nil
+        fixedToday = today
+        fixedFolderName = folderName
+        self.store = store
+        perform("Couldn't load the database") { try refresh() }
     }
 
     // MARK: - Lifecycle
@@ -35,6 +51,7 @@ final class AppModel {
     /// Pick up changes made on another device or by the web app, then refresh.
     /// Called at launch and whenever the app comes back to the foreground.
     func reloadFromICloud() {
+        guard let location else { return }
         perform("Couldn't read the database from iCloud Drive") {
             store = nil // SQLite must let go of the file before it is replaced
             try location.pullIfNewer()
@@ -43,6 +60,7 @@ final class AppModel {
     }
 
     func chooseFolder(_ url: URL) {
+        guard let location else { return }
         perform("Couldn't use that folder") {
             store = nil
             try location.choose(folder: url)
@@ -51,7 +69,7 @@ final class AppModel {
     }
 
     private func openStore() throws {
-        if store == nil {
+        if store == nil, let location {
             store = try CoffeeStore(url: location.workingCopy)
         }
         try refresh()
@@ -59,7 +77,7 @@ final class AppModel {
 
     private func refresh() throws {
         guard let store else { return }
-        today = DateUtils.today()
+        today = fixedToday ?? DateUtils.today()
         try store.autoThaw(today: today)
         try store.autoFreeze(today: today)
 
@@ -74,7 +92,34 @@ final class AppModel {
     /// Save the working copy to iCloud Drive after a change.
     private func save() throws {
         try refresh()
-        try location.push()
+        try location?.push()
+    }
+
+    // MARK: - Bean detail
+
+    func detail(forBean id: String) -> BeanDetail? {
+        guard let bean = activeBeans.first(where: { $0.id == id }) ?? archivedBeans.first(where: { $0.id == id })
+        else { return nil }
+        return BeanDetail(
+            bean: bean,
+            schedule: schedule,
+            dailyConsumptionGrams: settings.dailyConsumptionGrams,
+            today: today
+        )
+    }
+
+    struct BeanHistory {
+        var recentBrews: [BrewRecord] = []
+        var freezeEvents: [FreezeEvent] = []
+    }
+
+    /// Read from the database on demand; small enough to query per view update.
+    func history(forBean id: String) -> BeanHistory {
+        guard let store else { return BeanHistory() }
+        return BeanHistory(
+            recentBrews: (try? store.recentBrews(beanID: id)) ?? [],
+            freezeEvents: (try? store.freezeEvents(beanID: id)) ?? []
+        )
     }
 
     // MARK: - Actions
@@ -97,9 +142,11 @@ final class AppModel {
             }
 
             // Fold in edits from other devices before writing over them.
-            store = nil
-            try location.pullIfNewer()
-            try openStore()
+            if let location {
+                store = nil
+                try location.pullIfNewer()
+                try openStore()
+            }
 
             guard let store else { return }
             let summary = try store.importExport(parsed)
