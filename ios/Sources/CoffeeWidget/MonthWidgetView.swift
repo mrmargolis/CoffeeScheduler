@@ -153,13 +153,24 @@ private struct WidgetWeek: View {
         let number = Text(String(Int(date.suffix(2)) ?? 0))
             .font(.system(size: isLarge ? 12 : 9, weight: isLarge ? .regular : .medium))
             .monospacedDigit()
-        if date == today {
-            let disc = min(17, height - 3)
+        if date == today && isLarge {
             number
                 .fontWeight(.bold)
                 .foregroundStyle(Palette.ground)
-                .frame(width: disc, height: disc)
+                .frame(width: 17, height: 17)
                 .background(Palette.accent, in: Circle())
+        } else if date == today {
+            // A gold outline round the day's box, so the bag's colour still shows
+            number
+                .fontWeight(.bold)
+                .foregroundStyle(isOnSolidBox(column: column) ? Palette.ground : Palette.text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(Palette.accent, lineWidth: 1.5)
+                        .padding(.horizontal, 0.5)
+                        .padding(.vertical, 0.5)
+                )
         } else if isOnSolidBox(column: column) {
             number.foregroundStyle(Palette.ground)
         } else if DateUtils.firstOfMonth(date) != month {
@@ -212,7 +223,9 @@ private struct WidgetBar: View {
         default:
             // The roaster colours are light, so a solid bar takes dark text
             if event.isActual { return Look(fill: color, stroke: .clear, text: Palette.ground) }
-            return Look(fill: color.opacity(0.25), stroke: color, text: Palette.text)
+            // Medium boxes have no outline: where two bags share a day it
+            // would run through the date
+            return Look(fill: color.opacity(isLarge ? 0.25 : 0.35), stroke: isLarge ? color : .clear, text: Palette.text)
         }
     }
 }
