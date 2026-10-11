@@ -1,3 +1,4 @@
+import CoffeeCore
 import SwiftUI
 import WidgetKit
 
@@ -6,46 +7,83 @@ import WidgetKit
 @main
 struct CoffeeWidgets: WidgetBundle {
     var body: some Widget {
-        TestWidget()
+        MonthWidget()
     }
 }
 
-/// A placeholder that shows today's date, to prove a widget built with
-/// xtool installs and runs.
-struct TestWidget: Widget {
+/// The current month's calendar, as on the app's Schedule screen. Tapping it
+/// opens the app, as tapping any widget does.
+struct MonthWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "CoffeeTest", provider: TestProvider()) { entry in
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Coffee Scheduler")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color(red: 0.88, green: 0.67, blue: 0.27))
-                Text(entry.date, style: .date)
-                    .font(.headline)
-                    .foregroundStyle(Color(red: 0.96, green: 0.93, blue: 0.87))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .containerBackground(Color(red: 0.08, green: 0.07, blue: 0.05), for: .widget)
+        StaticConfiguration(kind: "CoffeeMonth", provider: MonthProvider()) { entry in
+            MonthWidgetView(entry: entry)
+                .containerBackground(Palette.ground, for: .widget)
         }
-        .configurationDisplayName("Coffee test")
-        .description("Checks that a widget built with xtool works.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .configurationDisplayName("Coffee month")
+        .description("This month's bags, skipped days and days with no coffee.")
+        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
-struct TestEntry: TimelineEntry {
+struct MonthEntry: TimelineEntry {
     let date: Date
+    /// The ISO day the entry is drawn for.
+    let today: String
+    /// Nil until the app has written one.
+    let snapshot: WidgetSnapshot?
 }
 
-struct TestProvider: TimelineProvider {
-    func placeholder(in context: Context) -> TestEntry {
-        TestEntry(date: .now)
+struct MonthProvider: TimelineProvider {
+    func placeholder(in context: Context) -> MonthEntry {
+        MonthEntry(date: .now, today: DateUtils.today(), snapshot: nil)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping @Sendable (TestEntry) -> Void) {
-        completion(TestEntry(date: .now))
+    func getSnapshot(in context: Context, completion: @escaping @Sendable (MonthEntry) -> Void) {
+        completion(Self.entry())
     }
 
-    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<TestEntry>) -> Void) {
-        completion(Timeline(entries: [TestEntry(date: .now)], policy: .after(.now.addingTimeInterval(3600))))
+    /// One entry, redrawn just after midnight so today's marker moves on.
+    /// The app reloads the widget itself whenever the schedule changes.
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<MonthEntry>) -> Void) {
+        let tomorrow = Calendar.current.startOfDay(for: .now).addingTimeInterval(86_400 + 60)
+        completion(Timeline(entries: [Self.entry()], policy: .after(tomorrow)))
+    }
+
+    private static func entry() -> MonthEntry {
+        MonthEntry(date: .now, today: DateUtils.today(), snapshot: load())
+    }
+
+    /// The snapshot the app last wrote into the shared App Group container.
+    private static func load() -> WidgetSnapshot? {
+        guard
+            let folder = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup),
+            let data = try? Data(contentsOf: folder.appendingPathComponent(WidgetSnapshot.fileName))
+        else { return nil }
+        return try? WidgetSnapshot(decoding: data)
+    }
+}
+
+/// The app's colours (`Theme` in the app target, which the widget can't import).
+enum Palette {
+    static let ground = Color(hex: "#15110D")
+    static let hairline = Color(hex: "#382C1F")
+    static let text = Color(hex: "#F4ECDD")
+    static let text2 = Color(hex: "#BBAA92")
+    static let text3 = Color(hex: "#94836C")
+    static let dim = Color(hex: "#6E5F4C")
+    static let accent = Color(hex: "#E0AA45")
+    static let gap = Color(hex: "#E5766A")
+    static let gapText = Color(hex: "#F0A096")
+}
+
+extension Color {
+    /// A colour from "#rrggbb".
+    init(hex: String) {
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        self.init(
+            red: Double((value >> 16) & 0xff) / 255,
+            green: Double((value >> 8) & 0xff) / 255,
+            blue: Double(value & 0xff) / 255
+        )
     }
 }

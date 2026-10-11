@@ -37,6 +37,9 @@ let package = Package(
         ),
         .target(
             name: "CoffeeWidget",
+            dependencies: [
+                .product(name: "CoffeeCore", package: "CoffeeCore")
+            ],
             swiftSettings: strict,
             // An extension starts at NSExtensionMain, so nothing refers to
             // the widget's own `main` and the linker would leave all of its

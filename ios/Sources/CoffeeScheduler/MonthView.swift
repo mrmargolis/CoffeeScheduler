@@ -14,7 +14,7 @@ struct MonthView: View {
     let openDay: (String) -> Void
 
     var body: some View {
-        let events = Self.joined(
+        let events = MonthGrid.joined(
             CalendarSpans.events(schedule: model.schedule, skipRanges: model.skipRanges, overrides: model.consumptionOverrides)
         )
         let days = Dictionary(model.schedule.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
@@ -34,7 +34,7 @@ struct MonthView: View {
                 Theme.hairline.frame(height: 1)
                 WeekRow(
                     monday: monday, month: month,
-                    segments: Self.segments(events, week: monday),
+                    segments: MonthGrid.segments(events, week: monday),
                     days: days,
                     // A bag running on from last month still needs its name
                     labelsContinuations: monday == weeks.first,
@@ -72,72 +72,14 @@ struct MonthView: View {
     private var firstMonth: String { model.schedule.first.map { DateUtils.firstOfMonth($0.date) } ?? month }
     private var lastMonth: String { model.schedule.last.map { DateUtils.firstOfMonth($0.date) } ?? month }
 
-    /// Mondays of the weeks that hold this month's days.
-    private var weeks: [String] {
-        let first = DateUtils.addDays(month, -Format.weekdayIndex(month))
-        let last = DateUtils.addDays(DateUtils.addMonths(month, 1), -1)
-        return stride(from: 0, through: DateUtils.daysBetween(first, last), by: 7).map { DateUtils.addDays(first, $0) }
-    }
-}
-
-extension MonthView {
-    struct Segment: Hashable {
-        let event: CalendarEvent
-        let startColumn: Int
-        let endColumn: Int  // inclusive
-        let lane: Int
-        /// The span begins in this week (as opposed to continuing from the last).
-        let isStart: Bool
-        /// The span ends in this week.
-        let isEnd: Bool
-    }
-
-    /// Skip and gap markers come one per day; neighbours are joined so a trip
-    /// draws as one bar.
-    static func joined(_ events: [CalendarEvent]) -> [CalendarEvent] {
-        var result: [CalendarEvent] = []
-        var last: [CalendarEvent.Kind: Int] = [:]
-        for event in events {
-            guard event.kind == .skip || event.kind == .gap else {
-                result.append(event)
-                continue
-            }
-            if let index = last[event.kind], result[index].end == event.start, result[index].title == event.title {
-                result[index].end = event.end
-            } else {
-                last[event.kind] = result.count
-                result.append(event)
-            }
-        }
-        return result
-    }
-
-    /// The spans crossing one week, clipped to it and stacked into lanes.
-    static func segments(_ events: [CalendarEvent], week monday: String) -> [Segment] {
-        let weekEnd = DateUtils.addDays(monday, 7)
-        let crossing =
-            events
-            .filter { $0.kind != .override && $0.start < weekEnd && $0.end > monday }
-            .sorted { $0.start < $1.start }
-        var laneEnds: [Int] = []
-        return crossing.map { event in
-            let start = max(0, DateUtils.daysBetween(monday, event.start))
-            let end = min(6, DateUtils.daysBetween(monday, event.end) - 1)
-            let lane = laneEnds.firstIndex { $0 < start } ?? laneEnds.count
-            if lane == laneEnds.count { laneEnds.append(end) } else { laneEnds[lane] = end }
-            return Segment(
-                event: event, startColumn: start, endColumn: end, lane: lane,
-                isStart: event.start >= monday, isEnd: event.end <= weekEnd
-            )
-        }
-    }
+    private var weeks: [String] { MonthGrid.weeks(ofMonth: month) }
 }
 
 private struct WeekRow: View {
     @Environment(AppModel.self) private var model
     let monday: String
     let month: String
-    let segments: [MonthView.Segment]
+    let segments: [MonthGrid.Segment]
     let days: [String: ScheduleDay]
     let labelsContinuations: Bool
     let openBean: (String) -> Void
@@ -247,7 +189,7 @@ private struct WeekRow: View {
 
 /// One span in a week of the grid.
 private struct MonthBar: View {
-    let segment: MonthView.Segment
+    let segment: MonthGrid.Segment
     /// The roaster's colour, for a bag.
     let color: Color
     let showsTitle: Bool

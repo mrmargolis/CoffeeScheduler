@@ -13,6 +13,9 @@ ios/
   Support/Info.plist    Merged into the generated Info.plist (ZIP document type for the share sheet)
   Support/AppIcon.png   App icon (xtool.yml `iconPath`), rendered from AppIcon.svg
   Sources/CoffeeScheduler/   SwiftUI app
+  Sources/CoffeeWidget/      Home screen widget (xtool.yml `extensions`)
+  Support/CoffeeWidget-Info.plist   Marks the extension as a WidgetKit one
+  Support/AppGroup.entitlements     The App Group the app and widget share
   CoffeeCore/           Platform-independent package, tested on Linux
     Sources/CoffeeCore/      Scheduler, BeanConqueror parser, SQLite store
     Tests/CoffeeCoreTests/
@@ -143,6 +146,38 @@ To move data over from the web app, stop the dev server (the web app uses WAL,
 so a copy taken while it runs can miss recent writes) and copy
 `data/coffee.db` into the chosen iCloud Drive folder. The iOS app switches the
 file to a rollback journal the first time it opens it.
+
+## Widget
+
+**Coffee month** is a home screen widget (medium or large) that draws the
+current month like the Schedule screen: a bar per bag, dashed bars for
+skipped days and days with no coffee, today in gold. Tapping it opens the app.
+
+A widget runs in its own sandbox and can't open the database, so the app
+writes a JSON snapshot (`WidgetSnapshot` in CoffeeCore) into an App Group
+container each time the schedule changes, then asks the widget to reload. The
+widget also redraws itself just after midnight.
+
+The App Group needs a one-time setup in the Apple developer portal when xtool
+is signed in with an App Store Connect API key: in that mode xtool turns the
+capability on but can't create the group or assign it, and the install fails
+with "A valid provisioning profile for this executable was not found".
+
+1. Run `xtool dev` once (it fails, but registers both App IDs).
+2. In [Identifiers](https://developer.apple.com/account/resources/identifiers/list/applicationGroup),
+   add an App Group with the ID `group.net.mattmargolis.CoffeeScheduler`.
+3. Under App IDs, open each of the two that xtool made (their names start with
+   "XTool" and end in `CoffeeScheduler` and `CoffeeScheduler CoffeeWidget`),
+   choose **Configure** beside App Groups, tick the group, and save.
+4. Run `xtool dev` again.
+
+App Groups need a paid membership; xtool drops the entitlement on a free
+Apple ID, and the widget then only says to open the app.
+
+The widget target asks the linker for `_main` (`Package.swift`). An
+extension starts at `NSExtensionMain`, so without that nothing refers to the
+widget's code, it is left out of the binary, and signing fails with "Can't
+find free space of LoadCommands for CodeSignature".
 
 ## Importing from BeanConqueror
 

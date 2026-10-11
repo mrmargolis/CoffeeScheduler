@@ -3,6 +3,8 @@ bundleID: net.mattmargolis.CoffeeScheduler
 product: CoffeeScheduler
 infoPath: Support/Info.plist
 iconPath: Support/AppIcon.png
+entitlementsPath: Support/AppGroup.entitlements
 extensions:
   - product: CoffeeWidget
     infoPath: Support/CoffeeWidget-Info.plist
+    entitlementsPath: Support/AppGroup.entitlements
