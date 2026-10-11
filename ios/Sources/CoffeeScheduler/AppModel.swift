@@ -173,6 +173,14 @@ final class AppModel {
         }
     }
 
+    /// Freeze a bag, or thaw a frozen one, as of today.
+    func toggleFreeze(id: String) {
+        perform("Couldn't update the bag") {
+            try store?.toggleFreeze(id: id, today: today)
+            try save()
+        }
+    }
+
     func updateSettings(_ newValue: ScheduleSettings) {
         perform("Couldn't save settings") {
             try store?.updateSettings(newValue)

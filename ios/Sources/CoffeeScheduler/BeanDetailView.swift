@@ -7,11 +7,13 @@ struct BeanRoute: Hashable {
 }
 
 /// One bag: how much is left, how old it is, when it's scheduled, and its
-/// history. Mirrors `src/components/BeanDetail.tsx`; Edit opens `BeanSettingsForm`.
+/// history. Mirrors `src/components/BeanDetail.tsx`; Edit opens `BeanSettingsForm`,
+/// and the Freeze/Thaw button asks first.
 struct BeanDetailView: View {
     @Environment(AppModel.self) private var model
     let beanID: String
     @State private var editing = false
+    @State private var confirmingFreeze: Bean?
 
     var body: some View {
         if let detail = model.detail(forBean: beanID) {
@@ -28,6 +30,7 @@ struct BeanDetailView: View {
                         BeanSettingsForm(bean: detail.bean, today: model.today)
                     }
                 }
+                .freezeConfirmation(for: $confirmingFreeze)
         } else {
             ContentUnavailableView("Bag not found", systemImage: "questionmark.circle")
         }
@@ -109,6 +112,17 @@ struct BeanDetailView: View {
                 }
             }
             .monospacedDigit()
+
+            if !bean.archived {
+                Section {
+                    Button {
+                        confirmingFreeze = bean
+                    } label: {
+                        Label(bean.isFrozen ? "Thaw bag" : "Freeze bag", systemImage: bean.isFrozen ? "sun.max" : "snowflake")
+                    }
+                    .tint(bean.isFrozen ? .orange : .cyan)
+                }
+            }
 
             if !history.recentBrews.isEmpty {
                 Section("Recent brews") {

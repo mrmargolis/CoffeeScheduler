@@ -120,3 +120,72 @@ import Testing
         #expect(frozen["b2"] == 7)
     }
 }
+
+// Ported from the freeze tests in src/__tests__/api/beans.test.ts.
+@Suite struct ToggleFreezeTests {
+    let store: CoffeeStore
+
+    init() throws {
+        store = try CoffeeStore.inMemory()
+        for (i, id) in ["b1", "b2", "b3"].enumerated() {
+            try store.db.run(
+                "INSERT INTO beans (id, name, roaster, roast_date, weight_grams, archived, display_order) VALUES (?, 'Bean', 'Roaster', '2026-01-01', 250, 0, ?)",
+                [.text(id), .int(Int64(i + 1))]
+            )
+        }
+    }
+
+    func row(_ id: String) throws -> SQLRow {
+        try #require(try store.db.query("SELECT * FROM beans WHERE id = ?", [.text(id)]).first)
+    }
+
+    func events(_ id: String) throws -> [FreezeEvent] {
+        try store.freezeEvents(beanID: id)
+    }
+
+    @Test func togglesStateAndLogsEvents() throws {
+        #expect(try store.toggleFreeze(id: "b1", today: "2026-02-01") == true)
+        #expect(try row("b1").int("is_frozen") == 1)
+
+        #expect(try store.toggleFreeze(id: "b1", today: "2026-02-11") == false)
+        #expect(try row("b1").int("is_frozen") == 0)
+
+        let logged = try events("b1")
+        #expect(logged.map(\.kind) == [.freeze, .thaw])
+        #expect(logged.map(\.date) == ["2026-02-01", "2026-02-11"])
+        #expect(try store.frozenDays(today: "2026-03-01")["b1"] == 10)
+    }
+
+    @Test func freezingClearsOrderAndResequences() throws {
+        try store.toggleFreeze(id: "b1", today: "2026-02-01")
+        #expect(try row("b1").int("display_order") == nil)
+        #expect(try row("b2").int("display_order") == 1)
+        #expect(try row("b3").int("display_order") == 2)
+    }
+
+    @Test func thawingLeavesOrderAlone() throws {
+        try store.db.run("UPDATE beans SET is_frozen = 1, display_order = NULL WHERE id = 'b1'")
+        try store.toggleFreeze(id: "b1", today: "2026-02-01")
+        #expect(try row("b1").int("display_order") == nil)
+        #expect(try row("b2").int("display_order") == 2)
+    }
+
+    @Test func freezingClearsFreezeAfter() throws {
+        try store.db.run("UPDATE beans SET freeze_after_grams = 125 WHERE id = 'b1'")
+        try store.toggleFreeze(id: "b1", today: "2026-02-01")
+        #expect(try row("b1").double("freeze_after_grams") == nil)
+    }
+
+    @Test func thawingClearsPlannedThaw() throws {
+        try store.db.run("UPDATE beans SET is_frozen = 1, planned_thaw_date = '2026-03-01' WHERE id = 'b1'")
+        try store.toggleFreeze(id: "b1", today: "2026-02-01")
+        #expect(try row("b1").string("planned_thaw_date") == nil)
+    }
+
+    @Test func unknownBagThrows() throws {
+        #expect(throws: BeanSettingsError.notFound) {
+            try store.toggleFreeze(id: "nope", today: "2026-02-01")
+        }
+        #expect(try store.db.query("SELECT COUNT(*) AS n FROM freeze_events").first?.int("n") == 0)
+    }
+}
