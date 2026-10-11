@@ -77,8 +77,8 @@ struct BeanDetailView: View {
                 }
                 if let age = detail.currentAge {
                     LabeledContent("Current age") {
-                        if bean.frozenDays > 0, let calendar = detail.calendarAge {
-                            Text("\(age) d (\(calendar) calendar, \(bean.frozenDays) frozen)")
+                        if bean.frozenDaysToDate > 0, let calendar = detail.calendarAge {
+                            Text("\(age) d (\(calendar) calendar, \(bean.frozenDaysToDate) frozen)")
                         } else {
                             Text("\(age) d")
                         }

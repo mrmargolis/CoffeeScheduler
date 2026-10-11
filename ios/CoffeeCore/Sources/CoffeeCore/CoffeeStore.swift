@@ -73,6 +73,7 @@ public final class CoffeeStore {
     /// Beans in queue order: manually ordered first, then by roast date.
     public func beans(archived: Bool, today: String = DateUtils.today()) throws -> [Bean] {
         let frozen = try frozenDays(today: today)
+        let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
         return try db.query("""
             \(Self.beanSelect)
             WHERE b.archived = ?
@@ -81,18 +82,23 @@ public final class CoffeeStore {
               b.display_order,
               b.roast_date
             """, [SQLValue(archived)])
-            .map { Self.bean(from: $0, frozenDays: frozen[$0.string("id") ?? ""] ?? 0) }
+            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
     }
 
     public func allBeans(today: String = DateUtils.today()) throws -> [Bean] {
         let frozen = try frozenDays(today: today)
+        let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
         return try db.query(Self.beanSelect)
-            .map { Self.bean(from: $0, frozenDays: frozen[$0.string("id") ?? ""] ?? 0) }
+            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
     }
 
     public func bean(id: String, today: String = DateUtils.today()) throws -> Bean? {
         guard let row = try db.query("\(Self.beanSelect) WHERE b.id = ?", [.text(id)]).first else { return nil }
-        return Self.bean(from: row, frozenDays: try frozenDays(today: today)[id] ?? 0)
+        return Self.bean(
+            from: row,
+            frozen: try frozenDays(today: today),
+            frozenToDate: try frozenDays(today: today, projectToPlannedThaw: false)
+        )
     }
 
     /// The bag's latest brews, newest first.
@@ -122,9 +128,10 @@ public final class CoffeeStore {
         }
     }
 
-    private static func bean(from row: SQLRow, frozenDays: Int) -> Bean {
-        Bean(
-            id: row.string("id") ?? "",
+    private static func bean(from row: SQLRow, frozen: [String: Int], frozenToDate: [String: Int]) -> Bean {
+        let id = row.string("id") ?? ""
+        return Bean(
+            id: id,
             name: row.string("name") ?? "",
             roaster: row.string("roaster") ?? "",
             roastDate: row.string("roast_date"),
@@ -144,7 +151,8 @@ public final class CoffeeStore {
             displayOrder: row.int("display_order"),
             effectiveRestDays: row.int("effective_rest_days") ?? 0,
             totalBrewedGrams: row.double("total_brewed_grams") ?? 0,
-            frozenDays: frozenDays
+            frozenDays: frozen[id] ?? 0,
+            frozenDaysToDate: frozenToDate[id] ?? 0
         )
     }
 
@@ -152,8 +160,10 @@ public final class CoffeeStore {
 
     /// Total days each bean has spent frozen, from freeze_events. Balanced
     /// freeze→thaw pairs count (thaw - freeze); a still-open freeze counts up
-    /// to the bean's planned thaw date if set, otherwise up to `today`.
-    public func frozenDays(today: String) throws -> [String: Int] {
+    /// to the bean's planned thaw date if set, otherwise up to `today`. That
+    /// projection suits ready dates and the schedule; pass
+    /// `projectToPlannedThaw: false` to stop an open freeze at today instead.
+    public func frozenDays(today: String, projectToPlannedThaw: Bool = true) throws -> [String: Int] {
         var frozen: [String: Int] = [:]
         var activeStart: [String: String] = [:]
 
@@ -167,8 +177,11 @@ public final class CoffeeStore {
         }
 
         for (beanID, start) in activeStart {
-            let thaw = try db.query("SELECT planned_thaw_date FROM beans WHERE id = ?", [.text(beanID)])
-                .first?.string("planned_thaw_date")
+            var thaw: String?
+            if projectToPlannedThaw {
+                thaw = try db.query("SELECT planned_thaw_date FROM beans WHERE id = ?", [.text(beanID)])
+                    .first?.string("planned_thaw_date")
+            }
             frozen[beanID, default: 0] += DateUtils.daysBetween(start, thaw ?? today)
         }
         return frozen

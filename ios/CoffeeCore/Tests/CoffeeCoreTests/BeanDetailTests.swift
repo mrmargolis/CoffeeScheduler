@@ -7,6 +7,7 @@ func makeDetailBean(
     totalBrewedGrams: Double = 100,
     effectiveRestDays: Int = 30,
     frozenDays: Int = 0,
+    frozenDaysToDate: Int? = nil,
     country: String? = nil,
     region: String? = nil,
     variety: String? = nil,
@@ -19,7 +20,7 @@ func makeDetailBean(
         archived: false, restDays: nil, isFrozen: false, plannedThawDate: nil,
         freezeAfterGrams: nil, notes: nil, displayOrder: nil,
         effectiveRestDays: effectiveRestDays, totalBrewedGrams: totalBrewedGrams,
-        frozenDays: frozenDays
+        frozenDays: frozenDays, frozenDaysToDate: frozenDaysToDate ?? frozenDays
     )
 }
 
@@ -77,6 +78,14 @@ func day(_ date: String, _ beanIDs: String...) -> ScheduleDay {
         #expect(detail.calendarAge == 31)
         #expect(detail.currentAge == 21)
         #expect(detail.finishAge == 31) // Feb 11 is 41 calendar days after roast
+    }
+
+    @Test func currentAgeCountsFreezerTimeOnlyToToday() {
+        // Frozen 10 days so far, thawing after 25: today's age uses the 10
+        let bean = makeDetailBean(frozenDays: 25, frozenDaysToDate: 10)
+        let detail = BeanDetail(bean: bean, schedule: schedule, dailyConsumptionGrams: 45, today: "2026-02-01")
+        #expect(detail.currentAge == 21)
+        #expect(detail.finishAge == 16) // Feb 11: 41 calendar days - 25 frozen
     }
 
     @Test func ageTrackToProjectedFinish() throws {

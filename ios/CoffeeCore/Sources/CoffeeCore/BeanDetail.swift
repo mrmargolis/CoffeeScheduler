@@ -73,7 +73,8 @@ public struct BeanDetail: Sendable {
             ? Int((bean.remainingGrams / dailyConsumptionGrams).rounded())
             : nil
 
-        currentAge = effectiveAge(roastDate: bean.roastDate, asOf: today, frozenDays: bean.frozenDays)
+        // Freezer time so far: bean.frozenDays runs ahead to the planned thaw.
+        currentAge = effectiveAge(roastDate: bean.roastDate, asOf: today, frozenDays: bean.frozenDaysToDate)
         calendarAge = bean.roastDate.map { DateUtils.daysBetween($0, today) }
         finishAge = finish.flatMap { effectiveAge(roastDate: bean.roastDate, asOf: $0, frozenDays: bean.frozenDays) }
         ageTrack = Self.ageTrack(bean: bean, finish: finish, today: today)
