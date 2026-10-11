@@ -10,9 +10,22 @@ struct MonthWidgetView: View {
 
     var body: some View {
         let month = DateUtils.firstOfMonth(entry.today)
+        if family == .systemLarge {
+            grid(month: month, isLarge: true)
+        } else {
+            // No room for names on the bars, so the bags are listed beside the grid
+            GeometryReader { geometry in
+                HStack(spacing: 12) {
+                    grid(month: month, isLarge: false).frame(width: geometry.size.width * 0.52)
+                    BagList(bags: MonthBag.upcoming(entry.snapshot?.events ?? [], month: month, today: entry.today), entry: entry)
+                }
+            }
+        }
+    }
+
+    private func grid(month: String, isLarge: Bool) -> some View {
         let weeks = MonthGrid.weeks(ofMonth: month)
-        let isLarge = family == .systemLarge
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             header(isLarge: isLarge)
             HStack(spacing: 0) {
                 ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, letter in
@@ -43,7 +56,7 @@ struct MonthWidgetView: View {
                 .font(.system(size: isLarge ? 15 : 12, weight: .bold))
                 .foregroundStyle(Palette.text)
             Spacer()
-            if entry.snapshot == nil {
+            if entry.snapshot == nil && isLarge {
                 Text("Open the app to load the schedule")
                     .font(.system(size: isLarge ? 11 : 9))
                     .foregroundStyle(Palette.accent)

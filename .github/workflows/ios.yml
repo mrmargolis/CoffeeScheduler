@@ -62,7 +62,7 @@ jobs:
         with:
           persist-credentials: false
       - run: xcodebuild -version
-      - run: xcodebuild build -scheme CoffeeScheduler -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
+      - run: xcodebuild build -scheme CoffeeScheduler-Package -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
 
   screenshots:
     # Renders each screen over sample data on an iOS Simulator and uploads
@@ -91,7 +91,8 @@ jobs:
           TEST_RUNNER_SCREENSHOT_DIR: ${{ runner.temp }}
         run: |
           xcodebuild -list
-          xcodebuild test -scheme CoffeeScheduler -destination "id=$SIM_UDID" CODE_SIGNING_ALLOWED=NO
+          # With two products (app and widget) the tests are in the package's scheme
+          xcodebuild test -scheme CoffeeScheduler-Package -destination "id=$SIM_UDID" CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: screenshots
