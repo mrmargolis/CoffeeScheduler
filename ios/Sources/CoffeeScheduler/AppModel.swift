@@ -13,6 +13,8 @@ final class AppModel {
     private(set) var roasterDefaults: [RoasterDefault] = []
     /// Roasters in the beans, for adding a roaster default.
     private(set) var roasters: [String] = []
+    /// Collision-free colours for the roasters in the schedule.
+    private(set) var roasterColors: [String: RoasterColor] = [:]
     /// Consumption overrides within the schedule window.
     private(set) var consumptionOverrides: [ConsumptionOverride] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
@@ -98,6 +100,7 @@ final class AppModel {
         let start = DateUtils.firstOfMonth(DateUtils.addMonths(today, -2))
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
         consumptionOverrides = try store.consumptionOverrides(from: start)
+        roasterColors = Scheduler.roasterColors(schedule)
     }
 
     /// Save the working copy to iCloud Drive after a change.

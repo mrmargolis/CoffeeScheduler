@@ -84,10 +84,18 @@ struct BeansView: View {
 }
 
 private struct BeanRow: View {
+    @Environment(AppModel.self) private var model
     let bean: Bean
     let today: String
 
     var body: some View {
+        HStack(spacing: 10) {
+            RoasterRail(color: model.rail(bean.roaster), height: 40)
+            details
+        }
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let order = bean.displayOrder, !bean.isFrozen, !bean.archived {

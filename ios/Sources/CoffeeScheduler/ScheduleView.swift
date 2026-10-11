@@ -1,12 +1,22 @@
 import CoffeeCore
 import SwiftUI
 
-/// Upcoming days, a week per section, starting with the current week.
+/// Upcoming days, a week per section starting with the current week, or a
+/// month grid with the bag key.
 struct ScheduleView: View {
+    enum Layout: Hashable { case list, month }
+
     @Environment(AppModel.self) private var model
     @State private var pickingFolder = false
     @State private var path: [BeanRoute] = []
     @State private var dayOptions: DayRoute?
+    @State private var layout: Layout
+    /// First of the month the grid shows; nil for the current month.
+    @State private var month: String?
+
+    init(layout: Layout = .list) {
+        _layout = State(initialValue: layout)
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -21,26 +31,19 @@ struct ScheduleView: View {
                         RunwayView(summary: model.runway) { path.append(BeanRoute(id: $0)) }
                     }
                 }
-                ForEach(weeks, id: \.first?.date) { week in
-                    Section(Format.weekTitle(week.first!.date, today: model.today)) {
-                        ForEach(week) { day in
-                            DayRow(
-                                day: day,
-                                isToday: day.date == model.today,
-                                override: model.consumptionOverride(on: day.date),
-                                openBean: { path.append(BeanRoute(id: $0)) },
-                                openDay: { dayOptions = DayRoute(date: day.date) }
-                            )
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    model.toggleSkipDay(day.date)
-                                } label: {
-                                    Label(day.isSkip ? "Don't skip" : "Skip", systemImage: day.isSkip ? "cup.and.saucer" : "airplane")
-                                }
-                                .tint(day.isSkip ? .green : .indigo)
-                            }
-                        }
+                if !model.schedule.isEmpty {
+                    Picker("Layout", selection: $layout) {
+                        Text("List").tag(Layout.list)
+                        Text("Month").tag(Layout.month)
                     }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+                if layout == .month && !model.schedule.isEmpty {
+                    monthSections
+                } else {
+                    weekSections
                 }
             }
             .navigationTitle("Schedule")
@@ -64,6 +67,55 @@ struct ScheduleView: View {
         }
     }
 
+    @ViewBuilder
+    private var weekSections: some View {
+        ForEach(weeks, id: \.first?.date) { week in
+            Section(Format.weekTitle(week.first!.date, today: model.today)) {
+                ForEach(week) { day in
+                    DayRow(
+                        day: day,
+                        isToday: day.date == model.today,
+                        override: model.consumptionOverride(on: day.date),
+                        openBean: { path.append(BeanRoute(id: $0)) },
+                        openDay: { dayOptions = DayRoute(date: day.date) }
+                    )
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            model.toggleSkipDay(day.date)
+                        } label: {
+                            Label(day.isSkip ? "Don't skip" : "Skip", systemImage: day.isSkip ? "cup.and.saucer" : "airplane")
+                        }
+                        .tint(day.isSkip ? .green : .indigo)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var monthSections: some View {
+        let shown = Binding(
+            get: { month ?? DateUtils.firstOfMonth(model.today) },
+            set: { month = $0 }
+        )
+        let monthEnd = DateUtils.addDays(DateUtils.addMonths(shown.wrappedValue, 1), -1)
+        Section {
+            MonthView(
+                month: shown,
+                openBean: { path.append(BeanRoute(id: $0)) },
+                openDay: { dayOptions = DayRoute(date: $0) }
+            )
+            .listRowInsets(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
+        }
+        let runs = Scheduler.bagRuns(model.schedule)
+            .filter { $0.start <= monthEnd && $0.end >= shown.wrappedValue }
+        if !runs.isEmpty {
+            Section("Bags this month") {
+                BagKey(runs: runs) { path.append(BeanRoute(id: $0)) }
+            }
+        }
+    }
+
     /// Days from the start of this week (Monday) onward, chunked by week.
     private var weeks: [[ScheduleDay]] {
         let weekday = Format.weekdayIndex(model.today) // 0 = Monday
@@ -76,6 +128,7 @@ struct ScheduleView: View {
 }
 
 private struct DayRow: View {
+    @Environment(AppModel.self) private var model
     let day: ScheduleDay
     let isToday: Bool
     let override: ConsumptionOverride?
@@ -103,16 +156,29 @@ private struct DayRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 if day.isSkip {
-                    Label("Skipped", systemImage: "airplane").foregroundStyle(.secondary)
+                    // An HStack, not a Label: a Label sets the row's separator
+                    // inset and draws its icon at title size
+                    HStack(spacing: 6) {
+                        Image(systemName: "airplane").font(.caption)
+                        Text("Skipped")
+                    }
+                    .foregroundStyle(.secondary)
+                } else if day.isGap && day.isActual {
+                    // A past day nothing was logged for: not an alarm
+                    Text("No brews logged").foregroundStyle(.tertiary)
                 } else if day.isGap {
-                    Label(day.isActual ? "No brews logged" : "No coffee", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(day.isActual ? Color.secondary : Color.red)
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle").font(.caption)
+                        Text("No coffee")
+                    }
+                    .foregroundStyle(.red)
                 }
                 ForEach(day.consumptions, id: \.beanID) { c in
                     // One button per bag: a day can hold two, and a row-wide
                     // link couldn't tell them apart.
                     Button { openBean(c.beanID) } label: {
-                        HStack {
+                        HStack(spacing: 6) {
+                            RoasterRail(color: model.rail(c.roaster))
                             Text(c.beanName).lineLimit(1).foregroundStyle(.primary)
                             if let early = c.daysEarly {
                                 Text("\(early)d early").font(.caption).foregroundStyle(.orange)
@@ -150,6 +216,7 @@ enum Format {
     private static let shortDayFormatter = formatter("MMM d")
     private static let mediumDayFormatter = formatter("MMM d, yyyy")
     private static let longDayFormatter = formatter("EEEE MMMM d")
+    private static let monthFormatter = formatter("MMMM yyyy")
 
     /// The ISO day a date picker's value falls on, read in UTC to match `date(_:)`.
     static func iso(_ date: Date) -> String {
@@ -162,6 +229,7 @@ enum Format {
     static func shortDay(_ iso: String) -> String { shortDayFormatter.string(from: date(iso)) }
     static func mediumDay(_ iso: String) -> String { mediumDayFormatter.string(from: date(iso)) }
     static func longDay(_ iso: String) -> String { longDayFormatter.string(from: date(iso)) }
+    static func monthTitle(_ iso: String) -> String { monthFormatter.string(from: date(iso)) }
 
     /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
     static func weekdayIndex(_ iso: String) -> Int {
