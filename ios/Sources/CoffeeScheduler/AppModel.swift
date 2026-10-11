@@ -8,6 +8,8 @@ final class AppModel {
     private(set) var schedule: [ScheduleDay] = []
     private(set) var activeBeans: [Bean] = []
     private(set) var archivedBeans: [Bean] = []
+    /// Skip ranges from today on.
+    private(set) var skipRanges: [SkipRange] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
     private(set) var today = DateUtils.today()
 
@@ -84,6 +86,7 @@ final class AppModel {
         settings = try store.settings()
         activeBeans = try store.beans(archived: false, today: today)
         archivedBeans = try store.beans(archived: true, today: today)
+        skipRanges = try store.skipRanges(from: today)
         // Same window as the web app: two months back, four forward.
         let start = DateUtils.firstOfMonth(DateUtils.addMonths(today, -2))
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
@@ -197,6 +200,21 @@ final class AppModel {
             } else {
                 try store?.clearQueueOrder()
             }
+            try save()
+        }
+    }
+
+    /// Skip a day (travel etc.), or stop skipping it.
+    func toggleSkipDay(_ date: String) {
+        perform("Couldn't update skip days") {
+            try store?.toggleSkipDay(date)
+            try save()
+        }
+    }
+
+    func deleteSkipRange(id: Int) {
+        perform("Couldn't update skip days") {
+            try store?.deleteSkipRange(id: id)
             try save()
         }
     }
