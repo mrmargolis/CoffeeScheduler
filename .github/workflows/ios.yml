@@ -1,0 +1,36 @@
+name: iOS
+
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    name: CoffeeCore tests (Linux)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ios/CoffeeCore
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - run: swift --version
+      - run: swift test
+
+  app-build:
+    # Type-checks the SwiftUI app against the iOS SDK. Day-to-day builds use
+    # xtool on Linux; this just catches breakage without needing a device.
+    name: App build (iOS SDK)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: xcodebuild -version
+      - run: xcodebuild build -scheme CoffeeScheduler -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO

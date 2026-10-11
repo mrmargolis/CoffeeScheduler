@@ -47,6 +47,14 @@ SQLite at `data/coffee.db`, WAL mode, foreign keys on. Schema in `src/lib/schema
 
 All dates are ISO 8601 strings (`YYYY-MM-DD`). Use UTC-based `Date` construction (`new Date(iso + "T00:00:00Z")`) to avoid timezone drift. BeanConqueror imports parse `DD.MM.YYYY` format.
 
+### iOS app
+
+`ios/` is a SwiftUI app built with xtool (no Xcode project); see `ios/README.md`.
+`ios/CoffeeCore` is a Swift port of `src/lib` (scheduler, BeanConqueror parser,
+queries, import) on the same SQLite schema. Changes to scheduling rules, the
+schema, or import behavior must be mirrored there; run `swift test` in
+`ios/CoffeeCore` to check.
+
 ### Testing patterns
 
 Vitest with happy-dom. Tests in `src/__tests__/` mirroring `src/` structure. API and DB tests use `createTestDb()` for isolated in-memory databases. Scheduler tests use a `makeBean()` helper with sensible defaults.
