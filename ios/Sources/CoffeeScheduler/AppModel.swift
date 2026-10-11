@@ -160,6 +160,19 @@ final class AppModel {
         }
     }
 
+    /// Save a bag's settings. Returns an error message to show in the form,
+    /// or nil once saved: the app-wide alert can't appear over a sheet.
+    func updateBeanSettings(id: String, _ settings: BeanSettings) -> String? {
+        guard let store else { return "The database isn't open." }
+        do {
+            try store.updateBeanSettings(id: id, settings)
+            try save()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func updateSettings(_ newValue: ScheduleSettings) {
         perform("Couldn't save settings") {
             try store?.updateSettings(newValue)

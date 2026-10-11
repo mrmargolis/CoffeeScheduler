@@ -79,3 +79,59 @@ public struct ScheduleSettings: Hashable, Sendable {
         self.defaultRestDays = defaultRestDays
     }
 }
+
+/// The settings a user edits on a bag, as the bean detail form saves them.
+/// Nil clears a field.
+public struct BeanSettings: Equatable, Sendable {
+    /// Overrides the roaster and global default rest.
+    public var restDays: Int?
+    /// For bags BeanConqueror exported without one.
+    public var roastDate: String?
+    /// When a frozen bag comes out; auto-thaw acts on it.
+    public var plannedThawDate: String?
+    /// Freeze the bag once this many grams are used; auto-freeze acts on it.
+    public var freezeAfterGrams: Double?
+
+    public init(restDays: Int? = nil, roastDate: String? = nil, plannedThawDate: String? = nil, freezeAfterGrams: Double? = nil) {
+        self.restDays = restDays
+        self.roastDate = roastDate
+        self.plannedThawDate = plannedThawDate
+        self.freezeAfterGrams = freezeAfterGrams
+    }
+
+    /// The bag's current settings.
+    public init(_ bean: Bean) {
+        self.init(
+            restDays: bean.restDays,
+            roastDate: bean.roastDate,
+            plannedThawDate: bean.plannedThawDate,
+            freezeAfterGrams: bean.freezeAfterGrams
+        )
+    }
+
+    func validate(weightGrams: Double) throws {
+        if let restDays, restDays < 0 { throw BeanSettingsError.negativeRestDays }
+        for date in [roastDate, plannedThawDate].compactMap({ $0 }) where DateUtils.dayNumber(date) == nil {
+            throw BeanSettingsError.invalidDate(date)
+        }
+        if let grams = freezeAfterGrams, grams < 0 || grams > weightGrams {
+            throw BeanSettingsError.freezeAfterOutOfRange(weightGrams: weightGrams)
+        }
+    }
+}
+
+public enum BeanSettingsError: LocalizedError, Equatable {
+    case notFound
+    case negativeRestDays
+    case invalidDate(String)
+    case freezeAfterOutOfRange(weightGrams: Double)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notFound: "That bag is no longer in the database."
+        case .negativeRestDays: "Rest days can't be negative."
+        case .invalidDate(let date): "\(date) isn't a valid date."
+        case .freezeAfterOutOfRange(let weight): "Freeze-after must be between 0 and the bag's \(Int(weight)) g."
+        }
+    }
+}

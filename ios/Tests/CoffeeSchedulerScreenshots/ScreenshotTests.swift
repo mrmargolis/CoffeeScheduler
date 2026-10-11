@@ -21,6 +21,8 @@ final class ScreenshotTests: XCTestCase {
 
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         XCTAssertNil(model.message, "Sample data failed to load: \(model.message?.body ?? "")")
+        let kenya = try XCTUnwrap(model.detail(forBean: "kenya")?.bean)
+        let gesha = try XCTUnwrap(model.detail(forBean: "gesha")?.bean)
 
         // Screens are captured without the tab bar: inside a TabView the
         // list screens render blank in this offscreen capture, though they
@@ -32,6 +34,8 @@ final class ScreenshotTests: XCTestCase {
             ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") })),
             ("5-detail-frozen", AnyView(NavigationStack { BeanDetailView(beanID: "gesha") })),
             ("6-settings", AnyView(SettingsView())),
+            ("7-edit-bag", AnyView(NavigationStack { BeanSettingsForm(bean: kenya, today: SampleData.today) })),
+            ("8-edit-frozen-bag", AnyView(NavigationStack { BeanSettingsForm(bean: gesha, today: SampleData.today) })),
         ]
 
         for (name, view) in screens {

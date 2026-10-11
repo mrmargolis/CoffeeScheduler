@@ -82,7 +82,9 @@ BeanConqueror export**.
 
 Imports behave like the web app's `/api/import`: BeanConqueror owns bean
 details and brew history, and the app's own fields (rest days, queue order,
-freeze plans, notes) are kept.
+freeze plans, notes) are kept. One deliberate difference: when the export
+has no roast date for a bag, the iOS import keeps the one already stored (for
+example, one entered in the app); the web import clears it.
 
 ## Not ported yet
 
