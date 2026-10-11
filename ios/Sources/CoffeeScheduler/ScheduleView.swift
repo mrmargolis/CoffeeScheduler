@@ -87,7 +87,8 @@ private struct DayRow: View {
                         }
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.borderless)
+                    // Plain, not borderless: borderless tints the label blue
+                    .buttonStyle(.plain)
                 }
             }
         }

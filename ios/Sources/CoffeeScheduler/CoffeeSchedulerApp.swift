@@ -31,25 +31,14 @@ struct CoffeeSchedulerApp: App {
 }
 
 struct RootView: View {
-    enum Tab: Hashable { case schedule, beans, settings }
-
-    @State private var tab: Tab
-
-    init(tab: Tab = .schedule) {
-        _tab = State(initialValue: tab)
-    }
-
     var body: some View {
-        TabView(selection: $tab) {
+        TabView {
             ScheduleView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
-                .tag(Tab.schedule)
             BeansView()
                 .tabItem { Label("Beans", systemImage: "list.bullet") }
-                .tag(Tab.beans)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(Tab.settings)
         }
     }
 }

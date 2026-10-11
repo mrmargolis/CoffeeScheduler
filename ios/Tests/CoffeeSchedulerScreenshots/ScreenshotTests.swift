@@ -22,15 +22,16 @@ final class ScreenshotTests: XCTestCase {
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         XCTAssertNil(model.message, "Sample data failed to load: \(model.message?.body ?? "")")
 
+        // Screens are captured without the tab bar: inside a TabView the
+        // list screens render blank in this offscreen capture, though they
+        // show fine in the app.
         let screens: [(String, AnyView)] = [
-            ("1-schedule", AnyView(RootView(tab: .schedule))),
-            ("1b-schedule-alone", AnyView(ScheduleView())),
-            ("2-beans", AnyView(RootView(tab: .beans))),
-            ("2b-beans-alone", AnyView(BeansView())),
+            ("1-schedule", AnyView(ScheduleView())),
+            ("2-beans", AnyView(BeansView())),
             ("3-detail-in-progress", AnyView(NavigationStack { BeanDetailView(beanID: "guji") })),
             ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") })),
             ("5-detail-frozen", AnyView(NavigationStack { BeanDetailView(beanID: "gesha") })),
-            ("6-settings", AnyView(RootView(tab: .settings))),
+            ("6-settings", AnyView(SettingsView())),
         ]
 
         for (name, view) in screens {
@@ -66,11 +67,9 @@ final class ScreenshotTests: XCTestCase {
             RunLoop.main.run(until: Date().addingTimeInterval(0.5))
             window.layoutIfNeeded()
         }
-        print("screenshot: scene=\(scene != nil) style=\(style.rawValue) subviews=\(host.view.subviews.count)")
 
         return UIGraphicsImageRenderer(bounds: window.bounds).image { context in
             if !window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) {
-                print("screenshot: drawHierarchy failed, using layer.render")
                 window.layer.render(in: context.cgContext)
             }
         }

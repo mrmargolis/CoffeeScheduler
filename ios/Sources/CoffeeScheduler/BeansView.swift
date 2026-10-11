@@ -55,18 +55,20 @@ private struct BeanRow: View {
                 if !bean.archived {
                     Text("\(Format.grams(max(0, bean.remainingGrams)))g left")
                 }
-                if let ready = bean.readyDate, !bean.archived {
+                // A frozen bag's thaw date matters more than its ready date
+                if bean.isFrozen {
+                    Text(bean.plannedThawDate.map { "Thaws \(Format.shortDay($0))" } ?? "No thaw date")
+                        .foregroundStyle(.cyan)
+                } else if let ready = bean.readyDate, !bean.archived {
                     Text(ready <= today ? "Ready" : "Ready \(Format.shortDay(ready))")
                         .foregroundStyle(ready <= today ? Color.green : Color.secondary)
-                }
-                if let thaw = bean.plannedThawDate, bean.isFrozen {
-                    Text("Thaws \(Format.shortDay(thaw))")
                 }
                 if let roast = bean.roastDate {
                     Text("Roasted \(Format.shortDay(roast))").foregroundStyle(.secondary)
                 }
             }
             .font(.caption)
+            .lineLimit(1)
         }
     }
 }
