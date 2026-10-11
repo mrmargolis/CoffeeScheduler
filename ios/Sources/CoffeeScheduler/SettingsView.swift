@@ -33,6 +33,42 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    ForEach(model.roasterDefaults) { entry in
+                        LabeledContent(entry.roaster) {
+                            Stepper(
+                                "\(entry.restDays) days",
+                                value: Binding(
+                                    get: { entry.restDays },
+                                    set: { model.setRoasterRestDays(entry.roaster, $0) }
+                                ),
+                                in: 0...90
+                            )
+                        }
+                    }
+                    .onDelete { offsets in
+                        for roaster in offsets.map({ model.roasterDefaults[$0].roaster }) {
+                            model.setRoasterRestDays(roaster, nil)
+                        }
+                    }
+                    let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
+                    if !unset.isEmpty {
+                        Menu {
+                            ForEach(unset, id: \.self) { roaster in
+                                Button(roaster) {
+                                    model.setRoasterRestDays(roaster, model.settings.defaultRestDays)
+                                }
+                            }
+                        } label: {
+                            Label("Add a roaster", systemImage: "plus")
+                        }
+                    }
+                } header: {
+                    Text("Rest by roaster")
+                } footer: {
+                    Text("A bag rests for its own days if set, else its roaster's, else the default rest above. Swipe a roaster to remove it.")
+                }
+
+                Section {
                     if model.skipRanges.isEmpty {
                         Text("None").foregroundStyle(.secondary)
                     }

@@ -100,6 +100,19 @@ public enum ConsumptionOverrideError: LocalizedError, Equatable {
     }
 }
 
+/// Default rest days for every bag from one roaster, unless the bag sets
+/// its own. Row of `roaster_defaults`.
+public struct RoasterDefault: Hashable, Sendable, Identifiable {
+    public var roaster: String
+    public var restDays: Int
+    public var id: String { roaster }
+
+    public init(roaster: String, restDays: Int) {
+        self.roaster = roaster
+        self.restDays = restDays
+    }
+}
+
 public struct ScheduleSettings: Hashable, Sendable {
     public var dailyConsumptionGrams: Double
     public var defaultRestDays: Int
