@@ -20,7 +20,9 @@ let package = Package(
         .iOS(.v17)
     ],
     products: [
-        .library(name: "CoffeeScheduler", targets: ["CoffeeScheduler"])
+        .library(name: "CoffeeScheduler", targets: ["CoffeeScheduler"]),
+        // The widget extension; xtool.yml lists it under `extensions`.
+        .library(name: "CoffeeWidget", targets: ["CoffeeWidget"]),
     ],
     dependencies: [
         .package(path: "CoffeeCore")
@@ -32,6 +34,14 @@ let package = Package(
                 .product(name: "CoffeeCore", package: "CoffeeCore")
             ],
             swiftSettings: strict
+        ),
+        .target(
+            name: "CoffeeWidget",
+            swiftSettings: strict,
+            // An extension starts at NSExtensionMain, so nothing refers to
+            // the widget's own `main` and the linker would leave all of its
+            // code out of the binary. Ask for the symbol to keep it in.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-u", "-Xlinker", "_main"])]
         ),
         // Renders each screen over sample data on an iOS Simulator; CI
         // uploads the images. Not part of the app xtool builds.
