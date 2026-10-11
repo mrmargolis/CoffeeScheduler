@@ -1,0 +1,47 @@
+# UI (end-to-end) tests for the iOS app. XCUITest needs an app target and a
+# UI-testing bundle, which a Swift package can't declare, so CI generates an
+# Xcode project from this file with XcodeGen. The app target is only a shell
+# around the CoffeeScheduler library (the same product xtool installs); day
+# to day builds still go through xtool, and nothing here ships.
+name: CoffeeE2E
+options:
+  bundleIdPrefix: net.mattmargolis
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  CoffeeScheduler:
+    path: ..
+targets:
+  CoffeeApp:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - package: CoffeeScheduler
+        product: CoffeeScheduler
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Coffee
+        UILaunchScreen: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.mattmargolis.CoffeeScheduler.e2e
+        CODE_SIGNING_ALLOWED: NO
+  CoffeeE2ETests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: CoffeeApp
+    settings:
+      base:
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  CoffeeE2E:
+    build:
+      targets:
+        CoffeeApp: all
+        CoffeeE2ETests: [test]
+    test:
+      targets: [CoffeeE2ETests]

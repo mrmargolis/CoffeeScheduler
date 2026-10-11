@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct CoffeeSchedulerApp: App {
-    @State private var model = AppModel()
+    @State private var model = AppModel.forLaunch()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {

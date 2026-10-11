@@ -55,6 +55,18 @@ final class AppModel {
         perform("Couldn't load the database") { try refresh() }
     }
 
+    /// The app's model: the iCloud Drive database, or in a debug build
+    /// launched with `-sample-data` (as the UI tests do), the sample data in
+    /// memory with today pinned, so every run starts from the same state.
+    static func forLaunch() -> AppModel {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-sample-data"), let store = try? SampleData.store() {
+            return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
+        }
+        #endif
+        return AppModel()
+    }
+
     // MARK: - Lifecycle
 
     /// Pick up changes made on another device or by the web app, then refresh.
