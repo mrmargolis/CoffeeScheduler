@@ -1,0 +1,4 @@
+Name: zlib
+Description: zlib from the iOS SDK (no host library path)
+Version: 0
+Libs: -lz

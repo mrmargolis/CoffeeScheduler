@@ -2,3 +2,4 @@ version: 1
 bundleID: net.mattmargolis.CoffeeScheduler
 product: CoffeeScheduler
 infoPath: Support/Info.plist
+iconPath: Support/AppIcon.png

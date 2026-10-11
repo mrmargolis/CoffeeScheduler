@@ -36,6 +36,13 @@ final class CoffeeE2ETests: XCTestCase {
         app.buttons["day-\(date)"]
     }
 
+    /// The schedule opens on the month grid; the day rows are in the list.
+    private func showList() {
+        let list = app.buttons["List"]
+        waitFor(list)
+        list.tap()
+    }
+
     private func value(of element: XCUIElement) -> String {
         element.value as? String ?? ""
     }
@@ -74,17 +81,8 @@ final class CoffeeE2ETests: XCTestCase {
 
     // MARK: Schedule
 
-    func testRunwayShowsTheOutlookAndOpensTheBagInProgress() {
-        waitFor(element(containing: "days of coffee"))
-        waitFor(element(containing: "No coffee scheduled from"))
-
-        let brewing = app.buttons["On the grinder: Guji Hambela"]
-        waitFor(brewing)
-        brewing.tap()
-        waitFor(app.navigationBars["Guji Hambela"])
-    }
-
     func testSkipADayFromItsOptions() {
+        showList()
         let tuesday = day("2026-10-13")
         waitFor(tuesday)
         expectValue(tuesday, "")
@@ -99,6 +97,7 @@ final class CoffeeE2ETests: XCTestCase {
     }
 
     func testSwipeToSkipAndBack() {
+        showList()
         let thursday = day("2026-10-15")
         waitFor(thursday)
 
@@ -116,6 +115,7 @@ final class CoffeeE2ETests: XCTestCase {
     }
 
     func testOverrideADaysCoffee() {
+        showList()
         let tuesday = day("2026-10-13")
         waitFor(tuesday)
         tuesday.tap()
@@ -136,9 +136,7 @@ final class CoffeeE2ETests: XCTestCase {
     }
 
     func testMonthViewStepsBetweenMonthsAndOpensADay() {
-        let month = app.buttons["Month"]
-        waitFor(month)
-        month.tap()
+        // The month grid is the layout the schedule opens on
         waitFor(app.staticTexts["October 2026"])
 
         app.buttons["Next month"].tap()

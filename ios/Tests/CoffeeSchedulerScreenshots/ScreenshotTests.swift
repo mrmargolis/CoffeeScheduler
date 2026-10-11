@@ -33,7 +33,7 @@ final class ScreenshotTests: XCTestCase {
         // list screens render blank in this offscreen capture, though they
         // show fine in the app.
         let screens: [(String, AnyView, AppModel)] = [
-            ("1-schedule", AnyView(ScheduleView()), model),
+            ("1-schedule", AnyView(ScheduleView(layout: .list)), model),
             ("2-beans", AnyView(BeansView()), model),
             ("3-detail-in-progress", AnyView(NavigationStack { BeanDetailView(beanID: "guji") }), model),
             ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), model),

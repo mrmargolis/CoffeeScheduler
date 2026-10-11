@@ -1,0 +1,4 @@
+Name: sqlite3
+Description: SQLite from the iOS SDK (no host library path)
+Version: 0
+Libs: -lsqlite3

@@ -210,6 +210,11 @@ struct BagKey: View {
                         Text(run.start == run.end
                              ? Format.shortDay(run.start)
                              : "\(Format.shortDay(run.start)) – \(Format.shortDay(run.end))")
+                        if let ages = model.ageRanges[run.beanID] {
+                            Text(Format.ages(ages))
+                                .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Color.red : Color.secondary)
+                                .accessibilityLabel("Age \(Format.ages(ages))")
+                        }
                         Text("\(Format.grams(run.grams.rounded())) g")
                             .foregroundStyle(.secondary)
                     }

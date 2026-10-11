@@ -11,6 +11,7 @@ ios/
   Package.swift         App package; xtool packages its CoffeeScheduler product as the app
   xtool.yml             Bundle ID, product, Info.plist path
   Support/Info.plist    Merged into the generated Info.plist (ZIP document type for the share sheet)
+  Support/AppIcon.png   App icon (xtool.yml `iconPath`), rendered from AppIcon.svg
   Sources/CoffeeScheduler/   SwiftUI app
   CoffeeCore/           Platform-independent package, tested on Linux
     Sources/CoffeeCore/      Scheduler, BeanConqueror parser, SQLite store
@@ -37,6 +38,30 @@ in TypeScript, change the Swift port and its tests too.
    cd ios
    xtool dev
    ```
+
+   If the link step fails with `libz.so: unhandled file type`, the host's
+   `zlib1g-dev` or `libsqlite3-dev` is leaking in through pkg-config. Point
+   SwiftPM at the overrides in `Support/pkgconfig` instead:
+
+   ```bash
+   PKG_CONFIG_PATH="$PWD/Support/pkgconfig" xtool dev
+   ```
+
+   On Windows, `.\dev.ps1` does all of this from PowerShell. The phone stays
+   plugged into Windows, and `xtool dev` in WSL reaches it through the
+   usbmuxd that comes with Apple Devices (Microsoft Store), relayed by
+   `Support/usbmuxd-relay.py`. It needs Node on the Windows `PATH`. Don't pass
+   the phone into WSL with usbipd: it connects, but the app upload stalls. If
+   it is already shared that way, give it back to Windows first with
+   `usbipd unbind --busid <id>` (as admin).
+
+To change the icon, edit `Support/AppIcon.svg` and re-render it as a 1024×1024
+PNG with no transparency, for example with headless Edge or Chrome:
+
+```powershell
+msedge --headless=new --hide-scrollbars --force-device-scale-factor=1 `
+  --window-size=1024,1024 --screenshot="$PWD\Support\AppIcon.png" "$PWD\Support\AppIcon.svg"
+```
 
 ## Tests
 
@@ -85,7 +110,7 @@ file to a rollback journal the first time it opens it.
 
 ## Importing from BeanConqueror
 
-Export from BeanConqueror, then pick **Coffee** in the share sheet. The
+Export from BeanConqueror, then pick **Coffee Scheduler** in the share sheet. The
 app registers as a viewer for ZIP files (`CFBundleDocumentTypes` in
 `Support/Info.plist`), and iOS hands the file to `onOpenURL`. If it doesn't
 show in the share sheet, save the ZIP to Files and use **Settings → Import
@@ -102,6 +127,7 @@ example, one entered in the app); the web import clears it.
 The app shows the schedule, the bean queue, each bag's detail, and the
 settings, and can edit a bag's settings, freeze or thaw it, reorder the
 queue, mark skip days, set a day's consumption, and set rest days by
-roaster, with the runway summary above the schedule and a month view with
-roaster colours and a bag key. Publishing is only in the web app for now
-(tracked in issue #6).
+roaster, with a month view with roaster colours and a bag key. The web app's
+runway summary (days of coffee, the bag in progress) is left off the phone's
+schedule; `RunwaySummary` in CoffeeCore still computes it. Publishing is only
+in the web app for now (tracked in issue #6).

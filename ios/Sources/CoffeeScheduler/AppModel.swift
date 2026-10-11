@@ -15,6 +15,8 @@ final class AppModel {
     private(set) var roasters: [String] = []
     /// Collision-free colours for the roasters in the schedule.
     private(set) var roasterColors: [String: RoasterColor] = [:]
+    /// Each scheduled bag's age at its first and last cup.
+    private(set) var ageRanges: [String: AgeRange] = [:]
     /// Consumption overrides within the schedule window.
     private(set) var consumptionOverrides: [ConsumptionOverride] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
@@ -113,6 +115,7 @@ final class AppModel {
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
         consumptionOverrides = try store.consumptionOverrides(from: start)
         roasterColors = Scheduler.roasterColors(schedule)
+        ageRanges = Scheduler.ageRanges(schedule, beans: activeBeans + archivedBeans, today: today)
     }
 
     /// Save the working copy to iCloud Drive after a change.
@@ -240,11 +243,6 @@ final class AppModel {
             try store?.deleteSkipRange(id: id)
             try save()
         }
-    }
-
-    /// Days of coffee, the bag in progress, and what needs a look.
-    var runway: RunwaySummary {
-        RunwaySummary(schedule: schedule, beans: activeBeans, today: today)
     }
 
     func consumptionOverride(on date: String) -> ConsumptionOverride? {
