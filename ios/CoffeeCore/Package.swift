@@ -4,12 +4,22 @@ import PackageDescription
 
 // A warning fails the build, so none pile up. Deprecations stay warnings: a
 // new SDK shouldn't break the build before there's time to move off an API.
-let strict: [SwiftSetting] = [
-    .treatAllWarnings(as: .error),
-    .treatWarning("DeprecatedDeclaration", as: .warning),
-    .enableUpcomingFeature("ExistentialAny"),
-    .enableUpcomingFeature("MemberImportVisibility"),
-]
+// Only on Linux, where this package is built and tested: Xcode builds it as
+// the app's dependency with warnings suppressed, and rejects the two together.
+#if os(Linux)
+    let warnings: [SwiftSetting] = [
+        .treatAllWarnings(as: .error),
+        .treatWarning("DeprecatedDeclaration", as: .warning),
+    ]
+#else
+    let warnings: [SwiftSetting] = []
+#endif
+
+let strict: [SwiftSetting] =
+    warnings + [
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+    ]
 
 // Platform-independent logic for the iOS app: the scheduler, the BeanConqueror
 // import parser, and the SQLite store. Kept in its own package so it builds and
