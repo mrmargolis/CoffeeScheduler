@@ -17,8 +17,9 @@ concurrency:
 jobs:
   core-tests:
     name: CoffeeCore tests (Linux)
-    # Ubuntu 26.04 ships Swift 6.4, the toolchain xtool's Linux guide asks for.
-    runs-on: ubuntu-26.04
+    # The 24.04 image ships Swift 6.4, the toolchain xtool's Linux guide asks
+    # for; the 26.04 image has no Swift at all.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
