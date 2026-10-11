@@ -55,6 +55,21 @@ import Testing
         #expect(bean.notes == "mine")
     }
 
+    @Test func reimportKeepsARoastDateTheExportLacks() throws {
+        let store = try CoffeeStore.inMemory()
+        let noDate = try makeExport(beans: [bcBean(["roastingDate": ""])])
+        _ = try store.importExport(BeanConquerorParser.parse(zipData: noDate, timeZone: utc))
+        try store.updateBeanSettings(id: "uuid-1", BeanSettings(roastDate: "2026-01-20"))
+
+        _ = try store.importExport(BeanConquerorParser.parse(zipData: noDate, timeZone: utc))
+        #expect(try store.bean(id: "uuid-1")?.roastDate == "2026-01-20")
+
+        // A date in the export still wins
+        let withDate = try makeExport(beans: [bcBean(["roastingDate": "2026-01-18T00:00:00.000Z"])])
+        _ = try store.importExport(BeanConquerorParser.parse(zipData: withDate, timeZone: utc))
+        #expect(try store.bean(id: "uuid-1")?.roastDate == "2026-01-18")
+    }
+
     @Test func roasterDefaultBeatsGlobalRestDays() throws {
         let store = try CoffeeStore.inMemory()
         _ = try importSample(into: store)

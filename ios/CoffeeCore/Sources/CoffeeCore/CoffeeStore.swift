@@ -269,6 +269,10 @@ public final class CoffeeStore {
     /// Merge a parsed BeanConqueror export into the database. BeanConqueror
     /// owns bean metadata and brews; user-managed fields (rest days, queue
     /// order, freeze plans, notes) are left alone.
+    ///
+    /// One deliberate difference from the web app's import: a roast date the
+    /// export doesn't have keeps the one already stored, so a date entered
+    /// in the app for a bag BeanConqueror has none for survives a re-import.
     public func importExport(_ parsed: BeanConquerorParser.ParseResult) throws -> ImportSummary {
         try db.transaction { () throws -> ImportSummary in
             for bean in parsed.beans {
@@ -278,7 +282,7 @@ public final class CoffeeStore {
                     ON CONFLICT(id) DO UPDATE SET
                       name = excluded.name,
                       roaster = excluded.roaster,
-                      roast_date = excluded.roast_date,
+                      roast_date = COALESCE(excluded.roast_date, beans.roast_date),
                       weight_grams = excluded.weight_grams,
                       cost = excluded.cost,
                       flavour_profile = excluded.flavour_profile,
