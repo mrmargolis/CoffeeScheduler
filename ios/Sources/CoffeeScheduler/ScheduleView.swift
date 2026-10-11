@@ -153,6 +153,8 @@ private struct DayRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Day options")
+            .accessibilityIdentifier("day-\(day.date)")
+            .accessibilityValue(accessibilityState)
 
             VStack(alignment: .leading, spacing: 2) {
                 if day.isSkip {
@@ -195,6 +197,17 @@ private struct DayRow: View {
         }
         .opacity(day.isActual && !isToday ? 0.6 : 1)
         .listRowBackground(isToday ? Color.accentColor.opacity(0.12) : nil)
+    }
+}
+
+extension DayRow {
+    /// What VoiceOver (and the UI tests) read for a day besides its date.
+    var accessibilityState: String {
+        var parts: [String] = []
+        if day.isSkip { parts.append("Skipped") }
+        if let override, !day.isSkip { parts.append("\(Format.grams(override.dailyGrams))g day") }
+        if day.isGap && !day.isActual { parts.append("No coffee") }
+        return parts.joined(separator: ", ")
     }
 }
 

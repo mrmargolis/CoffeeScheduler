@@ -46,7 +46,18 @@ swift test        # needs libsqlite3-dev on Linux
 ```
 
 CI (`.github/workflows/ios.yml`) runs these on Linux (Swift 6.4) and type-checks the app
-against the iOS SDK on a macOS runner.
+against the iOS SDK on a macOS runner. On an iOS Simulator it also:
+
+- renders every screen over sample data, light and dark, and uploads the
+  images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);
+- runs end-to-end UI tests (`E2E/Tests`) that launch the app and tap through
+  each feature. XCUITest needs an app target, which a Swift package can't
+  declare, so CI generates a small Xcode project from `E2E/project.yml` with
+  XcodeGen. It only wraps the same library xtool installs.
+
+Both use the sample data in `Sources/CoffeeScheduler/SampleData.swift`. A
+debug build launched with `-sample-data` opens it in memory with today pinned
+to 2026-10-12, so every run starts from the same state.
 
 ## Where the data lives
 

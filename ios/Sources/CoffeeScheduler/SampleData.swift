@@ -1,8 +1,10 @@
 import CoffeeCore
 import Foundation
 
-/// A small, realistic database for screenshots: one bag nearly finished, two
-/// resting, one in the freezer, one finished, and a weekend away.
+#if DEBUG
+/// A small, realistic database for screenshots and UI tests: one bag nearly
+/// finished, two resting, one in the freezer, one finished, and a weekend
+/// away. Debug builds only; launch with `-sample-data` to use it.
 enum SampleData {
     /// A Monday, so the schedule opens on a full week.
     static let today = "2026-10-12"
@@ -78,3 +80,4 @@ enum SampleData {
         return store
     }
 }
+#endif

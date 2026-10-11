@@ -45,6 +45,7 @@ struct MonthView: View {
             Button { month = DateUtils.addMonths(month, -1) } label: {
                 Image(systemName: "chevron.left").padding(6)
             }
+            .accessibilityLabel("Previous month")
             .disabled(month <= firstMonth)
             Spacer()
             Text(Format.monthTitle(month)).font(.headline)
@@ -52,6 +53,7 @@ struct MonthView: View {
             Button { month = DateUtils.addMonths(month, 1) } label: {
                 Image(systemName: "chevron.right").padding(6)
             }
+            .accessibilityLabel("Next month")
             .disabled(month >= lastMonth)
         }
         .buttonStyle(.borderless)
@@ -159,6 +161,7 @@ private struct WeekRow: View {
         .buttonStyle(.plain)
         .disabled(day == nil)
         .accessibilityLabel(Format.longDay(date))
+        .accessibilityIdentifier("month-day-\(date)")
     }
 
     private func bar(_ segment: MonthView.Segment) -> some View {
