@@ -151,7 +151,8 @@ file to a rollback journal the first time it opens it.
 
 **Coffee month** is a home screen widget (medium or large) that draws the
 current month like the Schedule screen: a bar per bag, dashed bars for
-skipped days and days with no coffee, today in gold. Tapping it opens the app.
+skipped days and days with no coffee, and today marked. Tapping it opens the
+app.
 
 A widget runs in its own sandbox and can't open the database, so the app
 writes a JSON snapshot (`WidgetSnapshot` in CoffeeCore) into an App Group
@@ -173,6 +174,17 @@ with "A valid provisioning profile for this executable was not found".
 
 App Groups need a paid membership; xtool drops the entitlement on a free
 Apple ID, and the widget then only says to open the app.
+
+The arrows beside the month name show the month before or after, and the
+name goes back to the current month. They run an App Intent
+(`ShiftMonthIntent`), which iOS can only find through a `Metadata.appintents`
+bundle that Xcode generates at build time and xtool does not. So the CI job
+"Widget intents metadata" builds the widget as an Xcode extension
+(`Support/IntentsMetadata/project.yml`) and uploads the bundle, and a copy is
+committed in `Support/IntentsMetadata/Metadata.appintents`, which `xtool.yml`
+ships as a resource of the extension. After adding or changing an intent,
+replace that copy with the `widget-intents-metadata` artifact from the CI
+run; the job warns when the two differ. Without it the buttons do nothing.
 
 The widget target asks the linker for `_main` (`Package.swift`). An
 extension starts at `NSExtensionMain`, so without that nothing refers to the
