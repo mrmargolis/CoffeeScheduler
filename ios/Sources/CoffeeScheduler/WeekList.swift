@@ -28,6 +28,7 @@ struct WeekList: View {
                     title: Format.weekTitle(week.first!.date, today: model.today),
                     detail: Format.span(week.first!.date, week.last!.date)
                 )
+                .listRowInsets(Theme.labelInsets)
             }
         }
     }

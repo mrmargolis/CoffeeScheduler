@@ -1,144 +1,137 @@
 import CoffeeCore
 import SwiftUI
 
-/// The bean queue in the order the scheduler will use it, plus frozen bags.
-/// Finished bags aren't listed; BeanConqueror is the place to look back.
-/// Edit mode drags bags into a manual order (like the web app's drag to
-/// reorder); swipe a bag to freeze or thaw it, or back to automatic order.
+/// The bean queue in the order the scheduler will use it, plus frozen bags,
+/// a card per bag. Finished bags aren't listed; BeanConqueror is the place to
+/// look back. Reorder drags bags into a manual order (like the web app's drag
+/// to reorder); swipe a bag to freeze or thaw it, or back to automatic order.
 struct BeansView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmingFreeze: Bean?
+    @State private var path: [BeanRoute] = []
+    @State private var editMode: EditMode
+
+    init(reordering: Bool = false) {
+        _editMode = State(initialValue: reordering ? .active : .inactive)
+    }
 
     var body: some View {
         let queue = model.activeBeans.filter { !$0.isFrozen }
-        NavigationStack {
+        let frozen = model.activeBeans.filter(\.isFrozen)
+        NavigationStack(path: $path) {
             List {
                 Group {
-                    queueSection(queue)
-                    let frozen = model.activeBeans.filter(\.isFrozen)
+                    header(queue: queue, frozen: frozen)
+                    SectionLabel(title: "Queue").padding(.horizontal, 4)
+                    queueRows(queue)
+                    footer(isEmpty: queue.isEmpty)
                     if !frozen.isEmpty {
-                        Section("Frozen") {
-                            ForEach(frozen) { bean in
-                                row(bean)
-                                    .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
-                            }
+                        SectionLabel(title: "Frozen").padding(.horizontal, 4)
+                        ForEach(frozen) { bean in
+                            open(bean) { FrozenCard(bean: bean) }
+                                .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
                         }
                     }
                 }
-                .listRowBackground(Theme.card)
-                .listRowSeparatorTint(Theme.hairline)
+                .listRowInsets(EdgeInsets(top: 5, leading: 20, bottom: 5, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .environment(\.editMode, $editMode)
             .themedList()
+            .statusBarCover()
+            // The title is drawn in the list; this one names the back button
             .navigationTitle("Beans")
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .freezeConfirmation(for: $confirmingFreeze)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
+        }
+    }
+
+    private func header(queue: [Bean], frozen: [Bean]) -> some View {
+        var counts = ["\(queue.count) in the queue"]
+        if !frozen.isEmpty { counts.append("\(frozen.count) frozen") }
+        let isReordering = editMode == .active
+        return HStack(alignment: .bottom, spacing: 8) {
+            ScreenHeader(eyebrow: counts.joined(separator: " · "), title: "Beans")
+            if isReordering && queue.contains(where: { $0.displayOrder != nil }) {
+                PillButton(title: "Automatic") { model.clearQueueOrder() }
+                    .accessibilityLabel("Use automatic order")
+            }
+            if queue.count > 1 {
+                PillButton(title: isReordering ? "Done" : "Reorder") {
+                    withAnimation { editMode = isReordering ? .inactive : .active }
                 }
-                if queue.contains(where: { $0.displayOrder != nil }) {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Menu {
-                            Button("Use automatic order", systemImage: "arrow.uturn.backward") {
-                                model.clearQueueOrder()
-                            }
+            }
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 9)
+    }
+
+    private func queueRows(_ queue: [Bean]) -> some View {
+        let starts = Scheduler.startDates(model.schedule)
+        return ForEach(queue) { bean in
+            open(bean) { QueueCard(bean: bean, start: starts[bean.id]) }
+                .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                .swipeActions(edge: .leading) {
+                    if bean.displayOrder != nil {
+                        Button {
+                            model.clearQueueOrder(id: bean.id)
                         } label: {
-                            Label("Queue order", systemImage: "ellipsis.circle")
+                            Label("Auto order", systemImage: "arrow.uturn.backward")
                         }
+                        .tint(.gray)
                     }
                 }
-            }
+        }
+        .onMove { from, to in
+            var ids = queue.map(\.id)
+            ids.move(fromOffsets: from, toOffset: to)
+            model.reorderQueue(ids)
         }
     }
 
-    private func queueSection(_ queue: [Bean]) -> some View {
-        Section {
-            ForEach(queue) { bean in
-                row(bean)
-                    .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
-                    .swipeActions(edge: .leading) {
-                        if bean.displayOrder != nil {
-                            Button {
-                                model.clearQueueOrder(id: bean.id)
-                            } label: {
-                                Label("Auto order", systemImage: "arrow.uturn.backward")
-                            }
-                            .tint(.gray)
-                        }
-                    }
-            }
-            .onMove { from, to in
-                var ids = queue.map(\.id)
-                ids.move(fromOffsets: from, toOffset: to)
-                model.reorderQueue(ids)
-            }
-        } header: {
-            Text("Queue")
-        } footer: {
-            if !queue.isEmpty {
-                Text(
-                    """
-                    Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that \
-                    order; the rest follow, in-progress first, then by ready date.
-                    """)
-            }
-        }
+    private func footer(isEmpty: Bool) -> some View {
+        Text(
+            isEmpty
+                ? "No bags in the queue. Import a BeanConqueror export from Settings."
+                : """
+                Numbered bags are in the order you set; the rest follow, in-progress first, then by ready date. \
+                Swipe a bag left to freeze it, or right to hand it back to automatic order.
+                """
+        )
+        .font(.caption)
+        .foregroundStyle(Theme.text3)
+        .padding(.horizontal, 4)
     }
 
-    private func row(_ bean: Bean) -> some View {
-        NavigationLink(value: BeanRoute(id: bean.id)) {
-            BeanRow(bean: bean, today: model.today)
+    /// A card that opens its bag. A button rather than a NavigationLink,
+    /// which would add a chevron beside the card.
+    private func open(_ bean: Bean, @ViewBuilder card: () -> some View) -> some View {
+        Button {
+            path.append(BeanRoute(id: bean.id))
+        } label: {
+            card()
         }
+        .buttonStyle(.plain)
     }
 }
 
-private struct BeanRow: View {
-    @Environment(AppModel.self) private var model
-    let bean: Bean
-    let today: String
+/// A rounded text button on the ground, beside a screen's title.
+private struct PillButton: View {
+    let title: String
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            RoasterRail(color: model.rail(bean.roaster), height: 40)
-            details
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .padding(.horizontal, 16)
+                .frame(height: 44)
+                .background(Theme.card, in: Capsule())
         }
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                if let order = bean.displayOrder, !bean.isFrozen {
-                    Text("\(order)")
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Position \(order)")
-                }
-                Text(bean.name).font(.headline)
-            }
-            if !bean.roaster.isEmpty {
-                Text(bean.roaster).font(.subheadline).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 12) {
-                Text("\(Format.grams(max(0, bean.remainingGrams)))g left")
-                // A frozen bag's thaw date matters more than its ready date
-                if bean.isFrozen {
-                    Text(bean.plannedThawDate.map { "Thaws \(Format.shortDay($0))" } ?? "No thaw date")
-                        .foregroundStyle(Theme.frozen)
-                } else if let ready = bean.readyDate {
-                    Text(ready <= today ? "Ready" : "Ready \(Format.shortDay(ready))")
-                        .foregroundStyle(ready <= today ? Theme.ready : Theme.text2)
-                }
-                // Age at first and last cup says more than the roast date;
-                // a bag that isn't scheduled has only the roast date.
-                if let ages = model.ageRanges[bean.id] {
-                    Text("Age \(Format.ages(ages))")
-                        .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Theme.gapText : Theme.text2)
-                } else if let roast = bean.roastDate {
-                    Text("Roasted \(Format.shortDay(roast))").foregroundStyle(.secondary)
-                }
-            }
-            .font(.caption)
-            .lineLimit(1)
-        }
+        .buttonStyle(.plain)
     }
 }

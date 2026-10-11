@@ -21,10 +21,14 @@ enum Theme {
     /// Gold: the selected tab, today, links and early-start notes.
     static let accent = Color(hex: "#E0AA45")
     static let frozen = Color(hex: "#6FC3D6")
+    static let frozenText = Color(hex: "#8DD3E3")
     static let gap = Color(hex: "#E5766A")
     static let gapText = Color(hex: "#F0A096")
     static let ready = Color(hex: "#9AD493")
 
+    /// A section label sits just inside its card's edge.
+    static let labelInsets = EdgeInsets(top: 0, leading: 4, bottom: 8, trailing: 4)
+    static let cardRadius: CGFloat = 22
     /// Corner radius of a tile inside a card.
     static let tileRadius: CGFloat = 18
     static let dash = StrokeStyle(lineWidth: 1, dash: [4, 3])

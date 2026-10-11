@@ -24,7 +24,8 @@ struct ScheduleView: View {
             List {
                 Section {
                     ScreenHeader(eyebrow: Format.longDay(model.today), title: "Schedule")
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 14, trailing: 0))
+                        // Top inset: the section's rounded corner would clip the first line
+                        .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 14, trailing: 0))
                     if !model.schedule.isEmpty {
                         LayoutSwitch(layout: $layout)
                             .listRowInsets(EdgeInsets())
@@ -49,7 +50,7 @@ struct ScheduleView: View {
                 }
             }
             .listSectionSpacing(16)
-            .contentMargins(.top, 12, for: .scrollContent)
+            .contentMargins(.top, 0, for: .scrollContent)
             .themedList()
             .statusBarCover()
             // The title is drawn in the list; this one names the back button
@@ -97,7 +98,7 @@ struct ScheduleView: View {
             Section {
                 BagKey(runs: runs) { path.append(BeanRoute(id: $0)) }
             } header: {
-                SectionLabel(title: "Bags this month")
+                SectionLabel(title: "Bags this month").listRowInsets(Theme.labelInsets)
             }
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)

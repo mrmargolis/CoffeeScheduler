@@ -303,7 +303,8 @@ private struct MonthBar: View {
             return Look(fill: Theme.gap.opacity(0.14), stroke: Theme.gap, text: Theme.gapText, isDashed: true)
         default:
             // Brewed days are solid; projected ones tinted and outlined
-            if event.isActual { return Look(fill: color, stroke: .clear, text: Theme.text) }
+            // The roaster colours are light, so a solid bar takes dark text
+            if event.isActual { return Look(fill: color, stroke: .clear, text: Theme.ground) }
             let isEarly = event.daysEarly > 0 && segment.isStart
             return Look(fill: color.opacity(0.2), stroke: color, text: isEarly ? Theme.accent : Theme.text)
         }
