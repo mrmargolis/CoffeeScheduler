@@ -67,7 +67,9 @@ struct MonthWidgetView: View {
     }
 }
 
-/// One week: the dates, then the spans crossing it in up to two rows.
+/// One week of the grid. The large widget puts the spans in up to two rows
+/// under the dates; the medium one has no room for that, so each span is a
+/// box behind its dates.
 private struct WidgetWeek: View {
     let monday: String
     let month: String
@@ -77,22 +79,32 @@ private struct WidgetWeek: View {
     let isLarge: Bool
     let labelsContinuations: Bool
 
-    private var dateHeight: CGFloat { isLarge ? 19 : 13 }
-    private var barHeight: CGFloat { isLarge ? 14 : 4 }
-    private var laneHeight: CGFloat { barHeight + 2 }
+    /// Where the bars go in a week of a given height.
+    private struct Metrics {
+        let dateHeight: CGFloat
+        let barHeight: CGFloat
+        let firstBar: CGFloat
+        let laneHeight: CGFloat
+        let lanes: Int
+    }
+
+    private func metrics(height: CGFloat) -> Metrics {
+        if isLarge {
+            // Only the rows of bars that fit under the dates
+            return Metrics(dateHeight: 19, barHeight: 14, firstBar: 19, laneHeight: 16, lanes: max(1, Int((height - 19) / 16)))
+        }
+        // Two bags on one day share the box's height
+        let lanes = min(2, max(1, (segments.map(\.lane).max() ?? 0) + 1))
+        let lane = max(0, height - 3) / CGFloat(lanes)
+        return Metrics(dateHeight: height, barHeight: lane, firstBar: 1.5, laneHeight: lane, lanes: lanes)
+    }
 
     var body: some View {
         GeometryReader { geometry in
             let column = geometry.size.width / 7
-            // Only the rows of bars that fit under the dates
-            let lanes = max(1, Int((geometry.size.height - dateHeight) / laneHeight))
+            let metrics = metrics(height: geometry.size.height)
             ZStack(alignment: .topLeading) {
-                HStack(spacing: 0) {
-                    ForEach(0..<7, id: \.self) { offset in
-                        dateLabel(DateUtils.addDays(monday, offset)).frame(width: column, height: dateHeight)
-                    }
-                }
-                ForEach(segments.filter { $0.lane < lanes }, id: \.self) { segment in
+                ForEach(segments.filter { $0.lane < metrics.lanes }, id: \.self) { segment in
                     let lead: CGFloat = segment.isStart ? 1.5 : 0
                     let trail: CGFloat = segment.isEnd ? 1.5 : 0
                     WidgetBar(
@@ -101,9 +113,17 @@ private struct WidgetWeek: View {
                     )
                     .frame(
                         width: max(0, column * CGFloat(segment.endColumn - segment.startColumn + 1) - lead - trail),
-                        height: barHeight
+                        height: metrics.barHeight
                     )
-                    .offset(x: column * CGFloat(segment.startColumn) + lead, y: dateHeight + CGFloat(segment.lane) * laneHeight)
+                    .offset(
+                        x: column * CGFloat(segment.startColumn) + lead,
+                        y: metrics.firstBar + CGFloat(segment.lane) * metrics.laneHeight)
+                }
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { offset in
+                        dateLabel(DateUtils.addDays(monday, offset), column: offset, height: metrics.dateHeight)
+                            .frame(width: column, height: metrics.dateHeight)
+                    }
                 }
             }
         }
@@ -115,17 +135,28 @@ private struct WidgetWeek: View {
         return Color(hex: colors[roaster] ?? RoasterColor.forRoaster(roaster).border)
     }
 
+    /// On the medium widget, a date over a brewed bag's solid box needs dark text.
+    private func isOnSolidBox(column: Int) -> Bool {
+        guard !isLarge else { return false }
+        return segments.contains {
+            $0.lane == 0 && $0.startColumn <= column && column <= $0.endColumn && $0.event.beanID != nil && $0.event.isActual
+        }
+    }
+
     @ViewBuilder
-    private func dateLabel(_ date: String) -> some View {
+    private func dateLabel(_ date: String, column: Int, height: CGFloat) -> some View {
         let number = Text(String(Int(date.suffix(2)) ?? 0))
-            .font(.system(size: isLarge ? 12 : 9))
+            .font(.system(size: isLarge ? 12 : 9, weight: isLarge ? .regular : .medium))
             .monospacedDigit()
         if date == today {
+            let disc = min(17, height - 3)
             number
                 .fontWeight(.bold)
                 .foregroundStyle(Palette.ground)
-                .frame(width: dateHeight - 2, height: dateHeight - 2)
+                .frame(width: disc, height: disc)
                 .background(Palette.accent, in: Circle())
+        } else if isOnSolidBox(column: column) {
+            number.foregroundStyle(Palette.ground)
         } else if DateUtils.firstOfMonth(date) != month {
             number.foregroundStyle(Palette.dim)
         } else {
@@ -143,7 +174,7 @@ private struct WidgetBar: View {
     let showsTitle: Bool
 
     var body: some View {
-        let radius: CGFloat = isLarge ? 4.5 : 2
+        let radius: CGFloat = isLarge ? 4.5 : 4
         let shape = UnevenRoundedRectangle(
             topLeadingRadius: segment.isStart ? radius : 0, bottomLeadingRadius: segment.isStart ? radius : 0,
             bottomTrailingRadius: segment.isEnd ? radius : 0, topTrailingRadius: segment.isEnd ? radius : 0
