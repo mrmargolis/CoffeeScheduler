@@ -52,50 +52,12 @@ public enum BeanConquerorParser {
         guard let mainEntry = archive["Beanconqueror.json"] else {
             return ParseResult(errors: ["No Beanconqueror.json found in ZIP"])
         }
-        guard let mainData = try? read(mainEntry, from: archive),
-              let main = try? JSONDecoder().decode(JSONValue.self, from: mainData)
-        else {
+        guard let main = json(mainEntry, in: archive) else {
             return ParseResult(errors: ["Failed to parse Beanconqueror.json"])
         }
 
         var result = ParseResult()
-        var roastDates: [String: String] = [:]
-
-        for (i, b) in (main["BEANS"].array ?? []).enumerated() {
-            guard let id = b["config"]["uuid"].string, !id.isEmpty else {
-                result.errors.append("Bean index \(i): missing config.uuid, skipping")
-                continue
-            }
-
-            let roastDate = parseIsoDate(b["roastingDate"].string)
-            if let roastDate { roastDates[id] = roastDate }
-
-            let info = b["bean_information"].array?.first ?? .null
-            let frozenID = b["frozenId"].string ?? ""
-            let unfrozenDate = b["unfrozenDate"].string ?? ""
-            let isFrozen = !frozenID.isEmpty && unfrozenDate.isEmpty
-
-            result.beans.append(RawBean(
-                id: id,
-                name: b["name"].string ?? "",
-                roaster: b["roaster"].string ?? "",
-                roastDate: roastDate,
-                weightGrams: b["weight"].number ?? 0,
-                cost: b["cost"].number.flatMap { $0 == 0 ? nil : $0 },
-                flavourProfile: b["aromatics"].nonEmptyString,
-                country: info["country"].nonEmptyString,
-                region: info["region"].nonEmptyString,
-                variety: info["variety"].nonEmptyString,
-                processing: info["processing"].nonEmptyString,
-                archived: b["finished"].isTruthy,
-                isFrozen: isFrozen
-            ))
-
-            // Record a freeze event for currently frozen beans
-            if isFrozen, let frozenDate = parseIsoDate(b["frozenDate"].string) {
-                result.freezeEvents.append(FreezeInfo(beanID: id, frozenDate: frozenDate))
-            }
-        }
+        let roastDates = parseBeans(main["BEANS"].array ?? [], into: &result)
 
         // Collect all brews: main file + split files
         var rawBrews = main["BREWS"].array ?? []
@@ -103,17 +65,67 @@ public enum BeanConquerorParser {
             $0.path.range(of: #"^Beanconqueror_Brews_\d+\.json$"#, options: .regularExpression) != nil
         }
         for entry in splitFiles {
-            if let data = try? read(entry, from: archive),
-               let split = try? JSONDecoder().decode(JSONValue.self, from: data) {
+            if let split = json(entry, in: archive) {
                 rawBrews += split.array ?? []
             } else {
                 result.errors.append("Failed to parse \(entry.path)")
             }
         }
 
-        // Parse brews, deduplicating by config.uuid
+        parseBrews(rawBrews, roastDates: roastDates, timeZone: timeZone, into: &result)
+        return result
+    }
+
+    /// Adds the beans and the freeze events of those still frozen to `result`.
+    /// Returns each bean's roast date, for the brews' bean age.
+    private static func parseBeans(_ beans: [JSONValue], into result: inout ParseResult) -> [String: String] {
+        var roastDates: [String: String] = [:]
+        for (i, b) in beans.enumerated() {
+            guard let id = b["config"]["uuid"].string, !id.isEmpty else {
+                result.errors.append("Bean index \(i): missing config.uuid, skipping")
+                continue
+            }
+
+            let bean = rawBean(b, id: id)
+            result.beans.append(bean)
+            if let roastDate = bean.roastDate { roastDates[id] = roastDate }
+
+            // Record a freeze event for currently frozen beans
+            if bean.isFrozen, let frozenDate = parseIsoDate(b["frozenDate"].string) {
+                result.freezeEvents.append(FreezeInfo(beanID: id, frozenDate: frozenDate))
+            }
+        }
+        return roastDates
+    }
+
+    private static func rawBean(_ b: JSONValue, id: String) -> RawBean {
+        let info = b["bean_information"].array?.first ?? .null
+        let frozenID = b["frozenId"].string ?? ""
+        let unfrozenDate = b["unfrozenDate"].string ?? ""
+
+        return RawBean(
+            id: id,
+            name: b["name"].string ?? "",
+            roaster: b["roaster"].string ?? "",
+            roastDate: parseIsoDate(b["roastingDate"].string),
+            weightGrams: b["weight"].number ?? 0,
+            cost: b["cost"].number.flatMap { $0 == 0 ? nil : $0 },
+            flavourProfile: b["aromatics"].nonEmptyString,
+            country: info["country"].nonEmptyString,
+            region: info["region"].nonEmptyString,
+            variety: info["variety"].nonEmptyString,
+            processing: info["processing"].nonEmptyString,
+            archived: b["finished"].isTruthy,
+            isFrozen: !frozenID.isEmpty && unfrozenDate.isEmpty
+        )
+    }
+
+    /// Adds the brews to `result`, deduplicating by config.uuid.
+    private static func parseBrews(
+        _ brews: [JSONValue], roastDates: [String: String], timeZone: TimeZone, into result: inout ParseResult
+    ) {
         var seenBrewIDs = Set<String>()
-        for (i, br) in rawBrews.enumerated() {
+        for (i, br) in brews.enumerated() {
             if let brewID = br["config"]["uuid"].string, !brewID.isEmpty {
                 if seenBrewIDs.contains(brewID) { continue }
                 seenBrewIDs.insert(brewID)
@@ -138,8 +150,12 @@ public enum BeanConquerorParser {
                 rating: br["rating"].number.flatMap { $0 == 0 ? nil : $0 }
             ))
         }
+    }
 
-        return result
+    /// An entry's contents as JSON, or nil when it can't be read or parsed.
+    private static func json(_ entry: Entry, in archive: Archive) -> JSONValue? {
+        guard let data = try? read(entry, from: archive) else { return nil }
+        return try? JSONDecoder().decode(JSONValue.self, from: data)
     }
 
     private static func read(_ entry: Entry, from archive: Archive) throws -> Data {

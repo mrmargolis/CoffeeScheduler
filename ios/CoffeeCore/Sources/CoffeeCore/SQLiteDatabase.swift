@@ -103,6 +103,19 @@ public final class SQLiteDatabase {
         }
         defer { sqlite3_finalize(stmt) }
 
+        try bind(params, to: stmt)
+
+        var rows: [SQLRow] = []
+        while true {
+            let rc = sqlite3_step(stmt)
+            if rc == SQLITE_DONE { break }
+            guard rc == SQLITE_ROW else { throw SQLiteError(message: "\(lastError) in: \(sql)") }
+            rows.append(Self.currentRow(of: stmt))
+        }
+        return rows
+    }
+
+    private func bind(_ params: [SQLValue], to stmt: OpaquePointer?) throws {
         for (i, value) in params.enumerated() {
             let index = Int32(i + 1)
             let rc: Int32 = switch value {
@@ -113,26 +126,21 @@ public final class SQLiteDatabase {
             }
             guard rc == SQLITE_OK else { throw SQLiteError(message: lastError) }
         }
+    }
 
-        var rows: [SQLRow] = []
-        while true {
-            let rc = sqlite3_step(stmt)
-            if rc == SQLITE_DONE { break }
-            guard rc == SQLITE_ROW else { throw SQLiteError(message: "\(lastError) in: \(sql)") }
-
-            var values: [String: SQLValue] = [:]
-            for col in 0..<sqlite3_column_count(stmt) {
-                let name = String(cString: sqlite3_column_name(stmt, col))
-                values[name] = switch sqlite3_column_type(stmt, col) {
-                case SQLITE_INTEGER: .int(sqlite3_column_int64(stmt, col))
-                case SQLITE_FLOAT: .double(sqlite3_column_double(stmt, col))
-                case SQLITE_TEXT: .text(String(cString: sqlite3_column_text(stmt, col)))
-                default: .null
-                }
+    /// The row a statement has just stepped to.
+    private static func currentRow(of stmt: OpaquePointer?) -> SQLRow {
+        var values: [String: SQLValue] = [:]
+        for col in 0..<sqlite3_column_count(stmt) {
+            let name = String(cString: sqlite3_column_name(stmt, col))
+            values[name] = switch sqlite3_column_type(stmt, col) {
+            case SQLITE_INTEGER: .int(sqlite3_column_int64(stmt, col))
+            case SQLITE_FLOAT: .double(sqlite3_column_double(stmt, col))
+            case SQLITE_TEXT: .text(String(cString: sqlite3_column_text(stmt, col)))
+            default: .null
             }
-            rows.append(SQLRow(values: values))
         }
-        return rows
+        return SQLRow(values: values)
     }
 
     /// Runs `body` in a transaction, rolling back if it throws.

@@ -128,10 +128,10 @@ import Testing
     init() throws {
         store = try CoffeeStore.inMemory()
         for (i, id) in ["b1", "b2", "b3"].enumerated() {
-            try store.db.run(
-                "INSERT INTO beans (id, name, roaster, roast_date, weight_grams, archived, display_order) VALUES (?, 'Bean', 'Roaster', '2026-01-01', 250, 0, ?)",
-                [.text(id), .int(Int64(i + 1))]
-            )
+            try store.db.run("""
+                INSERT INTO beans (id, name, roaster, roast_date, weight_grams, archived, display_order)
+                VALUES (?, 'Bean', 'Roaster', '2026-01-01', 250, 0, ?)
+                """, [.text(id), .int(Int64(i + 1))])
         }
     }
 

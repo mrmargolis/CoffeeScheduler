@@ -44,73 +44,93 @@ public enum CalendarSpans {
             for date in DateUtils.dateRange(o.startDate, o.endDate) { overrideGrams[date] = o.dailyGrams }
         }
 
-        struct Span {
-            var start: String, end: String, name: String, roaster: String
-            var totalGrams: Double, days: Int, isActual: Bool, daysEarly: Int
-        }
-        var events: [CalendarEvent] = []
-        // Open spans, in the order they were started (the web Map's order)
-        var spans: [(id: String, span: Span)] = []
-
-        func spanEvent(_ id: String, _ s: Span) -> CalendarEvent {
-            CalendarEvent(
-                kind: .bean(id: id, roaster: s.roaster), title: s.name, start: s.start, end: s.end,
-                meta: "\(s.days) d · \(Int(s.totalGrams.rounded())) g", isActual: s.isActual, daysEarly: s.daysEarly
-            )
-        }
-        func flushAll() {
-            events += spans.map { spanEvent($0.id, $0.span) }
-            spans.removeAll()
-        }
-
+        var builder = Builder()
         for day in schedule {
             let next = DateUtils.addDays(day.date, 1)
+            func marker(_ kind: CalendarEvent.Kind, _ title: String) -> CalendarEvent {
+                CalendarEvent(kind: kind, title: title, start: day.date, end: next)
+            }
+
             if day.isSkip {
-                events.append(CalendarEvent(kind: .skip, title: skipReason[day.date] ?? "Skip", start: day.date, end: next))
-                flushAll()
+                builder.events.append(marker(.skip, skipReason[day.date] ?? "Skip"))
+                builder.flushAll()
                 continue
             }
             if let grams = overrideGrams[day.date] {
-                events.append(CalendarEvent(kind: .override, title: "\(gramsText(grams)) g/day", start: day.date, end: next))
+                builder.events.append(marker(.override, "\(gramsText(grams)) g/day"))
             }
             if day.isGap && !day.isActual {
-                events.append(CalendarEvent(kind: .gap, title: "No coffee", start: day.date, end: next))
+                builder.events.append(marker(.gap, "No coffee"))
             }
+            builder.add(day, until: next)
+        }
+        builder.flushAll()
+        return builder.events
+    }
 
+    /// A run of consecutive days on one bag, still open to be extended.
+    private struct Span {
+        var beanID: String
+        var start: String, end: String, name: String, roaster: String
+        var totalGrams: Double, days: Int, isActual: Bool, daysEarly: Int
+
+        var event: CalendarEvent {
+            CalendarEvent(
+                kind: .bean(id: beanID, roaster: roaster), title: name, start: start, end: end,
+                meta: "\(days) d · \(Int(totalGrams.rounded())) g", isActual: isActual, daysEarly: daysEarly
+            )
+        }
+    }
+
+    /// Collects events, growing a span while a bag runs on from one day to the next.
+    private struct Builder {
+        var events: [CalendarEvent] = []
+        /// Open spans, in the order they were started (the web Map's order).
+        var spans: [Span] = []
+
+        mutating func flushAll() {
+            events += spans.map(\.event)
+            spans.removeAll()
+        }
+
+        /// The day's bags: one event each on a day shared between bags,
+        /// otherwise one more day on the bag's span.
+        mutating func add(_ day: ScheduleDay, until next: String) {
             if day.consumptions.count > 1 {
                 flushAll()
-                for c in day.consumptions {
-                    events.append(CalendarEvent(
+                events += day.consumptions.map { c in
+                    CalendarEvent(
                         kind: .bean(id: c.beanID, roaster: c.roaster), title: c.beanName, start: day.date, end: next,
                         meta: "\(Int(c.grams.rounded())) g", isActual: day.isActual, daysEarly: c.daysEarly ?? 0
-                    ))
-                }
-                continue
-            }
-            for c in day.consumptions {
-                let early = c.daysEarly ?? 0
-                if let i = spans.firstIndex(where: { $0.id == c.beanID }),
-                   spans[i].span.end == day.date, spans[i].span.isActual == day.isActual {
-                    spans[i].span.end = next
-                    spans[i].span.totalGrams += c.grams
-                    spans[i].span.days += 1
-                    spans[i].span.daysEarly = max(spans[i].span.daysEarly, early)
-                } else {
-                    let fresh = Span(
-                        start: day.date, end: next, name: c.beanName, roaster: c.roaster,
-                        totalGrams: c.grams, days: 1, isActual: day.isActual, daysEarly: early
                     )
-                    if let i = spans.firstIndex(where: { $0.id == c.beanID }) {
-                        events.append(spanEvent(c.beanID, spans[i].span))
-                        spans[i].span = fresh
-                    } else {
-                        spans.append((c.beanID, fresh))
-                    }
                 }
+                return
+            }
+            for c in day.consumptions { extend(with: c, on: day, until: next) }
+        }
+
+        private mutating func extend(with c: Consumption, on day: ScheduleDay, until next: String) {
+            let early = c.daysEarly ?? 0
+            let open = spans.firstIndex { $0.beanID == c.beanID }
+            if let i = open, spans[i].end == day.date, spans[i].isActual == day.isActual {
+                spans[i].end = next
+                spans[i].totalGrams += c.grams
+                spans[i].days += 1
+                spans[i].daysEarly = max(spans[i].daysEarly, early)
+                return
+            }
+
+            let fresh = Span(
+                beanID: c.beanID, start: day.date, end: next, name: c.beanName, roaster: c.roaster,
+                totalGrams: c.grams, days: 1, isActual: day.isActual, daysEarly: early
+            )
+            if let i = open {
+                events.append(spans[i].event)
+                spans[i] = fresh
+            } else {
+                spans.append(fresh)
             }
         }
-        flushAll()
-        return events
     }
 
     /// JavaScript's String() for a number: no trailing ".0".

@@ -37,7 +37,10 @@ struct BeansView: View {
                     Text("Queue")
                 } footer: {
                     if !queue.isEmpty {
-                        Text("Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that order; the rest follow, in-progress first, then by ready date.")
+                        Text("""
+                            Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that \
+                            order; the rest follow, in-progress first, then by ready date.
+                            """)
                     }
                 }
                 let frozen = model.activeBeans.filter(\.isFrozen)
