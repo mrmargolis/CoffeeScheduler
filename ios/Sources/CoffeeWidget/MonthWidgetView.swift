@@ -89,10 +89,8 @@ private struct WidgetWeek: View {
         let left = column * CGFloat(segment.startColumn) + lead
         let width = max(0, column * CGFloat(segment.endColumn - segment.startColumn + 1) - lead - trail)
         if isLarge {
-            return CGRect(
-                x: left, y: Self.largeDateHeight + CGFloat(segment.lane) * Self.largeLaneHeight,
-                width: width, height: Self.largeLaneHeight - 2
-            )
+            let lane = largeLaneHeight(height: height)
+            return CGRect(x: left, y: Self.largeDateHeight + CGFloat(segment.lane) * lane, width: width, height: lane - 2)
         }
         // Medium: every box is the full height of the week, so they line
         // up. Bags that share a day stand side by side in it.
@@ -102,19 +100,26 @@ private struct WidgetWeek: View {
         return CGRect(x: left + place * share, y: 1.5, width: share, height: max(0, height - 3))
     }
 
+    /// The large widget's rows of bars are squeezed, when a week has more
+    /// bags on one day than fit under the dates, so that none is left out.
+    private func largeLaneHeight(height: CGFloat) -> CGFloat {
+        let lanes = CGFloat((segments.map(\.lane).max() ?? 0) + 1)
+        return min(Self.largeLaneHeight, max(0, height - Self.largeDateHeight) / lanes)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let column = geometry.size.width / 7
             let height = geometry.size.height
             let dateHeight = isLarge ? Self.largeDateHeight : height
-            // The large widget shows only the rows of bars that fit under the dates
-            let lanes = isLarge ? max(1, Int((height - Self.largeDateHeight) / Self.largeLaneHeight)) : Int.max
+            // A squeezed bar is too short for its name
+            let fitsTitles = isLarge && largeLaneHeight(height: height) >= 13
             ZStack(alignment: .topLeading) {
-                ForEach(segments.filter { $0.lane < lanes }, id: \.self) { segment in
+                ForEach(segments, id: \.self) { segment in
                     let rect = frame(segment, column: column, height: height)
                     WidgetBar(
                         segment: segment, color: color(segment.event), isLarge: isLarge,
-                        showsTitle: isLarge && (segment.isStart || labelsContinuations)
+                        showsTitle: fitsTitles && (segment.isStart || labelsContinuations)
                     )
                     .frame(width: rect.width, height: rect.height)
                     .offset(x: rect.minX, y: rect.minY)
