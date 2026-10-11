@@ -16,6 +16,11 @@ struct ScheduleView: View {
                         FolderPrompt { pickingFolder = true }
                     }
                 }
+                if !model.schedule.isEmpty {
+                    Section {
+                        RunwayView(summary: model.runway) { path.append(BeanRoute(id: $0)) }
+                    }
+                }
                 ForEach(weeks, id: \.first?.date) { week in
                     Section(Format.weekTitle(week.first!.date, today: model.today)) {
                         ForEach(week) { day in
