@@ -44,6 +44,7 @@ final class ScreenshotTests: XCTestCase {
             ("9-reorder-queue", AnyView(BeansView().environment(\.editMode, .constant(.active))), reordered),
             ("10-day-options", AnyView(NavigationStack { DayOptionsSheet(date: "2026-10-17") }), model),
             ("11-day-override", AnyView(NavigationStack { DayOptionsSheet(date: "2026-10-14") }), model),
+            ("12-month", AnyView(ScheduleView(layout: .month)), model),
         ]
 
         for (name, view, model) in screens {
