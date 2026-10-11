@@ -79,50 +79,50 @@ private struct WidgetWeek: View {
     let isLarge: Bool
     let labelsContinuations: Bool
 
-    /// Where the bars go in a week of a given height.
-    private struct Metrics {
-        let dateHeight: CGFloat
-        let barHeight: CGFloat
-        let firstBar: CGFloat
-        let laneHeight: CGFloat
-        let lanes: Int
-    }
+    private static let largeDateHeight: CGFloat = 19
+    private static let largeLaneHeight: CGFloat = 16
 
-    private func metrics(height: CGFloat) -> Metrics {
+    /// Where a span is drawn in a week of the given size.
+    private func frame(_ segment: MonthGrid.Segment, column: CGFloat, height: CGFloat) -> CGRect {
+        let lead: CGFloat = segment.isStart ? 1.5 : 0
+        let trail: CGFloat = segment.isEnd ? 1.5 : 0
+        let left = column * CGFloat(segment.startColumn) + lead
+        let width = max(0, column * CGFloat(segment.endColumn - segment.startColumn + 1) - lead - trail)
         if isLarge {
-            // Only the rows of bars that fit under the dates
-            return Metrics(dateHeight: 19, barHeight: 14, firstBar: 19, laneHeight: 16, lanes: max(1, Int((height - 19) / 16)))
+            return CGRect(
+                x: left, y: Self.largeDateHeight + CGFloat(segment.lane) * Self.largeLaneHeight,
+                width: width, height: Self.largeLaneHeight - 2
+            )
         }
-        // Two bags on one day share the box's height
-        let lanes = min(2, max(1, (segments.map(\.lane).max() ?? 0) + 1))
-        let lane = max(0, height - 3) / CGFloat(lanes)
-        return Metrics(dateHeight: height, barHeight: lane, firstBar: 1.5, laneHeight: lane, lanes: lanes)
+        // Medium: every box is the full height of the week, so they line
+        // up. Bags that share a day stand side by side in it.
+        let sharing = segments.filter { $0.startColumn <= segment.endColumn && segment.startColumn <= $0.endColumn }
+        let place = CGFloat(sharing.firstIndex(of: segment) ?? 0)
+        let share = width / CGFloat(max(1, sharing.count))
+        return CGRect(x: left + place * share, y: 1.5, width: share, height: max(0, height - 3))
     }
 
     var body: some View {
         GeometryReader { geometry in
             let column = geometry.size.width / 7
-            let metrics = metrics(height: geometry.size.height)
+            let height = geometry.size.height
+            let dateHeight = isLarge ? Self.largeDateHeight : height
+            // The large widget shows only the rows of bars that fit under the dates
+            let lanes = isLarge ? max(1, Int((height - Self.largeDateHeight) / Self.largeLaneHeight)) : Int.max
             ZStack(alignment: .topLeading) {
-                ForEach(segments.filter { $0.lane < metrics.lanes }, id: \.self) { segment in
-                    let lead: CGFloat = segment.isStart ? 1.5 : 0
-                    let trail: CGFloat = segment.isEnd ? 1.5 : 0
+                ForEach(segments.filter { $0.lane < lanes }, id: \.self) { segment in
+                    let rect = frame(segment, column: column, height: height)
                     WidgetBar(
                         segment: segment, color: color(segment.event), isLarge: isLarge,
                         showsTitle: isLarge && (segment.isStart || labelsContinuations)
                     )
-                    .frame(
-                        width: max(0, column * CGFloat(segment.endColumn - segment.startColumn + 1) - lead - trail),
-                        height: metrics.barHeight
-                    )
-                    .offset(
-                        x: column * CGFloat(segment.startColumn) + lead,
-                        y: metrics.firstBar + CGFloat(segment.lane) * metrics.laneHeight)
+                    .frame(width: rect.width, height: rect.height)
+                    .offset(x: rect.minX, y: rect.minY)
                 }
                 HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { offset in
-                        dateLabel(DateUtils.addDays(monday, offset), column: offset, height: metrics.dateHeight)
-                            .frame(width: column, height: metrics.dateHeight)
+                        dateLabel(DateUtils.addDays(monday, offset), column: offset, height: dateHeight)
+                            .frame(width: column, height: dateHeight)
                     }
                 }
             }
