@@ -1,9 +1,18 @@
+import AppIntents
 import SwiftUI
 
 @main
 struct CoffeeSchedulerApp: App {
     @State private var model = AppModel.forLaunch()
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        // Besides refreshing the Siri phrases, this is the only reference to
+        // the intents from the app's own code. Without one the linker leaves
+        // them out of the binary, and running the shortcut fails with "an
+        // internal error occurred".
+        CoffeeShortcuts.updateAppShortcutParameters()
+    }
 
     var body: some Scene {
         WindowGroup {
