@@ -99,7 +99,7 @@ private struct DayRow: View {
 
 @MainActor
 enum Format {
-    private static func date(_ iso: String) -> Date {
+    static func date(_ iso: String) -> Date {
         // Noon UTC rendered in UTC, so the calendar day can't shift.
         Date(timeIntervalSince1970: Double(DateUtils.dayNumber(iso) ?? 0) * 86_400 + 43_200)
     }
@@ -114,6 +114,13 @@ enum Format {
     private static let weekdayFormatter = formatter("EEE")
     private static let shortDayFormatter = formatter("MMM d")
     private static let mediumDayFormatter = formatter("MMM d, yyyy")
+
+    /// The ISO day a date picker's value falls on, read in UTC to match `date(_:)`.
+    static func iso(_ date: Date) -> String {
+        DateUtils.isoString(date, timeZone: utc)
+    }
+
+    static let utc = TimeZone(identifier: "UTC")!
 
     static func weekday(_ iso: String) -> String { weekdayFormatter.string(from: date(iso)) }
     static func shortDay(_ iso: String) -> String { shortDayFormatter.string(from: date(iso)) }

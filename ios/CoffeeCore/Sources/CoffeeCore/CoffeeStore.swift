@@ -156,6 +156,24 @@ public final class CoffeeStore {
         )
     }
 
+    /// Save the user-managed settings on a bag. Mirrors the bean detail
+    /// form's `PATCH /api/beans/[id]`: every field is written, and nil
+    /// clears it (rest days then fall back to the roaster or global default).
+    public func updateBeanSettings(id: String, _ settings: BeanSettings) throws {
+        guard let weight = try db.query("SELECT weight_grams FROM beans WHERE id = ?", [.text(id)])
+            .first?.double("weight_grams")
+        else { throw BeanSettingsError.notFound }
+        try settings.validate(weightGrams: weight)
+
+        try db.run("""
+            UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
+            WHERE id = ?
+            """, [
+                SQLValue(settings.restDays), SQLValue(settings.roastDate),
+                SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
+            ])
+    }
+
     // MARK: - Freezing
 
     /// Total days each bean has spent frozen, from freeze_events. Balanced

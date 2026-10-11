@@ -7,16 +7,27 @@ struct BeanRoute: Hashable {
 }
 
 /// One bag: how much is left, how old it is, when it's scheduled, and its
-/// history. Mirrors `src/components/BeanDetail.tsx`; editing comes in #8.
+/// history. Mirrors `src/components/BeanDetail.tsx`; Edit opens `BeanSettingsForm`.
 struct BeanDetailView: View {
     @Environment(AppModel.self) private var model
     let beanID: String
+    @State private var editing = false
 
     var body: some View {
         if let detail = model.detail(forBean: beanID) {
             content(detail, history: model.history(forBean: beanID))
                 .navigationTitle(detail.bean.name)
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    if !detail.bean.archived {
+                        Button("Edit") { editing = true }
+                    }
+                }
+                .sheet(isPresented: $editing) {
+                    NavigationStack {
+                        BeanSettingsForm(bean: detail.bean, today: model.today)
+                    }
+                }
         } else {
             ContentUnavailableView("Bag not found", systemImage: "questionmark.circle")
         }
