@@ -116,6 +116,10 @@ final class AppModel {
         consumptionOverrides = try store.consumptionOverrides(from: start)
         roasterColors = Scheduler.roasterColors(schedule)
         ageRanges = Scheduler.ageRanges(schedule, beans: activeBeans + archivedBeans, today: today)
+        // Sample data stays out of the real widget
+        if location != nil {
+            WidgetBridge.publish(WidgetSnapshot(schedule: schedule, skipRanges: skipRanges, roasterColors: roasterColors))
+        }
     }
 
     /// Save the working copy to iCloud Drive after a change.

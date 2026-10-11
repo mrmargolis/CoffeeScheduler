@@ -1,8 +1,8 @@
 /// What the month view draws: runs of consecutive days on one bag, plus skip,
 /// gap and override markers. Port of `buildCalendarEvents` in
 /// `src/lib/calendar-utils.ts` (without the web colours, which the app picks).
-public struct CalendarEvent: Hashable, Sendable {
-    public enum Kind: Hashable, Sendable {
+public struct CalendarEvent: Hashable, Sendable, Codable {
+    public enum Kind: Hashable, Sendable, Codable {
         case bean(id: String, roaster: String)
         case skip
         case gap

@@ -50,9 +50,9 @@ enum Format {
         range.start == range.finish ? "day \(range.start)" : "day \(range.start)–\(range.finish)"
     }
 
-    /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
+    /// 0 = Monday ... 6 = Sunday.
     static func weekdayIndex(_ iso: String) -> Int {
-        ((DateUtils.dayNumber(iso) ?? 0) + 3) % 7
+        MonthGrid.weekdayIndex(iso)
     }
 
     static func weekTitle(_ monday: String, today: String) -> String {
