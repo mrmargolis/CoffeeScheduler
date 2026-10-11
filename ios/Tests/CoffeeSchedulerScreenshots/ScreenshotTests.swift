@@ -24,21 +24,27 @@ final class ScreenshotTests: XCTestCase {
         let kenya = try XCTUnwrap(model.detail(forBean: "kenya")?.bean)
         let gesha = try XCTUnwrap(model.detail(forBean: "gesha")?.bean)
 
+        // The same data with the queue dragged into a manual order
+        let reorderedStore = try SampleData.store()
+        try reorderedStore.reorderQueue(["kenya", "guji", "huila"])
+        let reordered = AppModel(store: reorderedStore, today: SampleData.today, folderName: "Coffee")
+
         // Screens are captured without the tab bar: inside a TabView the
         // list screens render blank in this offscreen capture, though they
         // show fine in the app.
-        let screens: [(String, AnyView)] = [
-            ("1-schedule", AnyView(ScheduleView())),
-            ("2-beans", AnyView(BeansView())),
-            ("3-detail-in-progress", AnyView(NavigationStack { BeanDetailView(beanID: "guji") })),
-            ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") })),
-            ("5-detail-frozen", AnyView(NavigationStack { BeanDetailView(beanID: "gesha") })),
-            ("6-settings", AnyView(SettingsView())),
-            ("7-edit-bag", AnyView(NavigationStack { BeanSettingsForm(bean: kenya, today: SampleData.today) })),
-            ("8-edit-frozen-bag", AnyView(NavigationStack { BeanSettingsForm(bean: gesha, today: SampleData.today) })),
+        let screens: [(String, AnyView, AppModel)] = [
+            ("1-schedule", AnyView(ScheduleView()), model),
+            ("2-beans", AnyView(BeansView()), model),
+            ("3-detail-in-progress", AnyView(NavigationStack { BeanDetailView(beanID: "guji") }), model),
+            ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), model),
+            ("5-detail-frozen", AnyView(NavigationStack { BeanDetailView(beanID: "gesha") }), model),
+            ("6-settings", AnyView(SettingsView()), model),
+            ("7-edit-bag", AnyView(NavigationStack { BeanSettingsForm(bean: kenya, today: SampleData.today) }), model),
+            ("8-edit-frozen-bag", AnyView(NavigationStack { BeanSettingsForm(bean: gesha, today: SampleData.today) }), model),
+            ("9-reorder-queue", AnyView(BeansView().environment(\.editMode, .constant(.active))), reordered),
         ]
 
-        for (name, view) in screens {
+        for (name, view, model) in screens {
             for style in [UIUserInterfaceStyle.light, .dark] {
                 let image = render(view.environment(model), style: style)
                 let file = "\(name)-\(style == .dark ? "dark" : "light").png"
