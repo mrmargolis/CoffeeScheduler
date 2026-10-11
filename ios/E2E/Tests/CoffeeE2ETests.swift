@@ -59,6 +59,15 @@ final class CoffeeE2ETests: XCTestCase {
         }
     }
 
+    /// Replace a text field's contents. The fields are right-aligned, so a tap
+    /// in the middle can leave the cursor before the existing digits; tap the
+    /// trailing edge to land after them, then delete.
+    private func replaceText(in field: XCUIElement, with text: String) {
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        let current = (field.value as? String)?.count ?? 0
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current + 2) + text)
+    }
+
     private func openTab(_ name: String) {
         let tab = app.tabBars.buttons[name]
         waitFor(tab)
@@ -115,8 +124,7 @@ final class CoffeeE2ETests: XCTestCase {
 
         let total = app.textFields.firstMatch
         waitFor(total)
-        total.tap()
-        total.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6) + "70")
+        replaceText(in: total, with: "70")
         app.buttons["Set override"].tap()
 
         expectValue(tuesday, "70g day")
@@ -211,12 +219,14 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(add)
         XCTAssertFalse(element(containing: "Square Mile").exists)
 
+        // Menu items aren't always exposed as buttons, so match by label
+        let squareMile = element(containing: "Square Mile")
         add.tap()
-        let squareMile = app.buttons["Square Mile"]
+        if !squareMile.waitForExistence(timeout: 5) { add.tap() }
         waitFor(squareMile)
         squareMile.tap()
 
-        // The roaster now has its own row (starting at the default rest)
-        waitFor(element(containing: "Square Mile"))
+        // The menu closes and the roaster has its own row, at the default rest
+        waitFor(app.staticTexts["Square Mile"])
     }
 }
