@@ -22,6 +22,7 @@ struct ScheduleView: View {
                             DayRow(
                                 day: day,
                                 isToday: day.date == model.today,
+                                override: model.consumptionOverride(on: day.date),
                                 openBean: { path.append(BeanRoute(id: $0)) },
                                 openDay: { dayOptions = DayRoute(date: day.date) }
                             )
@@ -41,7 +42,7 @@ struct ScheduleView: View {
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .sheet(item: $dayOptions) { day in
                 NavigationStack { DayOptionsSheet(date: day.date) }
-                    .presentationDetents([.medium])
+                    .presentationDetents([.medium, .large])
             }
             .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.chooseFolder(url) }
@@ -72,6 +73,7 @@ struct ScheduleView: View {
 private struct DayRow: View {
     let day: ScheduleDay
     let isToday: Bool
+    let override: ConsumptionOverride?
     let openBean: (String) -> Void
     let openDay: () -> Void
 
@@ -82,6 +84,11 @@ private struct DayRow: View {
                 VStack(alignment: .leading) {
                     Text(Format.weekday(day.date)).font(.subheadline.weight(isToday ? .bold : .regular))
                     Text(Format.shortDay(day.date)).font(.caption).foregroundStyle(.secondary)
+                    if let override, !day.isSkip, !day.isActual {
+                        Text("\(Format.grams(override.dailyGrams))g day")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.orange)
+                    }
                 }
                 .frame(width: 56, alignment: .leading)
                 .contentShape(Rectangle())

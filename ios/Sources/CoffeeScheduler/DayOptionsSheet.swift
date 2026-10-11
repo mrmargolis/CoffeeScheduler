@@ -8,11 +8,17 @@ struct DayRoute: Identifiable, Hashable {
 }
 
 /// Options for one schedule day, opened by tapping its date. Mirrors
-/// `src/components/DayOptionsModal.tsx`; for now that's skipping the day.
+/// `src/components/DayOptionsModal.tsx`: skip the day, or drink a different
+/// amount that day.
 struct DayOptionsSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let date: String
+
+    // Pre-filled with the day's override, or the current defaults
+    @State private var dailyGrams: Double?
+    @State private var doseSizeGrams: Double?
+    @State private var error: String?
 
     var body: some View {
         // Read from the model so the toggle follows the saved state
@@ -31,6 +37,37 @@ struct DayOptionsSheet: View {
                     Text("For days away from home: no coffee is planned that day, so the bags after it are pushed back a day.")
                 }
             }
+
+            let existing = model.consumptionOverride(on: date)
+            Section {
+                LabeledContent("Total for the day") {
+                    gramsField($dailyGrams)
+                }
+                LabeledContent("Dose size") {
+                    gramsField($doseSizeGrams)
+                }
+                Button(existing == nil ? "Set override" : "Update override", action: saveOverride)
+                if let existing {
+                    Button("Clear override", role: .destructive) {
+                        model.deleteConsumptionOverride(id: existing.id)
+                        dismiss()
+                    }
+                }
+                if let error {
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                }
+            } header: {
+                Text("Drink more or less")
+            } footer: {
+                Text(existing == nil
+                     ? "Usually \(Format.grams(model.settings.dailyConsumptionGrams)) g a day in \(Format.grams(Scheduler.doseSizeGrams)) g doses."
+                     : "This day has an override; the usual is \(Format.grams(model.settings.dailyConsumptionGrams)) g a day.")
+            }
+        }
+        .onAppear {
+            let existing = model.consumptionOverride(on: date)
+            dailyGrams = existing?.dailyGrams ?? model.settings.dailyConsumptionGrams
+            doseSizeGrams = existing?.doseSizeGrams ?? Scheduler.doseSizeGrams
         }
         .navigationTitle(Format.longDay(date))
         .navigationBarTitleDisplayMode(.inline)
@@ -39,5 +76,19 @@ struct DayOptionsSheet: View {
                 Button("Done") { dismiss() }
             }
         }
+    }
+
+    private func gramsField(_ value: Binding<Double?>) -> some View {
+        HStack(spacing: 4) {
+            TextField("Grams", value: value, format: .number)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+            Text("g").foregroundStyle(.secondary)
+        }
+    }
+
+    private func saveOverride() {
+        error = model.setConsumptionOverride(date: date, dailyGrams: dailyGrams ?? 0, doseSizeGrams: doseSizeGrams ?? 0)
+        if error == nil { dismiss() }
     }
 }

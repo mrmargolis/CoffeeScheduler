@@ -10,6 +10,8 @@ final class AppModel {
     private(set) var archivedBeans: [Bean] = []
     /// Skip ranges from today on.
     private(set) var skipRanges: [SkipRange] = []
+    /// Consumption overrides within the schedule window.
+    private(set) var consumptionOverrides: [ConsumptionOverride] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
     private(set) var today = DateUtils.today()
 
@@ -90,6 +92,7 @@ final class AppModel {
         // Same window as the web app: two months back, four forward.
         let start = DateUtils.firstOfMonth(DateUtils.addMonths(today, -2))
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
+        consumptionOverrides = try store.consumptionOverrides(from: start)
     }
 
     /// Save the working copy to iCloud Drive after a change.
@@ -215,6 +218,30 @@ final class AppModel {
     func deleteSkipRange(id: Int) {
         perform("Couldn't update skip days") {
             try store?.deleteSkipRange(id: id)
+            try save()
+        }
+    }
+
+    func consumptionOverride(on date: String) -> ConsumptionOverride? {
+        consumptionOverrides.first { $0.covers(date) }
+    }
+
+    /// Set a different amount for one day. Returns an error message to show
+    /// in the day sheet, or nil once saved.
+    func setConsumptionOverride(date: String, dailyGrams: Double, doseSizeGrams: Double) -> String? {
+        guard let store else { return "The database isn't open." }
+        do {
+            try store.setConsumptionOverride(date: date, dailyGrams: dailyGrams, doseSizeGrams: doseSizeGrams)
+            try save()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func deleteConsumptionOverride(id: Int) {
+        perform("Couldn't clear the override") {
+            try store?.deleteConsumptionOverride(id: id)
             try save()
         }
     }
