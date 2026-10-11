@@ -52,19 +52,14 @@ struct SettingsView: View {
                     }
                     let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
                     if !unset.isEmpty {
-                        // A navigation picker, not a Menu: it opens a list of
-                        // roasters, and picking one adds it at the default rest
-                        Picker(selection: Binding<String?>(
-                            get: { nil },
-                            set: { if let roaster = $0 { model.setRoasterRestDays(roaster, model.settings.defaultRestDays) } }
-                        )) {
-                            ForEach(unset, id: \.self) { roaster in
-                                Text(roaster).tag(Optional(roaster))
-                            }
+                        // A pushed list, not a Menu: iOS 26 menus can't be
+                        // reached by UI tests. Picking a roaster adds it at the
+                        // default rest and comes back here.
+                        NavigationLink {
+                            AddRoasterList(roasters: unset)
                         } label: {
                             Label("Add a roaster", systemImage: "plus")
                         }
-                        .pickerStyle(.navigationLink)
                     }
                 } header: {
                     Text("Rest by roaster")
@@ -156,5 +151,28 @@ struct FolderPrompt: View {
                 Label("Choose an iCloud Drive folder to keep your data in", systemImage: "icloud")
             }
         }
+    }
+}
+
+/// The roasters in the beans that have no default yet; tapping one adds it.
+private struct AddRoasterList: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let roasters: [String]
+
+    var body: some View {
+        List(roasters, id: \.self) { roaster in
+            Button {
+                model.setRoasterRestDays(roaster, model.settings.defaultRestDays)
+                dismiss()
+            } label: {
+                HStack(spacing: 8) {
+                    RoasterRail(color: model.rail(roaster))
+                    Text(roaster).foregroundStyle(.primary)
+                }
+            }
+        }
+        .navigationTitle("Add a roaster")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
