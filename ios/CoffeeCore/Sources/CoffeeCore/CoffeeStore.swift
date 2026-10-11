@@ -90,6 +90,38 @@ public final class CoffeeStore {
             .map { Self.bean(from: $0, frozenDays: frozen[$0.string("id") ?? ""] ?? 0) }
     }
 
+    public func bean(id: String, today: String = DateUtils.today()) throws -> Bean? {
+        guard let row = try db.query("\(Self.beanSelect) WHERE b.id = ?", [.text(id)]).first else { return nil }
+        return Self.bean(from: row, frozenDays: try frozenDays(today: today)[id] ?? 0)
+    }
+
+    /// The bag's latest brews, newest first.
+    public func recentBrews(beanID: String, limit: Int = 10) throws -> [BrewRecord] {
+        try db.query(
+            "SELECT * FROM brews WHERE bean_id = ? ORDER BY creation_date DESC, id DESC LIMIT ?",
+            [.text(beanID), .int(Int64(limit))]
+        ).map {
+            BrewRecord(
+                creationDate: $0.string("creation_date") ?? "",
+                groundCoffeeGrams: $0.double("ground_coffee_grams") ?? 0,
+                rating: $0.double("rating")
+            )
+        }
+    }
+
+    /// The bag's freezes and thaws, oldest first.
+    public func freezeEvents(beanID: String) throws -> [FreezeEvent] {
+        try db.query(
+            "SELECT * FROM freeze_events WHERE bean_id = ? ORDER BY event_date, id",
+            [.text(beanID)]
+        ).compactMap { row in
+            guard let kind = row.string("event_type").flatMap(FreezeEvent.Kind.init(rawValue:)),
+                  let date = row.string("event_date")
+            else { return nil }
+            return FreezeEvent(kind: kind, date: date)
+        }
+    }
+
     private static func bean(from row: SQLRow, frozenDays: Int) -> Bean {
         Bean(
             id: row.string("id") ?? "",

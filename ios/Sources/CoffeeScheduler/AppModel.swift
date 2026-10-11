@@ -77,6 +77,33 @@ final class AppModel {
         try location.push()
     }
 
+    // MARK: - Bean detail
+
+    func detail(forBean id: String) -> BeanDetail? {
+        guard let bean = activeBeans.first(where: { $0.id == id }) ?? archivedBeans.first(where: { $0.id == id })
+        else { return nil }
+        return BeanDetail(
+            bean: bean,
+            schedule: schedule,
+            dailyConsumptionGrams: settings.dailyConsumptionGrams,
+            today: today
+        )
+    }
+
+    struct BeanHistory {
+        var recentBrews: [BrewRecord] = []
+        var freezeEvents: [FreezeEvent] = []
+    }
+
+    /// Read from the database on demand; small enough to query per view update.
+    func history(forBean id: String) -> BeanHistory {
+        guard let store else { return BeanHistory() }
+        return BeanHistory(
+            recentBrews: (try? store.recentBrews(beanID: id)) ?? [],
+            freezeEvents: (try? store.freezeEvents(beanID: id)) ?? []
+        )
+    }
+
     // MARK: - Actions
 
     /// Import a BeanConqueror export, from the share sheet or the file picker.

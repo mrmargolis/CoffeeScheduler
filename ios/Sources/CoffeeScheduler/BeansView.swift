@@ -10,26 +10,33 @@ struct BeansView: View {
             List {
                 Section("Queue") {
                     ForEach(model.activeBeans.filter { !$0.isFrozen }) { bean in
-                        BeanRow(bean: bean, today: model.today)
+                        NavigationLink(value: BeanRoute(id: bean.id)) {
+                            BeanRow(bean: bean, today: model.today)
+                        }
                     }
                 }
                 let frozen = model.activeBeans.filter(\.isFrozen)
                 if !frozen.isEmpty {
                     Section("Frozen") {
                         ForEach(frozen) { bean in
+                            NavigationLink(value: BeanRoute(id: bean.id)) {
                             BeanRow(bean: bean, today: model.today)
+                        }
                         }
                     }
                 }
                 if !model.archivedBeans.isEmpty {
                     Section("Finished") {
                         ForEach(model.archivedBeans) { bean in
+                            NavigationLink(value: BeanRoute(id: bean.id)) {
                             BeanRow(bean: bean, today: model.today)
+                        }
                         }
                     }
                 }
             }
             .navigationTitle("Beans")
+            .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
         }
     }
 }
