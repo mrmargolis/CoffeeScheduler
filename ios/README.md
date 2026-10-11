@@ -45,7 +45,7 @@ cd ios/CoffeeCore
 swift test        # needs libsqlite3-dev on Linux
 ```
 
-CI (`.github/workflows/ios.yml`) runs these on Linux and type-checks the app
+CI (`.github/workflows/ios.yml`) runs these on Linux (Swift 6.4) and type-checks the app
 against the iOS SDK on a macOS runner.
 
 ## Where the data lives
