@@ -24,7 +24,9 @@ final class ScreenshotTests: XCTestCase {
 
         let screens: [(String, AnyView)] = [
             ("1-schedule", AnyView(RootView(tab: .schedule))),
+            ("1b-schedule-alone", AnyView(ScheduleView())),
             ("2-beans", AnyView(RootView(tab: .beans))),
+            ("2b-beans-alone", AnyView(BeansView())),
             ("3-detail-in-progress", AnyView(NavigationStack { BeanDetailView(beanID: "guji") })),
             ("4-detail-resting", AnyView(NavigationStack { BeanDetailView(beanID: "huila") })),
             ("5-detail-frozen", AnyView(NavigationStack { BeanDetailView(beanID: "gesha") })),
@@ -46,18 +48,29 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func render(_ view: some View, style: UIUserInterfaceStyle) -> UIImage {
-        let window = UIWindow(frame: CGRect(origin: .zero, size: Self.screenSize))
+        // A window attached to the simulator's scene, when the test host has
+        // one, gets the same traits and safe areas as a real app window.
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow()
+        window.frame = CGRect(origin: .zero, size: Self.screenSize)
         window.overrideUserInterfaceStyle = style
-        window.rootViewController = UIHostingController(rootView: view)
+        let host = UIHostingController(rootView: view)
+        host.overrideUserInterfaceStyle = style
+        window.rootViewController = host
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
 
-        // Give SwiftUI a few run loop turns to lay out and fill its lists.
-        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
-        window.layoutIfNeeded()
+        // Give SwiftUI and UIKit several run loop turns to lay out, fill
+        // lists and finish any appearance animations.
+        for _ in 0..<6 {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+            window.layoutIfNeeded()
+        }
+        print("screenshot: scene=\(scene != nil) style=\(style.rawValue) subviews=\(host.view.subviews.count)")
 
         return UIGraphicsImageRenderer(bounds: window.bounds).image { context in
             if !window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) {
+                print("screenshot: drawHierarchy failed, using layer.render")
                 window.layer.render(in: context.cgContext)
             }
         }
