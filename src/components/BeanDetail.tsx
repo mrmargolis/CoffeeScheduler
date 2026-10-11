@@ -106,8 +106,10 @@ export default function BeanDetail({
     settings?.daily_consumption_grams > 0 && bean.remaining_grams > 0
       ? Math.round(bean.remaining_grams / settings.daily_consumption_grams)
       : null;
+  // Freezer time so far; bean.frozen_days runs ahead to the planned thaw.
+  const frozenToDate = bean.frozen_days_to_date ?? bean.frozen_days ?? 0;
   const currentAge = bean.roast_date
-    ? effectiveAge(bean.roast_date, getToday(), bean.frozen_days ?? 0)
+    ? effectiveAge(bean.roast_date, getToday(), frozenToDate)
     : null;
   const finishAge =
     bean.roast_date && window_.finish
@@ -265,10 +267,10 @@ export default function BeanDetail({
             <Fact label="Current age">
               <span className="font-mono tabular-nums">
                 {currentAge} d
-                {(bean.frozen_days ?? 0) > 0 && (
+                {frozenToDate > 0 && (
                   <span className="ml-1 text-ink-faint">
                     ({daysBetween(bean.roast_date, getToday())} calendar,{" "}
-                    {bean.frozen_days} frozen)
+                    {frozenToDate} frozen)
                   </span>
                 )}
               </span>

@@ -22,11 +22,14 @@ export function effectiveAge(
  *
  * For balanced freeze→thaw pairs, sums (thaw - freeze).
  * For a still-active freeze (no matching thaw), counts up to the bean's
- * planned_thaw_date if set, otherwise up to `today`.
+ * planned_thaw_date if set, otherwise up to `today`. That projection is right
+ * for ready dates and the schedule. For a bag's age as of today, pass
+ * `{ projectToPlannedThaw: false }` so an active freeze stops at today.
  */
 export function computeFrozenDays(
   db: Database.Database,
-  today: string
+  today: string,
+  { projectToPlannedThaw = true }: { projectToPlannedThaw?: boolean } = {}
 ): Map<string, number> {
   const events = db
     .prepare(
@@ -50,7 +53,14 @@ export function computeFrozenDays(
     }
   }
 
-  if (activeFreezeStart.size > 0) {
+  if (activeFreezeStart.size > 0 && !projectToPlannedThaw) {
+    for (const [beanId, freezeStart] of activeFreezeStart) {
+      frozenDays.set(
+        beanId,
+        (frozenDays.get(beanId) || 0) + daysBetween(freezeStart, today)
+      );
+    }
+  } else if (activeFreezeStart.size > 0) {
     const plannedThawRows = db
       .prepare(
         "SELECT id, planned_thaw_date FROM beans WHERE id IN (" +
