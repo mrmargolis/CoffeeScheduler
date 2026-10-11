@@ -17,7 +17,7 @@ struct AgeCard: View {
                 if let age = detail.currentAge {
                     let frozen = detail.bean.frozenDaysToDate
                     Text(Format.days(age)).fontWeight(.bold)
-                    Text(frozen > 0 ? "today · \(frozen) spent frozen" : "today").foregroundStyle(Theme.text2)
+                    Text(frozen > 0 ? "today · \(frozen) frozen" : "today").foregroundStyle(Theme.text2)
                 }
             }
             .font(.footnote)
@@ -75,14 +75,13 @@ private struct AgeBar: View {
             let rest = width * track.restFraction
             let now = width * track.todayFraction
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.hairline)
-                Capsule().fill(color).padding(.leading, min(rest, width))
-                Capsule().fill(Theme.dim).frame(width: rest)
+                Capsule().fill(Theme.hairline).frame(height: 6)
+                Capsule().fill(color).frame(height: 6).padding(.leading, min(rest, width))
+                Capsule().fill(Theme.dim).frame(width: rest, height: 6)
                 RoundedRectangle(cornerRadius: 1.5).fill(Theme.accent)
                     .frame(width: 3, height: 22)
                     .offset(x: min(max(0, now - 1.5), width - 3))
             }
-            .frame(height: 6)
             .frame(maxHeight: .infinity)
         }
         .frame(height: 26)

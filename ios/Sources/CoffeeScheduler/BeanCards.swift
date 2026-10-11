@@ -9,8 +9,9 @@ struct QueueCard: View {
     /// The bag's first day in the schedule, if it's scheduled.
     let start: String?
 
-    private var isOnGrinder: Bool { start.map { $0 <= model.today } ?? false }
     private var isOpened: Bool { bean.remainingGrams < bean.weightGrams }
+    /// Opened and in the schedule by today; a bag due to start today isn't yet.
+    private var isOnGrinder: Bool { isOpened && (start.map { $0 <= model.today } ?? false) }
 
     var body: some View {
         let color = model.rail(bean.roaster)
@@ -59,7 +60,7 @@ struct QueueCard: View {
     /// After the grams left: "of 250 left", or for a full bag what's planned.
     private var amountNote: String {
         if isOpened { return "of \(Format.grams(bean.weightGrams)) left" }
-        if let grams = bean.freezeAfterGrams { return "unopened · freeze after \(Format.grams(grams)) g" }
+        if let grams = bean.freezeAfterGrams { return "· freeze after \(Format.grams(grams)) g" }
         if let start { return "unopened · starts \(Format.shortDay(start))" }
         return "unopened"
     }

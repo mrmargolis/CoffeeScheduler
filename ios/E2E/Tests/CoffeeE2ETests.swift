@@ -43,6 +43,13 @@ final class CoffeeE2ETests: XCTestCase {
         list.tap()
     }
 
+    /// Drag a day's row right to show its swipe action. The date itself is
+    /// too narrow for `swipeRight()` to travel far enough.
+    private func revealSwipeAction(on day: XCUIElement) {
+        let start = day.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 130, dy: 0)))
+    }
+
     private func value(of element: XCUIElement) -> String {
         element.value as? String ?? ""
     }
@@ -102,13 +109,13 @@ final class CoffeeE2ETests: XCTestCase {
         let thursday = day("2026-10-15")
         waitFor(thursday)
 
-        thursday.swipeRight()
+        revealSwipeAction(on: thursday)
         let skip = app.buttons["Skip"]
         waitFor(skip)
         skip.tap()
         expectValue(thursday, "Skipped")
 
-        thursday.swipeRight()
+        revealSwipeAction(on: thursday)
         let unskip = app.buttons["Don't skip"]
         waitFor(unskip)
         unskip.tap()
