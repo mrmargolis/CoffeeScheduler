@@ -63,6 +63,21 @@ msedge --headless=new --hide-scrollbars --force-device-scale-factor=1 `
   --window-size=1024,1024 --screenshot="$PWD\Support\AppIcon.png" "$PWD\Support\AppIcon.svg"
 ```
 
+## Linting
+
+```bash
+cd ios
+./lint.sh          # SwiftLint, every warning an error
+./lint.sh --fix    # apply the fixes SwiftLint can make itself
+```
+
+`lint.sh` downloads a pinned, checksum-verified SwiftLint (Linux or WSL) and
+CI runs the same script. `.swiftlint.yml` holds the rules, including caps on
+size and complexity: cyclomatic complexity 10, 50 lines per function, 60 per
+closure, 5 parameters, 250 lines per type and 500 per file. Nothing is exempt:
+when code trips a cap, split it up rather than adding a `swiftlint:disable`
+comment.
+
 ## Tests
 
 ```bash
@@ -70,8 +85,8 @@ cd ios/CoffeeCore
 swift test        # needs libsqlite3-dev on Linux
 ```
 
-CI (`.github/workflows/ios.yml`) runs these on Linux (Swift 6.4) and type-checks the app
-against the iOS SDK on a macOS runner. On an iOS Simulator it also:
+CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4) and
+type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
 - renders every screen over sample data, light and dark, and uploads the
   images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);

@@ -1,0 +1,60 @@
+# SwiftLint for the app, CoffeeCore and their tests. CI runs
+# `swiftlint lint --strict` from ios/, so every warning fails the build and
+# each cap below is a single hard limit.
+included:
+  - Package.swift
+  - Sources
+  - Tests
+  - E2E
+  - CoffeeCore/Package.swift
+  - CoffeeCore/Sources
+  - CoffeeCore/Tests
+
+opt_in_rules:
+  - closure_body_length
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - empty_count
+  - first_where
+  - last_where
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - toggle_bool
+
+# Size and complexity caps. Nothing is exempt: when code trips one, split it
+# up rather than adding a `swiftlint:disable` comment.
+cyclomatic_complexity:
+  warning: 10
+function_body_length:
+  warning: 50
+closure_body_length:
+  warning: 60
+function_parameter_count:
+  warning: 5
+type_body_length:
+  warning: 250
+file_length:
+  warning: 500
+  ignore_comment_only_lines: true
+nesting:
+  type_level: 2
+  function_level: 2
+large_tuple:
+  warning: 3
+
+# Prose and SQL in string literals may run long; code may not.
+line_length:
+  warning: 150
+  ignores_urls: true
+  ignores_interpolated_strings: true
+  ignores_multiline_strings: true
+
+# Short names are fine in a closure or a loop (`i`, `c`, `db`, `id`).
+identifier_name:
+  min_length: 1
+
+disabled_rules:
+  # Multi-line literals here end with a comma, which the default forbids.
+  - trailing_comma
+  # Needs SourceKit, which the static Linux binary CI uses doesn't have.
+  - statement_position

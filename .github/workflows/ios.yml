@@ -15,6 +15,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    # Style, size and complexity caps from ios/.swiftlint.yml. lint.sh pins
+    # the SwiftLint release and verifies its checksum.
+    name: SwiftLint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: ./lint.sh --reporter github-actions-logging
+
   core-tests:
     name: CoffeeCore tests (Linux)
     # The 24.04 image ships Swift 6.4, the toolchain xtool's Linux guide asks
