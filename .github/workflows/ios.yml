@@ -146,3 +146,51 @@ jobs:
           name: e2e-results
           path: ${{ runner.temp }}/e2e.xcresult
           retention-days: 14
+
+  intents-metadata:
+    # The widget's buttons run App Intents, and iOS finds those through a
+    # Metadata.appintents bundle that only Xcode's build generates. This
+    # builds the widget as an Xcode extension and uploads that bundle; the
+    # copy xtool ships is ios/Support/IntentsMetadata/Metadata.appintents.
+    name: Widget intents metadata
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install XcodeGen
+        env:
+          XCODEGEN_VERSION: 2.42.0
+          XCODEGEN_SHA256: a760b4bf97460341316a2c00d8c87b2946c6c2729eb57e9a72abb3ef7bc0ef82
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+          echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+      - name: Build the widget with Xcode
+        run: |
+          xcodegen generate --spec Support/IntentsMetadata/project.yml
+          xcodebuild build -project Support/IntentsMetadata/CoffeeIntents.xcodeproj -target CoffeeWidget \
+            -sdk iphoneos -configuration Release SYMROOT="$RUNNER_TEMP/intents" CODE_SIGNING_ALLOWED=NO
+      - name: Collect the metadata
+        run: |
+          found=$(find "$RUNNER_TEMP/intents" -type d -name Metadata.appintents -path '*CoffeeWidget.appex*' | head -n 1)
+          test -n "$found"
+          mkdir -p "$RUNNER_TEMP/metadata"
+          cp -R "$found" "$RUNNER_TEMP/metadata/"
+          find "$RUNNER_TEMP/metadata" -type f -exec ls -l {} \;
+          # Say so when the committed copy has fallen behind the widget's intents
+          if ! diff -r "$found" Support/IntentsMetadata/Metadata.appintents; then
+            echo "::warning::ios/Support/IntentsMetadata/Metadata.appintents differs from what Xcode generates; replace it with this run's widget-intents-metadata artifact."
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: widget-intents-metadata
+          path: ${{ runner.temp }}/metadata
+          if-no-files-found: error
+          retention-days: 30

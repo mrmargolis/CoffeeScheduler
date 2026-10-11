@@ -1,0 +1,35 @@
+# Builds the widget as an Xcode app extension, only to get the App Intents
+# metadata Xcode generates for it (Metadata.appintents). iOS needs that bundle
+# to run the widget's buttons, and xtool, which builds with SwiftPM, doesn't
+# produce it. CI builds this and uploads the bundle; the copy xtool ships is
+# committed beside this file. Nothing built here is installed.
+name: CoffeeIntents
+options:
+  bundleIdPrefix: net.mattmargolis
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  CoffeeCore:
+    path: ../../CoffeeCore
+targets:
+  CoffeeWidget:
+    type: app-extension
+    platform: iOS
+    sources: [../../Sources/CoffeeWidget]
+    dependencies:
+      - package: CoffeeCore
+        product: CoffeeCore
+    info:
+      path: Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        # The metadata names each intent by module, so this must match the
+        # SwiftPM target's name.
+        PRODUCT_NAME: CoffeeWidget
+        PRODUCT_MODULE_NAME: CoffeeWidget
+        PRODUCT_BUNDLE_IDENTIFIER: net.mattmargolis.CoffeeScheduler.CoffeeWidget
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: NO

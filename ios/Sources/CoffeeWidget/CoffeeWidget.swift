@@ -29,13 +29,15 @@ struct MonthEntry: TimelineEntry {
     let date: Date
     /// The ISO day the entry is drawn for.
     let today: String
+    /// First of the month shown, which the arrows move.
+    let month: String
     /// Nil until the app has written one.
     let snapshot: WidgetSnapshot?
 }
 
 struct MonthProvider: TimelineProvider {
     func placeholder(in context: Context) -> MonthEntry {
-        MonthEntry(date: .now, today: DateUtils.today(), snapshot: nil)
+        MonthEntry(date: .now, today: DateUtils.today(), month: DateUtils.firstOfMonth(DateUtils.today()), snapshot: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping @Sendable (MonthEntry) -> Void) {
@@ -50,7 +52,8 @@ struct MonthProvider: TimelineProvider {
     }
 
     private static func entry() -> MonthEntry {
-        MonthEntry(date: .now, today: DateUtils.today(), snapshot: load())
+        let today = DateUtils.today()
+        return MonthEntry(date: .now, today: today, month: ShownMonth.current(today: today), snapshot: load())
     }
 
     /// The snapshot the app last wrote into the shared App Group container.

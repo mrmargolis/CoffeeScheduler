@@ -1,23 +1,17 @@
+import AppIntents
 import CoffeeCore
-
 import SwiftUI
-
-/// The month grid at widget size: dates with each bag's bar beneath. The
-/// large widget names the bags; the medium one has room only for the bars.
 import WidgetKit
 
-/// One week of the grid. The large widget puts the spans in up to two rows
-/// under the dates; the medium one has no room for that, so each span is a
-/// box behind its dates.
-
-/// One span in a week: solid for brewed days, tinted and outlined for
-/// projected ones, dashed for skipped days and days with no coffee.
+/// The month grid at widget size. The large widget puts a named bar per bag
+/// under the dates; the medium one draws each bag as a box behind its dates
+/// and lists the bags beside the grid.
 struct MonthWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: MonthEntry
 
     var body: some View {
-        let month = DateUtils.firstOfMonth(entry.today)
+        let month = entry.month
         if family == .systemLarge {
             grid(month: month, isLarge: true)
         } else {
@@ -59,21 +53,54 @@ struct MonthWidgetView: View {
     }
 
     private func header(isLarge: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(entry.date, format: .dateTime.month(.wide).year())
-                .font(.system(size: isLarge ? 15 : 12, weight: .bold))
-                .foregroundStyle(Palette.text)
-            Spacer()
+        HStack(spacing: isLarge ? 6 : 2) {
+            arrow(-1, icon: "chevron.left", isLarge: isLarge)
+            // The title goes back to the current month
+            Button(intent: ShiftMonthIntent(months: 0)) {
+                Text(Self.title(entry.month))
+                    .font(.system(size: isLarge ? 15 : 12, weight: .bold))
+                    .foregroundStyle(Palette.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .buttonStyle(.plain)
+            arrow(1, icon: "chevron.right", isLarge: isLarge)
+            Spacer(minLength: 0)
             if entry.snapshot == nil && isLarge {
                 Text("Open the app to load the schedule")
-                    .font(.system(size: isLarge ? 11 : 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(Palette.accent)
                     .lineLimit(1)
             }
         }
         .padding(.bottom, isLarge ? 6 : 3)
     }
+
+    private func arrow(_ months: Int, icon: String, isLarge: Bool) -> some View {
+        let isEnabled = ShownMonth.canMove(months, today: entry.today)
+        return Button(intent: ShiftMonthIntent(months: months)) {
+            Image(systemName: icon)
+                .font(.system(size: isLarge ? 12 : 10, weight: .bold))
+                .foregroundStyle(isEnabled ? Palette.accent : Palette.dim)
+                .frame(width: isLarge ? 28 : 20, height: isLarge ? 24 : 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel(months < 0 ? "Previous month" : "Next month")
+    }
+
+    /// "October 2026" for the first of a month, read in UTC so it can't shift.
+    private static func title(_ month: String) -> String {
+        var style = Date.FormatStyle.dateTime.month(.wide).year()
+        style.timeZone = TimeZone(identifier: "UTC") ?? .current
+        return Date(timeIntervalSince1970: Double(DateUtils.dayNumber(month) ?? 0) * 86_400 + 43_200).formatted(style)
+    }
 }
+
+/// One week of the grid. The large widget puts the spans in rows under the
+/// dates; the medium one has no room for that, so each span is a box behind
+/// its dates.
 private struct WidgetWeek: View {
     let monday: String
     let month: String
@@ -187,6 +214,9 @@ private struct WidgetWeek: View {
         }
     }
 }
+
+/// One span in a week: solid for brewed days, tinted for projected ones,
+/// dashed for skipped days and days with no coffee.
 private struct WidgetBar: View {
     let segment: MonthGrid.Segment
     let color: Color
