@@ -78,6 +78,28 @@ public struct SkipRange: Hashable, Sendable, Identifiable {
     public var reason: String?
 }
 
+/// A different daily amount and dose size for a run of days, inclusive.
+/// Row of `consumption_overrides`.
+public struct ConsumptionOverride: Hashable, Sendable, Identifiable {
+    public var id: Int
+    public var startDate: String
+    public var endDate: String
+    public var dailyGrams: Double
+    public var doseSizeGrams: Double
+
+    public func covers(_ date: String) -> Bool { startDate <= date && date <= endDate }
+}
+
+public enum ConsumptionOverrideError: LocalizedError, Equatable {
+    case notPositive
+
+    public var errorDescription: String? {
+        switch self {
+        case .notPositive: "The day's total and the dose size must both be more than 0 g."
+        }
+    }
+}
+
 public struct ScheduleSettings: Hashable, Sendable {
     public var dailyConsumptionGrams: Double
     public var defaultRestDays: Int

@@ -371,6 +371,41 @@ public final class CoffeeStore {
         }
     }
 
+    // MARK: - Consumption overrides
+
+    /// Overrides that haven't ended before `from`, earliest first.
+    /// Port of `GET /api/consumption-overrides`.
+    public func consumptionOverrides(from: String) throws -> [ConsumptionOverride] {
+        try db.query(
+            "SELECT * FROM consumption_overrides WHERE end_date >= ? ORDER BY start_date, id", [.text(from)]
+        ).compactMap { row in
+            guard let id = row.int("id"), let start = row.string("start_date"), let end = row.string("end_date"),
+                  let daily = row.double("daily_grams"), let dose = row.double("dose_size_grams")
+            else { return nil }
+            return ConsumptionOverride(id: id, startDate: start, endDate: end, dailyGrams: daily, doseSizeGrams: dose)
+        }
+    }
+
+    /// Set a different amount for one day, as the web app's day options do:
+    /// an override already covering the day is replaced by a one-day override.
+    public func setConsumptionOverride(date: String, dailyGrams: Double, doseSizeGrams: Double) throws {
+        guard dailyGrams > 0, doseSizeGrams > 0, dailyGrams.isFinite, doseSizeGrams.isFinite
+        else { throw ConsumptionOverrideError.notPositive }
+        try db.transaction {
+            if let existing = try consumptionOverrides(from: date).first(where: { $0.covers(date) }) {
+                try deleteConsumptionOverride(id: existing.id)
+            }
+            try db.run(
+                "INSERT INTO consumption_overrides (start_date, end_date, daily_grams, dose_size_grams) VALUES (?, ?, ?, ?)",
+                [.text(date), .text(date), .double(dailyGrams), .double(doseSizeGrams)]
+            )
+        }
+    }
+
+    public func deleteConsumptionOverride(id: Int) throws {
+        try db.run("DELETE FROM consumption_overrides WHERE id = ?", [.int(Int64(id))])
+    }
+
     /// Renumber manually ordered beans 1, 2, 3, ... with no gaps.
     func resequenceDisplayOrder() throws {
         let ids = try db.query("SELECT id FROM beans WHERE display_order IS NOT NULL ORDER BY display_order")
