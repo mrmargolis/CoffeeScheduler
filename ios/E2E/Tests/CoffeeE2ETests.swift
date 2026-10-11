@@ -59,13 +59,11 @@ final class CoffeeE2ETests: XCTestCase {
         }
     }
 
-    /// Replace a text field's contents. The fields are right-aligned, so a tap
-    /// in the middle can leave the cursor before the existing digits; tap the
-    /// trailing edge to land after them, then delete.
+    /// Replace a text field's contents: double-tap selects the number already
+    /// there (a single tap can leave the cursor before it), then type over it.
     private func replaceText(in field: XCUIElement, with text: String) {
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
-        let current = (field.value as? String)?.count ?? 0
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current + 2) + text)
+        field.doubleTap()
+        field.typeText(text)
     }
 
     private func openTab(_ name: String) {
@@ -221,8 +219,17 @@ final class CoffeeE2ETests: XCTestCase {
 
         // Menu items aren't always exposed as buttons, so match by label
         let squareMile = element(containing: "Square Mile")
-        add.tap()
-        if !squareMile.waitForExistence(timeout: 5) { add.tap() }
+        // A Menu in a Form doesn't always open on the first synthesized tap;
+        // try the row, its label, then a short press.
+        let attempts: [() -> Void] = [
+            { add.tap() },
+            { add.staticTexts.firstMatch.tap() },
+            { add.press(forDuration: 0.6) },
+        ]
+        for attempt in attempts where !squareMile.exists {
+            attempt()
+            _ = squareMile.waitForExistence(timeout: 4)
+        }
         waitFor(squareMile)
         squareMile.tap()
 
