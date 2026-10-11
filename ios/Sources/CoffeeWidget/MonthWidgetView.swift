@@ -1,9 +1,17 @@
 import CoffeeCore
+
 import SwiftUI
-import WidgetKit
 
 /// The month grid at widget size: dates with each bag's bar beneath. The
 /// large widget names the bags; the medium one has room only for the bars.
+import WidgetKit
+
+/// One week of the grid. The large widget puts the spans in up to two rows
+/// under the dates; the medium one has no room for that, so each span is a
+/// box behind its dates.
+
+/// One span in a week: solid for brewed days, tinted and outlined for
+/// projected ones, dashed for skipped days and days with no coffee.
 struct MonthWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: MonthEntry
@@ -66,10 +74,6 @@ struct MonthWidgetView: View {
         .padding(.bottom, isLarge ? 6 : 3)
     }
 }
-
-/// One week of the grid. The large widget puts the spans in up to two rows
-/// under the dates; the medium one has no room for that, so each span is a
-/// box behind its dates.
 private struct WidgetWeek: View {
     let monday: String
     let month: String
@@ -160,16 +164,19 @@ private struct WidgetWeek: View {
                 .frame(width: 17, height: 17)
                 .background(Palette.accent, in: Circle())
         } else if date == today {
-            // A gold outline round the day's box, so the bag's colour still shows
+            // An outline round the day's box, so the bag's colour still shows
             number
                 .fontWeight(.bold)
                 .foregroundStyle(isOnSolidBox(column: column) ? Palette.ground : Palette.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Cream with a dark line inside it: gold alone gets lost
+                // against the roaster colours
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(Palette.accent, lineWidth: 2.5)
-                        .padding(.horizontal, 0.5)
-                        .padding(.vertical, 0.5)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 4).strokeBorder(Palette.text, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 2.5).strokeBorder(Palette.ground, lineWidth: 1).padding(2)
+                    }
+                    .padding(0.5)
                 )
         } else if isOnSolidBox(column: column) {
             number.foregroundStyle(Palette.ground)
@@ -180,9 +187,6 @@ private struct WidgetWeek: View {
         }
     }
 }
-
-/// One span in a week: solid for brewed days, tinted and outlined for
-/// projected ones, dashed for skipped days and days with no coffee.
 private struct WidgetBar: View {
     let segment: MonthGrid.Segment
     let color: Color
