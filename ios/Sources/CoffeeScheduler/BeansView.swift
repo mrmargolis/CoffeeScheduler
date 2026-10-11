@@ -2,18 +2,41 @@ import CoffeeCore
 import SwiftUI
 
 /// The bean queue in the order the scheduler will use it, plus finished bags.
-/// Swipe a bag to freeze or thaw it.
+/// Edit mode drags bags into a manual order (like the web app's drag to
+/// reorder); swipe a bag to freeze or thaw it, or back to automatic order.
 struct BeansView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmingFreeze: Bean?
 
     var body: some View {
+        let queue = model.activeBeans.filter { !$0.isFrozen }
         NavigationStack {
             List {
-                Section("Queue") {
-                    ForEach(model.activeBeans.filter { !$0.isFrozen }) { bean in
+                Section {
+                    ForEach(queue) { bean in
                         row(bean)
                             .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                            .swipeActions(edge: .leading) {
+                                if bean.displayOrder != nil {
+                                    Button {
+                                        model.clearQueueOrder(id: bean.id)
+                                    } label: {
+                                        Label("Auto order", systemImage: "arrow.uturn.backward")
+                                    }
+                                    .tint(.gray)
+                                }
+                            }
+                    }
+                    .onMove { from, to in
+                        var ids = queue.map(\.id)
+                        ids.move(fromOffsets: from, toOffset: to)
+                        model.reorderQueue(ids)
+                    }
+                } header: {
+                    Text("Queue")
+                } footer: {
+                    if !queue.isEmpty {
+                        Text("Tap Edit to drag bags into the order you'll drink them. Numbered bags are in that order; the rest follow, in-progress first, then by ready date.")
                     }
                 }
                 let frozen = model.activeBeans.filter(\.isFrozen)
@@ -34,6 +57,22 @@ struct BeansView: View {
             .navigationTitle("Beans")
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .freezeConfirmation(for: $confirmingFreeze)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
+                if queue.contains(where: { $0.displayOrder != nil }) {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button("Use automatic order", systemImage: "arrow.uturn.backward") {
+                                model.clearQueueOrder()
+                            }
+                        } label: {
+                            Label("Queue order", systemImage: "ellipsis.circle")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -50,7 +89,15 @@ private struct BeanRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(bean.name).font(.headline)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if let order = bean.displayOrder, !bean.isFrozen, !bean.archived {
+                    Text("\(order)")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Position \(order)")
+                }
+                Text(bean.name).font(.headline)
+            }
             if !bean.roaster.isEmpty {
                 Text(bean.roaster).font(.subheadline).foregroundStyle(.secondary)
             }

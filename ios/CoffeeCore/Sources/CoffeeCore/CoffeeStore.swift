@@ -273,6 +273,37 @@ public final class CoffeeStore {
         }
     }
 
+    // MARK: - Queue order
+
+    /// Set the manual queue order to `ids`, numbered 1...n, as dragging a bag
+    /// in the web app's queue does. Any other bag that still has a manual
+    /// position keeps its relative order after them, so no two bags share
+    /// a number.
+    public func reorderQueue(_ ids: [String]) throws {
+        try db.transaction {
+            let others = try db.query("SELECT id FROM beans WHERE display_order IS NOT NULL ORDER BY display_order")
+                .compactMap { $0.string("id") }
+                .filter { !ids.contains($0) }
+            for (i, id) in (ids + others).enumerated() {
+                try db.run("UPDATE beans SET display_order = ? WHERE id = ?", [.int(Int64(i + 1)), .text(id)])
+            }
+        }
+    }
+
+    /// Drop a bag's manual position so it's queued automatically again
+    /// (after the manually ordered bags, in progress first, then by ready date).
+    public func clearQueuePosition(id: String) throws {
+        try db.transaction {
+            try db.run("UPDATE beans SET display_order = NULL WHERE id = ?", [.text(id)])
+            try resequenceDisplayOrder()
+        }
+    }
+
+    /// Drop every manual position, returning the whole queue to automatic order.
+    public func clearQueueOrder() throws {
+        try db.run("UPDATE beans SET display_order = NULL")
+    }
+
     /// Renumber manually ordered beans 1, 2, 3, ... with no gaps.
     func resequenceDisplayOrder() throws {
         let ids = try db.query("SELECT id FROM beans WHERE display_order IS NOT NULL ORDER BY display_order")

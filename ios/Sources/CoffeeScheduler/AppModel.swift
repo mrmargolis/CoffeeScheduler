@@ -181,6 +181,26 @@ final class AppModel {
         }
     }
 
+    /// Save the queue in this order; the scheduler treats it as authoritative.
+    func reorderQueue(_ ids: [String]) {
+        perform("Couldn't reorder the queue") {
+            try store?.reorderQueue(ids)
+            try save()
+        }
+    }
+
+    /// Return one bag, or with nil the whole queue, to automatic order.
+    func clearQueueOrder(id: String? = nil) {
+        perform("Couldn't reorder the queue") {
+            if let id {
+                try store?.clearQueuePosition(id: id)
+            } else {
+                try store?.clearQueueOrder()
+            }
+            try save()
+        }
+    }
+
     func updateSettings(_ newValue: ScheduleSettings) {
         perform("Couldn't save settings") {
             try store?.updateSettings(newValue)

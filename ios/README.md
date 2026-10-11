@@ -89,7 +89,7 @@ example, one entered in the app); the web import clears it.
 ## Not ported yet
 
 The app shows the schedule, the bean queue, each bag's detail, and the two
-global settings, and can edit a bag's settings and freeze or thaw it. Queue
-order, roaster defaults, skip days, consumption overrides, and publishing are
+global settings, and can edit a bag's settings, freeze or thaw it, and reorder
+the queue. Roaster defaults, skip days, consumption overrides, and publishing are
 only in the web app for now (tracked in issue #6). All of them are already
 stored in the shared database and are honored by the iOS schedule.
