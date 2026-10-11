@@ -217,23 +217,13 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(add)
         XCTAssertFalse(element(containing: "Square Mile").exists)
 
-        // Menu items aren't always exposed as buttons, so match by label
-        let squareMile = element(containing: "Square Mile")
-        // A Menu in a Form doesn't always open on the first synthesized tap;
-        // try the row, its label, then a short press.
-        let attempts: [() -> Void] = [
-            { add.tap() },
-            { add.staticTexts.firstMatch.tap() },
-            { add.press(forDuration: 0.6) },
-        ]
-        for attempt in attempts where !squareMile.exists {
-            attempt()
-            _ = squareMile.waitForExistence(timeout: 4)
-        }
+        add.tap()
+        let squareMile = app.buttons["Square Mile"]
         waitFor(squareMile)
         squareMile.tap()
 
-        // The menu closes and the roaster has its own row, at the default rest
+        // Back in Settings, the roaster has its own row at the default rest
+        waitFor(app.navigationBars["Settings"])
         waitFor(app.staticTexts["Square Mile"])
     }
 }

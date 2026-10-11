@@ -52,15 +52,19 @@ struct SettingsView: View {
                     }
                     let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
                     if !unset.isEmpty {
-                        Menu {
+                        // A navigation picker, not a Menu: it opens a list of
+                        // roasters, and picking one adds it at the default rest
+                        Picker(selection: Binding<String?>(
+                            get: { nil },
+                            set: { if let roaster = $0 { model.setRoasterRestDays(roaster, model.settings.defaultRestDays) } }
+                        )) {
                             ForEach(unset, id: \.self) { roaster in
-                                Button(roaster) {
-                                    model.setRoasterRestDays(roaster, model.settings.defaultRestDays)
-                                }
+                                Text(roaster).tag(Optional(roaster))
                             }
                         } label: {
                             Label("Add a roaster", systemImage: "plus")
                         }
+                        .pickerStyle(.navigationLink)
                     }
                 } header: {
                     Text("Rest by roaster")
