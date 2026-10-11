@@ -11,36 +11,28 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            List {
+                ScreenHeader(eyebrow: "Coffee Scheduler", title: "Settings")
+                    // Top inset: the section's rounded corner would clip the first line
+                    .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 0, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 Group {
                     scheduleSection
                     roasterSection
                     skipDaysSection
-
-                    Section {
-                        Button("Import BeanConqueror export…") { pick(.export) }
-                    } footer: {
-                        Text("You can also share the export ZIP from BeanConqueror straight to this app.")
-                    }
-
-                    Section {
-                        FolderPrompt { pick(.folder) }
-                    } header: {
-                        Text("Storage")
-                    } footer: {
-                        Text(
-                            """
-                            The database is saved as \(DatabaseLocation.fileName) in this folder and synced by iCloud Drive. \
-                            The web app's data/coffee.db can be dropped in here too.
-                            """
-                        )
-                    }
+                    dataSection
                 }
                 .listRowBackground(Theme.card)
                 .listRowSeparatorTint(Theme.hairline)
             }
+            .listSectionSpacing(16)
+            .contentMargins(.top, 0, for: .scrollContent)
             .themedList()
+            .statusBarCover()
+            // The title is drawn in the list; this one names the back button
             .navigationTitle("Settings")
+            .toolbar(.hidden, for: .navigationBar)
             .fileImporter(
                 isPresented: $showingImporter,
                 allowedContentTypes: picking == .folder ? [.folder] : [.zip]
@@ -57,37 +49,36 @@ struct SettingsView: View {
 
     private var scheduleSection: some View {
         Section {
-            LabeledContent("Daily coffee") {
-                Stepper(
-                    "\(Format.grams(model.settings.dailyConsumptionGrams))g",
-                    value: setting(\.dailyConsumptionGrams),
-                    in: 15...150,
-                    step: 5
+            SettingRow(title: "Daily coffee", subtitle: "In \(Format.grams(Scheduler.doseSizeGrams)) g doses") {
+                StepperWell(
+                    text: "\(Format.grams(model.settings.dailyConsumptionGrams)) g", subject: "daily coffee",
+                    value: Binding(
+                        get: { Int(model.settings.dailyConsumptionGrams) },
+                        set: { update(\.dailyConsumptionGrams, to: Double($0)) }
+                    ),
+                    range: 15...150, step: 5
                 )
             }
-            LabeledContent("Default rest") {
-                Stepper(
-                    "\(model.settings.defaultRestDays) days",
-                    value: setting(\.defaultRestDays),
-                    in: 0...90
+            SettingRow(title: "Default rest", subtitle: "From roast to first cup") {
+                StepperWell(
+                    text: "\(model.settings.defaultRestDays) d", subject: "rest days",
+                    value: Binding(get: { model.settings.defaultRestDays }, set: { update(\.defaultRestDays, to: $0) }),
+                    range: 0...90
                 )
             }
         } header: {
-            Text("Schedule")
+            SectionLabel(title: "Schedule").listRowInsets(Theme.labelInsets)
         }
     }
 
     private var roasterSection: some View {
         Section {
             ForEach(model.roasterDefaults) { entry in
-                LabeledContent(entry.roaster) {
-                    Stepper(
-                        "\(entry.restDays) days",
-                        value: Binding(
-                            get: { entry.restDays },
-                            set: { model.setRoasterRestDays(entry.roaster, $0) }
-                        ),
-                        in: 0...90
+                SettingRow(title: entry.roaster, dot: model.rail(entry.roaster)) {
+                    StepperWell(
+                        text: "\(entry.restDays) d", subject: "rest days for \(entry.roaster)",
+                        value: Binding(get: { entry.restDays }, set: { model.setRoasterRestDays(entry.roaster, $0) }),
+                        range: 0...90
                     )
                 }
             }
@@ -105,33 +96,36 @@ struct SettingsView: View {
                     AddRoasterList(roasters: unset)
                 } label: {
                     Label("Add a roaster", systemImage: "plus")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
                 }
             }
         } header: {
-            Text("Rest by roaster")
+            SectionLabel(title: "Rest by roaster").listRowInsets(Theme.labelInsets)
         } footer: {
-            Text(
-                """
-                A bag rests for its own days if set, else its roaster's, else the default rest above. \
-                Swipe a roaster to remove it.
-                """)
+            SectionFooter(
+                text: """
+                    A bag rests for its own days if set, else its roaster's, else the default rest above. \
+                    Swipe a roaster to remove it.
+                    """)
         }
     }
 
     private var skipDaysSection: some View {
         Section {
             if model.skipRanges.isEmpty {
-                Text("None").foregroundStyle(.secondary)
+                Text("None").foregroundStyle(Theme.text2)
             }
             ForEach(model.skipRanges) { range in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(
-                        range.startDate == range.endDate
-                            ? Format.mediumDay(range.startDate)
-                            : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))")
-                    if let reason = range.reason, !reason.isEmpty {
-                        Text(reason).font(.caption).foregroundStyle(.secondary)
-                    }
+                let dates =
+                    range.startDate == range.endDate
+                    ? Format.mediumDay(range.startDate)
+                    : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))"
+                SettingRow(title: dates, subtitle: range.reason.flatMap { $0.isEmpty ? nil : $0 }) {
+                    Badge(
+                        text: Format.days(DateUtils.daysBetween(range.startDate, range.endDate) + 1),
+                        color: Theme.text2, background: Theme.raised
+                    )
                 }
             }
             .onDelete { offsets in
@@ -140,9 +134,32 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text("Skip days")
+            SectionLabel(title: "Skip days").listRowInsets(Theme.labelInsets)
         } footer: {
-            Text("Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
+            SectionFooter(text: "Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
+        }
+    }
+
+    private var dataSection: some View {
+        Section {
+            Button {
+                pick(.export)
+            } label: {
+                IconRow(
+                    icon: "square.and.arrow.down", color: Theme.accent,
+                    title: "Import from BeanConqueror", subtitle: "Or share the export ZIP to this app"
+                )
+            }
+            .buttonStyle(.plain)
+            FolderPrompt { pick(.folder) }
+        } header: {
+            SectionLabel(title: "Data").listRowInsets(Theme.labelInsets)
+        } footer: {
+            SectionFooter(
+                text: """
+                    The database is saved as \(DatabaseLocation.fileName) in the folder and synced by iCloud Drive. \
+                    The web app's data/coffee.db can be dropped in there too.
+                    """)
         }
     }
 
@@ -151,15 +168,10 @@ struct SettingsView: View {
         showingImporter = true
     }
 
-    private func setting<Value>(_ keyPath: WritableKeyPath<ScheduleSettings, Value>) -> Binding<Value> {
-        Binding(
-            get: { model.settings[keyPath: keyPath] },
-            set: { newValue in
-                var settings = model.settings
-                settings[keyPath: keyPath] = newValue
-                model.updateSettings(settings)
-            }
-        )
+    private func update<Value>(_ keyPath: WritableKeyPath<ScheduleSettings, Value>, to newValue: Value) {
+        var settings = model.settings
+        settings[keyPath: keyPath] = newValue
+        model.updateSettings(settings)
     }
 }
 
@@ -170,12 +182,14 @@ struct FolderPrompt: View {
 
     var body: some View {
         Button(action: choose) {
-            if let name = model.folderName {
-                LabeledContent("iCloud Drive folder", value: name)
-            } else {
-                Label("Choose an iCloud Drive folder to keep your data in", systemImage: "icloud")
-            }
+            IconRow(
+                icon: "icloud", color: Theme.frozenText,
+                title: "iCloud Drive folder",
+                subtitle: model.folderName.map { "\(DatabaseLocation.fileName) is kept in “\($0)”" }
+                    ?? "Choose a folder to keep your data in"
+            )
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -191,10 +205,11 @@ private struct AddRoasterList: View {
                 model.setRoasterRestDays(roaster, model.settings.defaultRestDays)
                 dismiss()
             } label: {
-                HStack(spacing: 8) {
-                    RoasterRail(color: model.rail(roaster))
-                    Text(roaster).foregroundStyle(Theme.text)
+                HStack(spacing: 12) {
+                    Circle().fill(model.rail(roaster)).frame(width: 10, height: 10)
+                    Text(roaster).font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
                 }
+                .frame(minHeight: 36)
             }
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)

@@ -222,7 +222,6 @@ final class CoffeeE2ETests: XCTestCase {
         squareMile.tap()
 
         // Back in Settings, the roaster has its own row at the default rest
-        waitFor(app.navigationBars["Settings"])
-        waitFor(app.staticTexts["Square Mile"])
+        waitFor(app.buttons["More rest days for Square Mile"])
     }
 }
