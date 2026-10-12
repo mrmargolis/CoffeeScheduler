@@ -20,7 +20,6 @@ public struct FreezeEvent: Hashable, Sendable {
 /// Effective age = calendar days since roast minus days spent frozen, since
 /// frozen time doesn't age the bean. Nil without a roast date; floored at 0 to
 /// guard against drift between today and a planned-thaw projection.
-/// Port of `effectiveAge` in `src/lib/freeze-utils.ts`.
 public func effectiveAge(roastDate: String?, asOf date: String, frozenDays: Int) -> Int? {
     guard let roastDate else { return nil }
     return max(0, DateUtils.daysBetween(roastDate, date) - frozenDays)
@@ -59,8 +58,7 @@ extension Scheduler {
 }
 
 /// Everything the bean detail screen derives from a bag, the projected
-/// schedule and the settings. Mirrors the calculations in
-/// `src/components/BeanDetail.tsx`.
+/// schedule and the settings.
 public struct BeanDetail: Sendable {
     public let bean: Bean
 

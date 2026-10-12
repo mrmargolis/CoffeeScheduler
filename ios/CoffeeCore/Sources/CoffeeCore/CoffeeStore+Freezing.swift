@@ -33,7 +33,7 @@ extension CoffeeStore {
     }
 
     /// Freeze a bag that isn't frozen, or thaw one that is, and return its new
-    /// state. Mirrors `POST /api/beans/[id]/freeze`: the planned thaw and
+    /// state. The planned thaw and
     /// freeze-after target are cleared either way, a freeze takes the bag out
     /// of the manual queue order, and the event is logged as of `today`.
     @discardableResult

@@ -44,7 +44,7 @@ final class DatabaseLocation {
     }
 
     /// Adopt a folder returned by the document picker. If the folder already
-    /// holds a `coffee.db` (from another device or the web app) it replaces the
+    /// holds a `coffee.db` (from another device) it replaces the
     /// working copy; otherwise the working copy is copied into the folder.
     func choose(folder url: URL) throws {
         folder?.stopAccessingSecurityScopedResource()

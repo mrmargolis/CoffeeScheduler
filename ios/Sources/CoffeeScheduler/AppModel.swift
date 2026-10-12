@@ -71,7 +71,7 @@ final class AppModel {
 
     // MARK: - Lifecycle
 
-    /// Pick up changes made on another device or by the web app, then refresh.
+    /// Pick up changes made on another device, then refresh.
     /// Called at launch and whenever the app comes back to the foreground.
     func reloadFromICloud() {
         guard let location else { return }
@@ -110,7 +110,7 @@ final class AppModel {
         activeBeans = try store.beans(archived: false, today: today)
         archivedBeans = try store.beans(archived: true, today: today)
         skipRanges = try store.skipRanges(from: today)
-        // Same window as the web app: two months back, four forward.
+        // Two months back, four forward.
         let start = DateUtils.firstOfMonth(DateUtils.addMonths(today, -2))
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
         consumptionOverrides = try store.consumptionOverrides(from: start)

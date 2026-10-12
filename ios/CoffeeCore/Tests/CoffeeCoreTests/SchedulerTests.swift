@@ -2,8 +2,6 @@ import Testing
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/lib/scheduler.test.ts.
-
 func makeBean(
     id: String = "bean-1",
     name: String = "Test Bean",

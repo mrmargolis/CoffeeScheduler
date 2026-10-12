@@ -7,7 +7,7 @@ struct BeanRoute: Hashable {
 }
 
 /// One bag: how much is left, how old it is, when it's scheduled, and its
-/// history. Mirrors `src/components/BeanDetail.tsx`; Edit opens `BeanSettingsForm`,
+/// history. Edit opens `BeanSettingsForm`,
 /// and the Freeze/Thaw button asks first.
 struct BeanDetailView: View {
     @Environment(AppModel.self) private var model

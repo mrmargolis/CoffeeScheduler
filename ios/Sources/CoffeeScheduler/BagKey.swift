@@ -1,8 +1,8 @@
 import CoffeeCore
 import SwiftUI
 
-/// Which bag runs over which dates, in the order they're drunk. Port of the
-/// published page's bag list (`collectBagRuns`); tapping a bag opens it.
+/// Which bag runs over which dates, in the order they're drunk. Tapping a
+/// bag opens it.
 struct BagKey: View {
     @Environment(AppModel.self) private var model
     let runs: [BagRun]

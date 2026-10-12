@@ -1,8 +1,7 @@
 import CoffeeCore
 import SwiftUI
 
-/// A month grid with bag spans, the layout the schedule opens on. Mirrors the
-/// web app's calendar (`src/components/Calendar.tsx`): each bag is a bar in its
+/// A month grid with bag spans, the layout the schedule opens on. Each bag is a bar in its
 /// roaster's colour across the days it runs, solid for brewed days and
 /// outlined for projected ones; skipped days and days with no coffee are
 /// dashed bars. Tap a bar for the bag, a date for its options.

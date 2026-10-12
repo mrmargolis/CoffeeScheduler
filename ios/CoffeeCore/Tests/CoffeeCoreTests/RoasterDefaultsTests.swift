@@ -2,8 +2,7 @@ import Testing
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/api/settings.test.ts, plus the store methods the
-// Settings screen uses and the rest-day fallback they feed.
+// The store methods the Settings screen uses and the rest-day fallback they feed.
 @Suite struct RoasterDefaultsTests {
     let store: CoffeeStore
 

@@ -1,6 +1,5 @@
 /// What the month view draws: runs of consecutive days on one bag, plus skip,
-/// gap and override markers. Port of `buildCalendarEvents` in
-/// `src/lib/calendar-utils.ts` (without the web colours, which the app picks).
+/// gap and override markers. They carry no colours; the app picks those.
 public struct CalendarEvent: Hashable, Sendable, Codable {
     public enum Kind: Hashable, Sendable, Codable {
         case bean(id: String, roaster: String)
@@ -12,7 +11,7 @@ public struct CalendarEvent: Hashable, Sendable, Codable {
     public var kind: Kind
     public var title: String
     public var start: String
-    /// Exclusive, as in the web calendar.
+    /// Exclusive.
     public var end: String
     /// Right-aligned detail on a bag, e.g. "7 d · 315 g".
     public var meta: String?
@@ -85,7 +84,7 @@ public enum CalendarSpans {
     /// Collects events, growing a span while a bag runs on from one day to the next.
     private struct Builder {
         var events: [CalendarEvent] = []
-        /// Open spans, in the order they were started (the web Map's order).
+        /// Open spans, in the order they were started.
         var spans: [Span] = []
 
         mutating func flushAll() {
@@ -140,7 +139,6 @@ public enum CalendarSpans {
 }
 
 /// One bag's run through the schedule: first and last day and grams drunk.
-/// Port of `BagRun` in `src/lib/schedule-html.ts`.
 public struct BagRun: Hashable, Sendable {
     public var beanID: String
     public var name: String
@@ -174,7 +172,7 @@ extension Scheduler {
     }
 
     /// Collision-free roaster colours for the bags in `schedule`, assigned in
-    /// the order they're first drunk, as the published page does.
+    /// the order they're first drunk.
     public static func roasterColors(_ schedule: [ScheduleDay]) -> [String: RoasterColor] {
         RoasterColor.assign(bagRuns(schedule).map(\.roaster))
     }

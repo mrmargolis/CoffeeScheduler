@@ -1,59 +1,48 @@
 # CLAUDE.md
 
+This repository is an iOS app. Everything is under `ios/`; see
+`ios/README.md` for setup, the widget, Siri and how the data is stored.
+
 ## Commands
 
+Run these in Linux or WSL.
+
 ```bash
-pnpm install         # Install dependencies (pnpm only — do not use npm or yarn)
-pnpm dev             # Next.js dev server
-pnpm build           # Production build
-pnpm lint            # ESLint
-pnpm test            # Vitest watch mode
-pnpm test:run        # Vitest single run (CI)
-pnpm exec vitest run src/__tests__/lib/scheduler.test.ts  # Run single test file
+cd ios/CoffeeCore && swift test   # Unit tests (needs libsqlite3-dev)
+cd ios && xtool dev build         # Build the app against the iOS SDK
+cd ios && xtool dev               # Build and install on a plugged-in phone
+cd ios && ./lint.sh --fix         # Reformat and apply SwiftLint's own fixes
+cd ios && ./lint.sh               # Check formatting and lint
 ```
 
-## Package management
-
-pnpm only. The version is pinned by the `packageManager` field in `package.json`
-and provisioned by Corepack (`corepack enable pnpm`); `pnpm-lock.yaml` is the
-only lockfile and is committed. Never run `npm install` or `yarn` here — either
-one creates a competing lockfile and bypasses the policies below.
-
-`pnpm-workspace.yaml` carries two supply-chain settings:
-
-- `minimumReleaseAge: 10080` — a version published less than 7 days ago will not
-  install. This blunts compromised-maintainer attacks, which are usually caught
-  and unpublished within days. It is enforced on every install, including ones
-  fully resolved from the lockfile, so a new dependency (or an upgrade to a
-  just-released version) fails until the version is a week old. Wait it out
-  rather than disabling the setting.
-- `allowBuilds` — an explicit per-package allowlist for dependency install/build
-  scripts, which pnpm otherwise blocks. Adding an entry means letting that
-  package run code at install time, so add one only when a dependency genuinely
-  needs a native build.
+On Windows, `ios\dev.ps1` builds in WSL and installs on a phone plugged into
+Windows.
 
 ## Architecture
 
-Next.js 14 App Router, TypeScript strict mode, SQLite (better-sqlite3), SWR for client data fetching, FullCalendar for visualization, Tailwind CSS dark theme.
+`ios/` is a SwiftUI app built with xtool (no Xcode project).
 
-### Data Loads
-Data on coffee bags and past brews is imported manually from a BeanConqueror iOS application zip file export
+- `ios/CoffeeCore` is a platform-independent Swift package, tested on Linux:
+  the scheduler, the BeanConqueror parser, the SQLite store and schema, and
+  the layout the month view and widget share.
+- `ios/Sources/CoffeeScheduler` is the app, `ios/Sources/CoffeeWidget` the
+  home screen widget.
 
-### Database
+Put scheduling rules, schema changes and import behavior in CoffeeCore, with
+tests, rather than in the app.
 
-SQLite at `data/coffee.db`, WAL mode, foreign keys on. Schema in `src/lib/schema.ts` with inline migrations. Test DBs are in-memory via `createTestDb()` from `src/lib/db.ts`.
+### Data
+
+Bags and past brews are imported manually from a BeanConqueror iOS
+application zip file export. The database is SQLite (`coffee.db`), kept in an
+iCloud Drive folder the user picks, with a rollback journal rather than WAL.
 
 ### Date handling
 
-All dates are ISO 8601 strings (`YYYY-MM-DD`). Use UTC-based `Date` construction (`new Date(iso + "T00:00:00Z")`) to avoid timezone drift. BeanConqueror imports parse `DD.MM.YYYY` format.
+All dates are ISO 8601 strings (`YYYY-MM-DD`). Do arithmetic through
+`DateUtils`, which works in whole days so no time zone can shift a result.
 
-### iOS app
-
-`ios/` is a SwiftUI app built with xtool (no Xcode project); see `ios/README.md`.
-`ios/CoffeeCore` is a Swift port of `src/lib` (scheduler, BeanConqueror parser,
-queries, import) on the same SQLite schema. Changes to scheduling rules, the
-schema, or import behavior must be mirrored there; run `swift test` in
-`ios/CoffeeCore` to check.
+### Linting
 
 Swift is formatted with `swift format` and linted with SwiftLint: run
 `./lint.sh --fix` in `ios/` (Linux or WSL) to reformat, then `./lint.sh` to
@@ -64,5 +53,7 @@ packages.
 
 ### Testing patterns
 
-Vitest with happy-dom. Tests in `src/__tests__/` mirroring `src/` structure. API and DB tests use `createTestDb()` for isolated in-memory databases. Scheduler tests use a `makeBean()` helper with sensible defaults.
-
+Swift Testing in `ios/CoffeeCore/Tests`. Store tests open an in-memory
+database; scheduler tests use a `makeBean()` helper with sensible defaults.
+CI (`.github/workflows/ios.yml`) also renders screenshots and runs end-to-end
+UI tests on an iOS Simulator.

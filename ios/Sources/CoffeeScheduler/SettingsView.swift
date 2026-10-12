@@ -157,8 +157,7 @@ struct SettingsView: View {
         } footer: {
             SectionFooter(
                 text: """
-                    The database is saved as \(DatabaseLocation.fileName) in the folder and synced by iCloud Drive. \
-                    The web app's data/coffee.db can be dropped in there too.
+                    The database is saved as \(DatabaseLocation.fileName) in the folder and synced by iCloud Drive.
                     """)
         }
     }

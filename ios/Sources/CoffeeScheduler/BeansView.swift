@@ -3,8 +3,7 @@ import SwiftUI
 
 /// The bean queue in the order the scheduler will use it, plus frozen bags,
 /// a card per bag. Finished bags aren't listed; BeanConqueror is the place to
-/// look back. Reorder drags bags into a manual order (like the web app's drag
-/// to reorder); swipe a bag to freeze or thaw it, or back to automatic order.
+/// look back. Reorder drags bags into a manual order; swipe a bag to freeze or thaw it, or back to automatic order.
 struct BeansView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmingFreeze: Bean?

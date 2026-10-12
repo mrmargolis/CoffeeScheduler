@@ -2,7 +2,6 @@ import Testing
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/lib/colors.test.ts.
 @Suite struct RoasterColorTests {
     @Test func stableForTheSameRoaster() {
         #expect(RoasterColor.forRoaster("Square Mile") == RoasterColor.forRoaster("Square Mile"))
@@ -71,7 +70,6 @@ private func makeDay(
     )
 }
 
-// Ported from src/__tests__/lib/calendar-utils.test.ts.
 @Suite struct CalendarSpanTests {
     func beanEvents(_ events: [CalendarEvent], _ id: String = "b1") -> [CalendarEvent] {
         events.filter { $0.beanID == id }
@@ -166,7 +164,6 @@ private func makeDay(
     }
 }
 
-// Ported from collectBagRuns in src/__tests__/lib/schedule-html.test.ts.
 @Suite struct BagRunTests {
     @Test func collapsesEachBagIntoOneRun() {
         let runs = Scheduler.bagRuns([

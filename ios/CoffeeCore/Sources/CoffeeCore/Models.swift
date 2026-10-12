@@ -1,7 +1,6 @@
 import Foundation
 
 /// A bag of coffee with the values the app derives from brews and settings.
-/// Mirrors `BeanWithComputed` in the web app (`src/lib/types.ts`).
 public struct Bean: Identifiable, Hashable, Sendable {
     public var id: String  // UUID from BeanConqueror
     public var name: String

@@ -1,4 +1,4 @@
-<!-- Source for AppIcon.png: the web app's cup (src/app/icon.svg) on an opaque
+<!-- Source for AppIcon.png: the cup on an opaque
      background, since iOS icons can't be transparent. See README for how to
      re-render it. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
