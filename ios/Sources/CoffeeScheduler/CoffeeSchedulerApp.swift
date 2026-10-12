@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import UIKit
 
 @main
 struct CoffeeSchedulerApp: App {
@@ -20,6 +21,10 @@ struct CoffeeSchedulerApp: App {
                 .environment(model)
                 // BeanConqueror exports arrive here from the share sheet ("Open in").
                 .onOpenURL { url in model.importExport(at: url) }
+                // Midnight with the app open: today has moved on
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                    model.reloadFromICloud()
+                }
                 .alert(
                     model.message?.title ?? "",
                     isPresented: Binding(

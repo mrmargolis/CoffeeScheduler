@@ -45,6 +45,15 @@ enum Format {
     /// "3 days", "1 day".
     static func days(_ count: Int) -> String { "\(count) \(count == 1 ? "day" : "days")" }
 
+    /// "today", "yesterday", "3 days ago".
+    static func daysAgo(_ iso: String, today: String) -> String {
+        switch DateUtils.daysBetween(iso, today) {
+        case ...0: "today"
+        case 1: "yesterday"
+        case let count: "\(count) days ago"
+        }
+    }
+
     /// A bag's age in days since roast at its first and last cup: "day 18–32".
     static func ages(_ range: AgeRange) -> String {
         range.start == range.finish ? "day \(range.start)" : "day \(range.start)–\(range.finish)"

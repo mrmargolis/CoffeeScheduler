@@ -64,11 +64,12 @@ public enum BeanConquerorParser {
             $0.path.range(of: #"^Beanconqueror_Brews_\d+\.json$"#, options: .regularExpression) != nil
         }
         for entry in splitFiles {
-            if let split = json(entry, in: archive) {
-                rawBrews += split.array ?? []
-            } else {
-                result.errors.append("Failed to parse \(entry.path)")
+            // Without every brew file the bags would look fuller than they
+            // are, so an unreadable one fails the whole export.
+            guard let split = json(entry, in: archive) else {
+                return ParseResult(errors: ["Failed to parse \(entry.path)"])
             }
+            rawBrews += split.array ?? []
         }
 
         parseBrews(rawBrews, roastDates: roastDates, timeZone: timeZone, into: &result)

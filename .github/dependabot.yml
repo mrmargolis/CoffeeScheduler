@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # The actions in the workflow are pinned to a commit, with the version in a
+  # comment beside it; Dependabot moves both.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # ZIPFoundation, pinned exactly in CoffeeCore's Package.swift. The app's
+  # ios/Package.resolved names it too: refresh that one on the same pull
+  # request (`swift package resolve` in ios/).
+  - package-ecosystem: swift
+    directory: /ios/CoffeeCore
+    schedule:
+      interval: weekly
+
+# Not covered: SwiftLint (ios/lint.sh) and XcodeGen (the workflow) are
+# downloads pinned by version and checksum, and are upgraded by hand.

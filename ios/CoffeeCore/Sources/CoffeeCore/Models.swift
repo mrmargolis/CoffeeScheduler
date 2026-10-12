@@ -77,6 +77,18 @@ public struct SkipRange: Hashable, Sendable, Identifiable {
     public var reason: String?
 }
 
+public enum SkipRangeError: LocalizedError, Equatable {
+    case invalidDate(String)
+    case endBeforeStart
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidDate(let date): "\(date) isn't a valid date."
+        case .endBeforeStart: "The last day can't be before the first."
+        }
+    }
+}
+
 /// A different daily amount and dose size for a run of days, inclusive.
 /// Row of `consumption_overrides`.
 public struct ConsumptionOverride: Hashable, Sendable, Identifiable {

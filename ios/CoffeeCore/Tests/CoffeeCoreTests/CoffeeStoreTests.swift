@@ -44,6 +44,17 @@ import Testing
         #expect(try store.beans(archived: true, today: "2026-02-01").map(\.id) == ["uuid-2"])
     }
 
+    @Test func importRecordsTheDayAndLeavesTheSettingsAlone() throws {
+        let store = try CoffeeStore.inMemory()
+        #expect(try store.lastImportDate() == nil)
+
+        let parsed = BeanConquerorParser.parse(zipData: try makeExport(beans: [bcBean()]), timeZone: utc)
+        _ = try store.importExport(parsed, on: "2026-02-01")
+        _ = try store.importExport(parsed, on: "2026-02-09")
+        #expect(try store.lastImportDate() == "2026-02-09")
+        #expect(try store.settings() == ScheduleSettings(dailyConsumptionGrams: 45, defaultRestDays: 30))
+    }
+
     @Test func reimportReplacesBrewsAndKeepsUserFields() throws {
         let store = try CoffeeStore.inMemory()
         _ = try importSample(into: store)

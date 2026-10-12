@@ -81,6 +81,9 @@ struct DayOptionsSheet: View {
         .navigationTitle(Format.longDay(date))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                ShareScheduleLink(subject: .day(date))
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
             }

@@ -231,4 +231,25 @@ final class CoffeeE2ETests: XCTestCase {
         // Back in Settings, the roaster has its own row at the default rest
         waitFor(app.buttons["More rest days for Square Mile"])
     }
+
+    func testAddSkipDaysWithAReason() {
+        openTab("Settings")
+        let add = app.buttons["Add skip days"]
+        waitFor(add)
+        add.tap()
+
+        // Both dates start on today; the reason is the form's only text field
+        let reason = app.textFields.firstMatch
+        waitFor(reason)
+        reason.tap()
+        reason.typeText("Lisbon")
+        app.buttons["Save"].tap()
+        waitFor(element(containing: "Lisbon"))
+
+        openTab("Schedule")
+        showList()
+        let today = day("2026-10-12")
+        waitFor(today)
+        expectValue(today, "Skipped")
+    }
 }

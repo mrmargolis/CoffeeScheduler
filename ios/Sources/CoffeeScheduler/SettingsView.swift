@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var showingImporter = false
     @State private var picking = Picking.export
     private enum Picking { case export, folder }
+    @State private var skipForm: SkipRangeRoute?
 
     var body: some View {
         NavigationStack {
@@ -21,6 +22,7 @@ struct SettingsView: View {
                     scheduleSection
                     roasterSection
                     skipDaysSection
+                    RemindersSection()
                     dataSection
                 }
                 .listRowBackground(Theme.card)
@@ -33,6 +35,9 @@ struct SettingsView: View {
             // The title is drawn in the list; this one names the back button
             .navigationTitle("Settings")
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(item: $skipForm) { route in
+                NavigationStack { SkipRangeForm(range: route.range, today: model.today) }
+            }
             .fileImporter(
                 isPresented: $showingImporter,
                 allowedContentTypes: picking == .folder ? [.folder] : [.zip]
@@ -121,22 +126,39 @@ struct SettingsView: View {
                     range.startDate == range.endDate
                     ? Format.mediumDay(range.startDate)
                     : "\(Format.shortDay(range.startDate)) – \(Format.mediumDay(range.endDate))"
-                SettingRow(title: dates, subtitle: range.reason.flatMap { $0.isEmpty ? nil : $0 }) {
-                    Badge(
-                        text: Format.days(DateUtils.daysBetween(range.startDate, range.endDate) + 1),
-                        color: Theme.text2, background: Theme.raised
-                    )
+                Button {
+                    skipForm = .edit(range)
+                } label: {
+                    SettingRow(title: dates, subtitle: range.reason.flatMap { $0.isEmpty ? nil : $0 }) {
+                        Badge(
+                            text: Format.days(DateUtils.daysBetween(range.startDate, range.endDate) + 1),
+                            color: Theme.text2, background: Theme.raised
+                        )
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
             .onDelete { offsets in
                 for id in offsets.map({ model.skipRanges[$0].id }) {
                     model.deleteSkipRange(id: id)
                 }
             }
+            Button {
+                skipForm = .new
+            } label: {
+                Label("Add skip days", systemImage: "plus")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+            }
         } header: {
             SectionLabel(title: "Skip days").listRowInsets(Theme.labelInsets)
         } footer: {
-            SectionFooter(text: "Tap a day's date in the schedule, or swipe it right, to skip it. Swipe a stretch here to delete it.")
+            SectionFooter(
+                text: """
+                    For one day, tap its date in the schedule or swipe it right. \
+                    Tap a stretch here to change it, or swipe it to delete it.
+                    """)
         }
     }
 
@@ -147,7 +169,9 @@ struct SettingsView: View {
             } label: {
                 IconRow(
                     icon: "square.and.arrow.down", color: Theme.accent,
-                    title: "Import from BeanConqueror", subtitle: "Or share the export ZIP to this app"
+                    title: "Import from BeanConqueror",
+                    subtitle: model.lastImportDate.map { "Last imported \(Format.daysAgo($0, today: model.today))" }
+                        ?? "Or share the export ZIP to this app"
                 )
             }
             .buttonStyle(.plain)

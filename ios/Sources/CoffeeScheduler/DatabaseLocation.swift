@@ -14,6 +14,7 @@ import Foundation
 @MainActor
 final class DatabaseLocation {
     static let fileName = "coffee.db"
+    static let backupFileName = "coffee.backup.db"
 
     private let defaults = UserDefaults.standard
     private let bookmarkKey = "databaseFolderBookmark"
@@ -89,6 +90,19 @@ final class DatabaseLocation {
             try Self.copy(self.workingCopy, over: destination)
         }
         defaults.set(remoteModificationDate() ?? Date(), forKey: syncedDateKey)
+    }
+
+    /// Keep a copy of the working copy beside the database in the iCloud
+    /// folder, replacing the last one. Taken before an import, so the data
+    /// as it was can be put back from Files by renaming the copy.
+    func backUp() throws {
+        guard let backup = folder?.appendingPathComponent(Self.backupFileName),
+            FileManager.default.fileExists(atPath: workingCopy.path)
+        else { return }
+
+        try coordinate(writing: backup) { destination in
+            try Self.copy(self.workingCopy, over: destination)
+        }
     }
 
     private func remoteModificationDate() -> Date? {

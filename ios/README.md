@@ -110,7 +110,8 @@ cd ios/CoffeeCore
 swift test        # needs libsqlite3-dev on Linux
 ```
 
-CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4) and
+CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4),
+with CoffeeCore's line coverage per file on the run's summary page, and
 type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
 - renders every screen over sample data and uploads the images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);
@@ -145,6 +146,45 @@ document picker needs no entitlement and works with a free Apple ID too.
 A `coffee.db` from the web app this one replaced still works: copy it into
 the chosen iCloud Drive folder. The web app used WAL, and the iOS app
 switches the file to a rollback journal the first time it opens it.
+
+## Buying the next bag
+
+Under the calendar the Schedule screen says how long the coffee lasts and
+when to buy the next bag: "Coffee through Nov 23. Buy the next bag by Oct 25
+so it's rested in time." The buy-by day is the first day with no coffee,
+less the default rest in Settings, taking a bag to be roasted the day it's
+bought. Once that day has gone it says when a bag bought today would be
+rested instead. Skipped days don't count as running out, and the line isn't
+shown while the schedule has coffee as far as it reaches (four months).
+
+The schedule is only as current as the last import, since brews arrive with
+one; the import row in Settings says how long ago that was.
+
+## Reminders
+
+Settings → Reminders has three switches, all off to begin with:
+
+- **Thaw a bag**, on a frozen bag's planned thaw date. The app moves the bag
+  back into the schedule on that day by itself; this is the nudge to take it
+  out of the freezer.
+- **New bag**, the day an unopened bag starts.
+- **Buy coffee**, on the buy-by day above.
+
+They are local notifications sent at 8 in the morning, which need no
+entitlement, so they work with xtool and a free Apple ID. The first switch
+turned on asks for permission. `ScheduleReminders` in CoffeeCore plans them
+from the schedule, and the app hands them to iOS each time the schedule
+changes (`ReminderScheduler`), so like the widget they are as current as the
+last time the app was open. The switches are kept per device, not in the
+database.
+
+## Sharing
+
+The share button beside the month's name sends a picture of that month: the
+grid and its bags. The one in a day's options (tap the day's date) sends
+that day. The picture is drawn when the share sheet asks for it
+(`ScheduleSnapshot`), from the same views the screens use, and CI saves
+examples with the screenshots.
 
 ## Widget
 
@@ -226,3 +266,9 @@ BeanConqueror owns bean details and brew history, and the app's own fields
 (rest days, queue order, freeze plans, notes) are kept across imports. One
 exception: when the export has no roast date for a bag, the import keeps the
 one already stored (for example, one entered in the app).
+
+An export with a brew file that can't be read is refused as a whole, since
+importing the rest would leave bags looking fuller than they are. Before each
+import the app saves the database as it was to `coffee.backup.db` in the
+iCloud Drive folder, replacing the last backup. To go back to it, rename it
+to `coffee.db` in Files while the app is closed.

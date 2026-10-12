@@ -88,6 +88,80 @@ import Testing
         #expect(try ranges() == [["2026-03-10", "2026-03-15"]])
     }
 
+    // MARK: Saving a range
+
+    /// (start, end, reason) of every range, earliest first.
+    func rangesWithReasons() throws -> [[String?]] {
+        try store.skipRanges(from: "0000-01-01").map { [$0.startDate, $0.endDate, $0.reason] }
+    }
+
+    @Test func savesARangeWithItsReason() throws {
+        try store.saveSkipRange(start: "2026-03-10", end: "2026-03-19", reason: " Lisbon ")
+        #expect(try rangesWithReasons() == [["2026-03-10", "2026-03-19", "Lisbon"]])
+    }
+
+    @Test func blankReasonIsStoredAsNone() throws {
+        try store.saveSkipRange(start: "2026-03-10", end: "2026-03-10", reason: "  ")
+        #expect(try rangesWithReasons() == [["2026-03-10", "2026-03-10", nil]])
+    }
+
+    @Test func newRangeTakesTheDaysItSharesWithAnOlderOne() throws {
+        try insertRange("2026-03-01", "2026-03-05", reason: "Lisbon")
+        try store.saveSkipRange(start: "2026-03-04", end: "2026-03-08", reason: "Wedding")
+        #expect(try rangesWithReasons() == [["2026-03-01", "2026-03-03", "Lisbon"], ["2026-03-04", "2026-03-08", "Wedding"]])
+    }
+
+    @Test func newRangeInsideAnOlderOneSplitsIt() throws {
+        try insertRange("2026-03-01", "2026-03-10", reason: "Lisbon")
+        try store.saveSkipRange(start: "2026-03-04", end: "2026-03-05", reason: "Wedding")
+        #expect(
+            try rangesWithReasons() == [
+                ["2026-03-01", "2026-03-03", "Lisbon"],
+                ["2026-03-04", "2026-03-05", "Wedding"],
+                ["2026-03-06", "2026-03-10", "Lisbon"],
+            ])
+    }
+
+    @Test func newRangeSwallowsTheRangesInsideIt() throws {
+        try insertRange("2026-03-03", "2026-03-04")
+        try insertRange("2026-03-06", "2026-03-06", reason: "Lisbon")
+        try store.saveSkipRange(start: "2026-03-01", end: "2026-03-10", reason: "Wedding")
+        #expect(try rangesWithReasons() == [["2026-03-01", "2026-03-10", "Wedding"]])
+    }
+
+    @Test func rangesSideBySideWithTheSameReasonJoin() throws {
+        try insertRange("2026-03-01", "2026-03-03")
+        try insertRange("2026-03-08", "2026-03-09")
+        try store.saveSkipRange(start: "2026-03-04", end: "2026-03-07", reason: nil)
+        #expect(try ranges() == [["2026-03-01", "2026-03-09"]])
+    }
+
+    @Test func rangesSideBySideWithDifferentReasonsStayApart() throws {
+        try insertRange("2026-03-01", "2026-03-03", reason: "Lisbon")
+        try store.saveSkipRange(start: "2026-03-04", end: "2026-03-07", reason: "Wedding")
+        #expect(try ranges() == [["2026-03-01", "2026-03-03"], ["2026-03-04", "2026-03-07"]])
+    }
+
+    @Test func replacingARangeMovesItAndChangesItsReason() throws {
+        try insertRange("2026-03-01", "2026-03-05", reason: "Lisbon")
+        let id = try #require(store.skipRanges(from: "2026-01-01").first).id
+        try store.saveSkipRange(replacing: id, start: "2026-03-03", end: "2026-03-04", reason: "Porto")
+        #expect(try rangesWithReasons() == [["2026-03-03", "2026-03-04", "Porto"]])
+    }
+
+    @Test func rejectsARangeThatEndsBeforeItStarts() throws {
+        #expect(throws: SkipRangeError.endBeforeStart) {
+            try store.saveSkipRange(start: "2026-03-05", end: "2026-03-04", reason: nil)
+        }
+        #expect(try ranges().isEmpty)
+    }
+
+    @Test func rejectsADateThatIsNotADay() throws {
+        #expect(throws: SkipRangeError.invalidDate("2026-3-5")) {
+            try store.saveSkipRange(start: "2026-3-5", end: "2026-03-06", reason: nil)
+        }
+    }
+
     // MARK: Listing, deleting, and the schedule
 
     @Test func listingLeavesOutRangesThatAlreadyEnded() throws {

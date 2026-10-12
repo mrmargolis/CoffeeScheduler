@@ -9,7 +9,8 @@ let utc = TimeZone(identifier: "UTC")!
 func makeZip(_ files: [String: Any]) throws -> Data {
     let archive = try Archive(accessMode: .create)
     for (path, contents) in files {
-        let data = try JSONSerialization.data(withJSONObject: contents)
+        // Data goes in as it is, for a file that isn't JSON
+        let data = try contents as? Data ?? JSONSerialization.data(withJSONObject: contents)
         try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count)) { position, size in
             data.subdata(in: Int(position)..<Int(position) + size)
         }
@@ -130,6 +131,18 @@ func bcBrew(_ overrides: [String: Any] = [:]) -> [String: Any] {
         )
         let result = BeanConquerorParser.parse(zipData: data, timeZone: utc)
         #expect(result.brews.map(\.creationDate) == ["2024-02-01", "2024-02-02"])
+    }
+
+    @Test func unreadableSplitBrewFileFailsTheExport() throws {
+        let data = try makeExport(
+            beans: [bcBean()],
+            brews: [bcBrew()],
+            extra: ["Beanconqueror_Brews_1.json": Data("not json".utf8)]
+        )
+        let result = BeanConquerorParser.parse(zipData: data, timeZone: utc)
+        #expect(result.beans.isEmpty)
+        #expect(result.brews.isEmpty)
+        #expect(result.errors == ["Failed to parse Beanconqueror_Brews_1.json"])
     }
 
     @Test func skipsBrewsWithoutBeanOrDate() throws {
