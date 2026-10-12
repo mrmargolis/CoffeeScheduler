@@ -45,6 +45,7 @@ final class ScreenshotTests: XCTestCase {
             ("10-day-options", AnyView(NavigationStack { DayOptionsSheet(date: "2026-10-17") }), model),
             ("11-day-override", AnyView(NavigationStack { DayOptionsSheet(date: "2026-10-14") }), model),
             ("12-month", AnyView(ScheduleView(layout: .month)), model),
+            ("13-skip-days", AnyView(NavigationStack { SkipRangeForm(range: model.skipRanges.first, today: SampleData.today) }), model),
         ]
 
         for (name, view, model) in screens {

@@ -49,6 +49,55 @@ extension CoffeeStore {
         try db.run("DELETE FROM skip_days WHERE id = ?", [.int(Int64(id))])
     }
 
+    /// Skip every day from `start` to `end`, as the skip days form does, or
+    /// with `id` move that range there. The days take `reason`. A range
+    /// already on some of them keeps only its days outside the new one, so
+    /// no day is in two ranges, and ranges left side by side with the same
+    /// reason become one.
+    public func saveSkipRange(replacing id: Int? = nil, start: String, end: String, reason: String?) throws {
+        for date in [start, end] where DateUtils.dayNumber(date).map(DateUtils.isoString(dayNumber:)) != date {
+            throw SkipRangeError.invalidDate(date)
+        }
+        guard start <= end else { throw SkipRangeError.endBeforeStart }
+
+        let insert = "INSERT INTO skip_days (start_date, end_date, reason) VALUES (?, ?, ?)"
+        try db.transaction {
+            if let id { try deleteSkipRange(id: id) }
+            for old in try skipRanges(from: start) where old.startDate <= end {
+                try deleteSkipRange(id: old.id)
+                if old.startDate < start {
+                    try db.run(insert, [.text(old.startDate), .text(DateUtils.addDays(start, -1)), SQLValue(old.reason)])
+                }
+                if old.endDate > end {
+                    try db.run(insert, [.text(DateUtils.addDays(end, 1)), .text(old.endDate), SQLValue(old.reason)])
+                }
+            }
+            try db.run(insert, [.text(start), .text(end), SQLValue(Self.cleaned(reason))])
+            try joinTouchingSkipRanges()
+        }
+    }
+
+    /// Make one range of any two that sit side by side with the same reason.
+    private func joinTouchingSkipRanges() throws {
+        var kept: SkipRange?
+        for range in try skipRanges(from: "") {
+            let sameReason = Self.cleaned(kept?.reason) == Self.cleaned(range.reason)
+            if let last = kept, sameReason, DateUtils.addDays(last.endDate, 1) == range.startDate {
+                try db.run("UPDATE skip_days SET end_date = ? WHERE id = ?", [.text(range.endDate), .int(Int64(last.id))])
+                try deleteSkipRange(id: range.id)
+                kept?.endDate = range.endDate
+            } else {
+                kept = range
+            }
+        }
+    }
+
+    /// A reason without the space around it, or nil when nothing is left.
+    private static func cleaned(_ reason: String?) -> String? {
+        let trimmed = reason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// Skip `date`, or stop skipping it, and return whether it's now skipped.
     /// The skip_days table is kept as merged
     /// ranges: skipping a day next to a range extends it (bridging two ranges

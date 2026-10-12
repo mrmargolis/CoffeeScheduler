@@ -65,7 +65,7 @@ struct DayRow: View {
             // inset and draws its icon at title size
             HStack(spacing: 6) {
                 Image(systemName: "airplane").font(.caption)
-                Text("Skipped")
+                Text(model.skipReason(on: day.date) ?? "Skipped")
             }
             .foregroundStyle(Theme.text2)
         } else if day.isGap && day.isActual {

@@ -197,9 +197,15 @@ final class AppModel {
     /// Save a bag's settings. Returns an error message to show in the form,
     /// or nil once saved: the app-wide alert can't appear over a sheet.
     func updateBeanSettings(id: String, _ settings: BeanSettings) -> String? {
+        saveFromForm { try $0.updateBeanSettings(id: id, settings) }
+    }
+
+    /// Make a change from a form and save it. Returns an error message for
+    /// the form to show, or nil once saved.
+    private func saveFromForm(_ change: (CoffeeStore) throws -> Void) -> String? {
         guard let store else { return "The database isn't open." }
         do {
-            try store.updateBeanSettings(id: id, settings)
+            try change(store)
             try save()
             return nil
         } catch {
@@ -243,6 +249,12 @@ final class AppModel {
         }
     }
 
+    /// Skip a stretch of days, or with `id` change that stretch. Returns an
+    /// error message to show in the form, or nil once saved.
+    func saveSkipRange(replacing id: Int?, start: String, end: String, reason: String) -> String? {
+        saveFromForm { try $0.saveSkipRange(replacing: id, start: start, end: end, reason: reason) }
+    }
+
     func deleteSkipRange(id: Int) {
         perform("Couldn't update skip days") {
             try store?.deleteSkipRange(id: id)
@@ -257,14 +269,7 @@ final class AppModel {
     /// Set a different amount for one day. Returns an error message to show
     /// in the day sheet, or nil once saved.
     func setConsumptionOverride(date: String, dailyGrams: Double, doseSizeGrams: Double) -> String? {
-        guard let store else { return "The database isn't open." }
-        do {
-            try store.setConsumptionOverride(date: date, dailyGrams: dailyGrams, doseSizeGrams: doseSizeGrams)
-            try save()
-            return nil
-        } catch {
-            return error.localizedDescription
-        }
+        saveFromForm { try $0.setConsumptionOverride(date: date, dailyGrams: dailyGrams, doseSizeGrams: doseSizeGrams) }
     }
 
     func deleteConsumptionOverride(id: Int) {

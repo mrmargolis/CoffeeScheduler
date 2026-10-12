@@ -18,7 +18,9 @@ struct WeekList: View {
                     switch entry {
                     case .day(let day): dayRow(day, runs: runs)
                     case .run(let run):
-                        IdleRunRow(run: run, reason: skipReason(run)) { expanded.insert(run.start) }
+                        IdleRunRow(run: run, reason: run.kind == .skip ? model.skipReason(on: run.start) : nil) {
+                            expanded.insert(run.start)
+                        }
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 14))
@@ -45,12 +47,6 @@ struct WeekList: View {
                 }
                 .tint(day.isSkip ? .green : .indigo)
             }
-    }
-
-    private func skipReason(_ run: IdleRun) -> String? {
-        guard run.kind == .skip else { return nil }
-        let reason = model.skipRanges.first { $0.startDate <= run.start && run.start <= $0.endDate }?.reason
-        return reason.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// Days from the start of this week (Monday) onward, chunked by week.
