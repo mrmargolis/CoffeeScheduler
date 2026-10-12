@@ -179,6 +179,7 @@ final class AppModel {
                 store = nil
                 try location.pullIfNewer()
                 try openStore()
+                try location.backUp()
             }
 
             guard let store else { return }

@@ -226,3 +226,9 @@ BeanConqueror owns bean details and brew history, and the app's own fields
 (rest days, queue order, freeze plans, notes) are kept across imports. One
 exception: when the export has no roast date for a bag, the import keeps the
 one already stored (for example, one entered in the app).
+
+An export with a brew file that can't be read is refused as a whole, since
+importing the rest would leave bags looking fuller than they are. Before each
+import the app saves the database as it was to `coffee.backup.db` in the
+iCloud Drive folder, replacing the last backup. To go back to it, rename it
+to `coffee.db` in Files while the app is closed.
