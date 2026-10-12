@@ -150,9 +150,14 @@ keeps `coffee.db` there:
 - SQLite works on a local copy in the app's Application Support directory.
 - After every change the local copy is written back to the iCloud folder, and
   when the app comes to the foreground it pulls the iCloud copy if it is newer.
-  Both go through `NSFileCoordinator`.
+  Both go through `NSFileCoordinator`, off the main thread: a pull waits for
+  iCloud to download the file, and the app shows the local copy meanwhile.
 - The database uses a rollback journal, not WAL, so the single file is always
   complete.
+- The file carries its schema version (SQLite's `user_version`, `Schema.version`
+  in CoffeeCore). A build that finds a higher one than it knows refuses the
+  file rather than write to it, so update the app on every device after a
+  schema change.
 
 Why a picked folder rather than the app's own iCloud container: an iCloud
 container needs the iCloud capability on the App ID, and xtool can't

@@ -71,15 +71,41 @@ enum Schema {
         CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
         """
 
-    static func initialize(_ db: SQLiteDatabase) throws {
-        try db.execute(sql)
+    /// The schema this build reads and writes, kept in the file as SQLite's
+    /// `user_version`. Raise it with any change an older build would get
+    /// wrong, and add the migration below: the file is shared between
+    /// devices, which may not all run the same build.
+    static let version = 1
 
-        let columns = try Set(db.query("PRAGMA table_info(beans)").compactMap { $0.string("name") })
-        if !columns.contains("planned_thaw_date") {
-            try db.execute("ALTER TABLE beans ADD COLUMN planned_thaw_date TEXT")
+    static func initialize(_ db: SQLiteDatabase) throws {
+        // A file from the web app, or one not made yet, is at 0
+        let found = try db.query("PRAGMA user_version").first?.int("user_version") ?? 0
+        guard found <= version else { throw SchemaError.newerThanApp(found: found) }
+
+        try db.execute(sql)
+        if found < 1 {
+            let columns = try Set(db.query("PRAGMA table_info(beans)").compactMap { $0.string("name") })
+            if !columns.contains("planned_thaw_date") {
+                try db.execute("ALTER TABLE beans ADD COLUMN planned_thaw_date TEXT")
+            }
+            if !columns.contains("freeze_after_grams") {
+                try db.execute("ALTER TABLE beans ADD COLUMN freeze_after_grams REAL")
+            }
         }
-        if !columns.contains("freeze_after_grams") {
-            try db.execute("ALTER TABLE beans ADD COLUMN freeze_after_grams REAL")
+        if found != version {
+            try db.execute("PRAGMA user_version = \(version)")
+        }
+    }
+}
+
+public enum SchemaError: LocalizedError, Equatable {
+    /// The file was last written by a build with a later schema.
+    case newerThanApp(found: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .newerThanApp:
+            "This database was saved by a newer version of Coffee Scheduler. Update the app on this device to open it."
         }
     }
 }
