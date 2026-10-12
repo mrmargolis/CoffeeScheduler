@@ -12,7 +12,7 @@ enum Theme {
     static let hairline = Color(hex: "#382C1F")
     /// The line over each week of the month grid: a step lighter than a
     /// hairline, which is hard to see across the full width of the grid.
-    static let weekLine = Color(hex: "#4D3E2D")
+    static let weekLine = Color(hex: "#5E4E3B")
 
     static let text = Color(hex: "#F4ECDD")
     static let text2 = Color(hex: "#BBAA92")
