@@ -46,6 +46,13 @@ let package = Package(
             // code out of the binary. Ask for the symbol to keep it in.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-u", "-Xlinker", "_main"])]
         ),
+        // The app's own logic, which needs the iOS SDK: run on an iOS
+        // Simulator in CI, beside the screenshots.
+        .testTarget(
+            name: "CoffeeSchedulerTests",
+            dependencies: ["CoffeeScheduler"],
+            swiftSettings: strict
+        ),
         // Renders each screen over sample data on an iOS Simulator; CI
         // uploads the images. Not part of the app xtool builds.
         .testTarget(

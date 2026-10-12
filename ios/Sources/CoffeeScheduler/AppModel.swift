@@ -39,6 +39,8 @@ final class AppModel {
     @ObservationIgnored private var store: CoffeeStore?
     @ObservationIgnored private let fixedToday: String?
     @ObservationIgnored private let fixedFolderName: String?
+    /// The iCloud Drive work asked for so far: see `enqueue`.
+    @ObservationIgnored private var syncWork: Task<Void, Never>?
 
     var hasFolder: Bool { folderName != nil }
     var folderName: String? { fixedFolderName ?? location?.folder?.lastPathComponent }
@@ -47,6 +49,8 @@ final class AppModel {
         location = DatabaseLocation()
         fixedToday = nil
         fixedFolderName = nil
+        // What was here last time shows at once; iCloud Drive's copy follows
+        perform("Couldn't load the database") { try openStore() }
         reloadFromICloud()
     }
 
@@ -60,37 +64,53 @@ final class AppModel {
         perform("Couldn't load the database") { try refresh() }
     }
 
-    /// The app's model: the iCloud Drive database, or in a debug build
-    /// launched with `-sample-data` (as the UI tests do), the sample data in
-    /// memory with today pinned, so every run starts from the same state.
-    static func forLaunch() -> AppModel {
-        #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-sample-data"), let store = try? SampleData.store() {
-                return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
-            }
-        #endif
-        return AppModel()
-    }
-
     // MARK: - Lifecycle
+
+    /// Do a piece of iCloud Drive work after the ones already asked for, so
+    /// that a pull and a push never overlap. The file copies wait off the
+    /// main actor, so the app stays usable while iCloud Drive is slow.
+    private func enqueue(_ failure: String, _ body: @escaping @MainActor () async throws -> Void) {
+        let previous = syncWork
+        syncWork = Task {
+            await previous?.value
+            do {
+                try await body()
+            } catch {
+                self.message = Message(title: failure, body: error.localizedDescription)
+            }
+        }
+    }
 
     /// Pick up changes made on another device, then refresh.
     /// Called at launch and whenever the app comes back to the foreground.
     func reloadFromICloud() {
         guard let location else { return }
-        perform("Couldn't read the database from iCloud Drive") {
-            store = nil  // SQLite must let go of the file before it is replaced
-            try location.pullIfNewer()
-            try openStore()
+        enqueue("Couldn't read the database from iCloud Drive") { try await self.pull(from: location) }
+    }
+
+    /// Take a newer database from iCloud Drive if there is one, then refresh
+    /// either way: the day may have moved on.
+    private func pull(from location: DatabaseLocation) async throws {
+        var failure: (any Error)?
+        do {
+            try await location.pullIfNewer { store = nil }
+        } catch {
+            failure = error
         }
+        try openStore()
+        if let failure { throw failure }
     }
 
     func chooseFolder(_ url: URL) {
         guard let location else { return }
-        perform("Couldn't use that folder") {
-            store = nil
-            try location.choose(folder: url)
-            try openStore()
+        enqueue("Couldn't use that folder") {
+            try location.adopt(folder: url)
+            if location.hasRemoteFile {
+                try await self.pull(from: location)
+            } else {
+                try self.openStore()
+                try await location.push()
+            }
         }
     }
 
@@ -135,24 +155,16 @@ final class AppModel {
         ReminderScheduler.schedule(plan, today: today)
     }
 
-    /// Save the working copy to iCloud Drive after a change.
+    /// After a change: refresh, and queue the working copy to be copied to
+    /// iCloud Drive.
     private func save() throws {
         try refresh()
-        try location?.push()
+        guard let location else { return }
+        location.workingCopyChanged()
+        enqueue("Couldn't save to iCloud Drive") { try await location.push() }
     }
 
     // MARK: - Bean detail
-
-    func detail(forBean id: String) -> BeanDetail? {
-        guard let bean = activeBeans.first(where: { $0.id == id }) ?? archivedBeans.first(where: { $0.id == id })
-        else { return nil }
-        return BeanDetail(
-            bean: bean,
-            schedule: schedule,
-            dailyConsumptionGrams: settings.dailyConsumptionGrams,
-            today: today
-        )
-    }
 
     struct BeanHistory {
         var recentBrews: [BrewRecord] = []
@@ -172,38 +184,27 @@ final class AppModel {
 
     /// Import a BeanConqueror export, from the share sheet or the file picker.
     func importExport(at url: URL) {
-        perform("Import failed") {
-            let accessing = url.startAccessingSecurityScopedResource()
-            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-
-            let data = try Data(contentsOf: url)
-            // Files shared into the app land in Documents/Inbox; don't let them pile up.
-            if url.path.contains("/Documents/Inbox/") {
-                try? FileManager.default.removeItem(at: url)
-            }
-
-            let parsed = BeanConquerorParser.parse(zipData: data)
+        enqueue("Import failed") {
+            let parsed = try await Self.readExport(at: url)
             if parsed.beans.isEmpty && !parsed.errors.isEmpty {
                 throw LocationError(parsed.errors.joined(separator: "\n"))
             }
 
             // Fold in edits from other devices before writing over them.
-            if let location {
-                store = nil
-                try location.pullIfNewer()
-                try openStore()
-                try location.backUp()
+            if let location = self.location {
+                try await self.pull(from: location)
+                try await location.backUp()
             }
 
-            guard let store else { return }
-            let summary = try store.importExport(parsed, on: today)
-            try save()
+            guard let store = self.store else { return }
+            let summary = try store.importExport(parsed, on: self.today)
+            try self.save()
 
             var body = "\(summary.beansImported) beans, \(summary.brewsImported) brews."
             if !summary.errors.isEmpty {
                 body += "\n\n\(summary.errors.count) skipped:\n" + summary.errors.prefix(5).joined(separator: "\n")
             }
-            message = Message(title: "Imported", body: body)
+            self.message = Message(title: "Imported", body: body)
         }
     }
 
