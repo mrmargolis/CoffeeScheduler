@@ -215,6 +215,45 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(element(containing: "21 d"))
     }
 
+    // MARK: Accessibility
+
+    /// What iOS's accessibility audit is asked to check on each screen: that
+    /// VoiceOver has something to say about every element, and says the
+    /// right kind of thing. Left out, as choices the design makes: contrast
+    /// (dates outside the month and section labels are dim so that they
+    /// recede), Dynamic Type and clipping (a cell of the month grid can't
+    /// grow, so its text is a fixed size), and hit regions (a date in the
+    /// grid is 32 points tall).
+    private static let audited: XCUIAccessibilityAuditType = [.sufficientElementDescription, .elementDetection, .trait]
+
+    private func audit(_ screen: String) throws {
+        try XCTContext.runActivity(named: "Accessibility audit: \(screen)") { _ in
+            try app.performAccessibilityAudit(for: Self.audited)
+        }
+    }
+
+    func testScreensPassTheAccessibilityAudit() throws {
+        waitFor(app.staticTexts["October 2026"])
+        try audit("month")
+
+        showList()
+        waitFor(day("2026-10-13"))
+        try audit("week list")
+
+        openTab("Beans")
+        let gesha = element(containing: "Janson Gesha")
+        waitFor(gesha)
+        try audit("beans")
+
+        gesha.tap()
+        waitFor(app.navigationBars["Janson Gesha"])
+        try audit("bag detail")
+
+        openTab("Settings")
+        waitFor(app.buttons["Add a roaster"])
+        try audit("settings")
+    }
+
     // MARK: Settings
 
     func testAddARoasterDefault() {
