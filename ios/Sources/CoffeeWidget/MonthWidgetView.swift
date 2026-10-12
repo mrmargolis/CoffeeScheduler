@@ -39,7 +39,7 @@ struct MonthWidgetView: View {
             .padding(.bottom, isLarge ? 4 : 2)
 
             ForEach(weeks, id: \.self) { monday in
-                Palette.hairline.frame(height: 1)
+                Palette.weekRule.frame(height: isLarge ? 1.5 : 1)
                 WidgetWeek(
                     monday: monday, month: month, today: entry.today,
                     segments: MonthGrid.segments(entry.snapshot?.events ?? [], week: monday),
