@@ -1,6 +1,7 @@
 import CoffeeCore
 import SwiftUI
 import WidgetKit
+import os
 
 /// The app's widgets. xtool packs this target as an app extension (see
 /// `extensions` in xtool.yml).
@@ -58,12 +59,21 @@ struct MonthProvider: TimelineProvider {
 
     /// The snapshot the app last wrote into the shared App Group container.
     private static func load() -> WidgetSnapshot? {
-        guard
-            let folder = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup),
-            let data = try? Data(contentsOf: folder.appendingPathComponent(WidgetSnapshot.fileName))
-        else { return nil }
-        return try? WidgetSnapshot(decoding: data)
+        guard let folder = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup) else {
+            log.error("No App Group container: the widget was signed without the group")
+            return nil
+        }
+        do {
+            return try WidgetSnapshot(decoding: Data(contentsOf: folder.appendingPathComponent(WidgetSnapshot.fileName)))
+        } catch {
+            // Also what a new install says, until the app has been opened
+            log.error("Couldn't read the snapshot: \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
+
+    /// Under the app's subsystem, so one filter shows both (see "Logs" in the README).
+    private static let log = Logger(subsystem: "net.mattmargolis.CoffeeScheduler", category: "widget-extension")
 }
 
 /// The app's colours (`Theme` in the app target, which the widget can't import).

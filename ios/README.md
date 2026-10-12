@@ -114,6 +114,7 @@ CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4),
 with CoffeeCore's line coverage per file on the run's summary page, and
 type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
+- runs the tests that need the iOS SDK (`Tests/CoffeeSchedulerTests`): the copies to and from iCloud Drive, with a temporary folder standing in for it;
 - renders every screen over sample data and uploads the images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);
 - runs end-to-end UI tests (`E2E/Tests`) that launch the app and tap through
   each feature. XCUITest needs an app target, which a Swift package can't
@@ -123,6 +124,23 @@ type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator i
 Both use the sample data in `Sources/CoffeeScheduler/SampleData.swift`. A
 debug build launched with `-sample-data` opens it in memory with today pinned
 to 2026-10-12, so every run starts from the same state.
+
+## Logs
+
+The app and the widget log what goes wrong where nothing is shown: a widget
+snapshot that can't be written or read, a reminder iOS won't take, a folder
+bookmark that no longer resolves, and each copy to or from iCloud Drive. The
+subsystem is `net.mattmargolis.CoffeeScheduler`, with the categories `sync`,
+`store`, `widget`, `reminders` and, from the widget itself,
+`widget-extension`.
+
+With the phone plugged in, read them in Linux or WSL (`libimobiledevice-utils`):
+
+```bash
+idevicesyslog | grep -E 'CoffeeScheduler|CoffeeWidget'
+```
+
+On a Mac, filter Console by the subsystem.
 
 ## Where the data lives
 

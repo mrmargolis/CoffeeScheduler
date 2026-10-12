@@ -1,6 +1,7 @@
 import CoffeeCore
 import Foundation
 import Observation
+import os
 
 @MainActor
 @Observable
@@ -76,6 +77,7 @@ final class AppModel {
             do {
                 try await body()
             } catch {
+                Log.sync.error("\(failure, privacy: .public): \(String(describing: error), privacy: .public)")
                 self.message = Message(title: failure, body: error.localizedDescription)
             }
         }
@@ -174,10 +176,12 @@ final class AppModel {
     /// Read from the database on demand; small enough to query per view update.
     func history(forBean id: String) -> BeanHistory {
         guard let store else { return BeanHistory() }
-        return BeanHistory(
-            recentBrews: (try? store.recentBrews(beanID: id)) ?? [],
-            freezeEvents: (try? store.freezeEvents(beanID: id)) ?? []
-        )
+        do {
+            return BeanHistory(recentBrews: try store.recentBrews(beanID: id), freezeEvents: try store.freezeEvents(beanID: id))
+        } catch {
+            Log.store.error("Couldn't read the history of \(id, privacy: .public): \(String(describing: error), privacy: .public)")
+            return BeanHistory()
+        }
     }
 
     // MARK: - Actions
@@ -312,6 +316,7 @@ final class AppModel {
         do {
             try body()
         } catch {
+            Log.store.error("\(failure, privacy: .public): \(String(describing: error), privacy: .public)")
             message = Message(title: failure, body: error.localizedDescription)
         }
     }

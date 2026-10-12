@@ -1,6 +1,7 @@
 import CoffeeCore
 import Foundation
 import UserNotifications
+import os
 
 extension Reminder.Kind {
     /// Where the kind's switch in Settings is kept. On this device only:
@@ -26,7 +27,12 @@ enum ReminderScheduler {
 
     /// Ask to send notifications, once; later calls answer what was chosen.
     static func requestPermission() async -> Bool {
-        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
+        do {
+            return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        } catch {
+            Log.reminders.error("Couldn't ask to send notifications: \(String(describing: error), privacy: .public)")
+            return false
+        }
     }
 
     /// Replace what is pending with `reminders`, for the kinds switched on.
@@ -44,7 +50,11 @@ enum ReminderScheduler {
             center.removePendingNotificationRequests(withIdentifiers: pending.filter { isStale($0, today: today, off: off) })
             for reminder in wanted {
                 guard let request = request(reminder) else { continue }
-                try? await center.add(request)
+                do {
+                    try await center.add(request)
+                } catch {
+                    Log.reminders.error("Couldn't set \(reminder.id, privacy: .public): \(String(describing: error), privacy: .public)")
+                }
             }
         }
     }

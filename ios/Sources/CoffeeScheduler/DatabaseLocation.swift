@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Keeps the database in a folder the user picked in iCloud Drive.
 ///
@@ -51,10 +52,17 @@ final class DatabaseLocation {
         self.defaults = defaults
         self.workingCopy = workingCopy
         guard let data = defaults.data(forKey: bookmarkKey) else { return }
-        var stale = false
-        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale) else { return }
-        guard open(url) else { return }
-        if stale { saveBookmark(for: url) }
+        do {
+            var stale = false
+            let url = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale)
+            guard open(url) else {
+                Log.sync.error("No access to the folder the bookmark names")
+                return
+            }
+            if stale { saveBookmark(for: url) }
+        } catch {
+            Log.sync.error("Couldn't find the folder again: \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// Adopt a folder returned by the document picker. The caller then pulls
@@ -95,11 +103,15 @@ final class DatabaseLocation {
 
         let before = changes
         let data = try await CloudFile.read(remote)
-        guard changes == before else { return false }
+        guard changes == before else {
+            Log.sync.notice("Kept a change made here over the newer copy in iCloud Drive")
+            return false
+        }
 
         close()
         try data.write(to: workingCopy, options: .atomic)
         defaults.set(remoteModificationDate() ?? remoteDate, forKey: syncedDateKey)
+        Log.sync.notice("Pulled \(data.count) bytes from iCloud Drive")
         return true
     }
 
@@ -118,6 +130,7 @@ final class DatabaseLocation {
             throw error
         }
         defaults.set(remoteModificationDate() ?? Date(), forKey: syncedDateKey)
+        Log.sync.notice("Pushed to iCloud Drive")
     }
 
     /// Keep a copy of the working copy beside the database in the iCloud
@@ -149,8 +162,11 @@ final class DatabaseLocation {
     }
 
     private func saveBookmark(for url: URL) {
-        if let data = try? url.bookmarkData() {
-            defaults.set(data, forKey: bookmarkKey)
+        do {
+            defaults.set(try url.bookmarkData(), forKey: bookmarkKey)
+        } catch {
+            // The folder works until the app is next launched
+            Log.sync.error("Couldn't remember the folder: \(String(describing: error), privacy: .public)")
         }
     }
 }
