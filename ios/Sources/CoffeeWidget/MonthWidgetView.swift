@@ -171,12 +171,10 @@ private struct WidgetWeek: View {
         return Color(hex: colors[roaster] ?? RoasterColor.forRoaster(roaster).border)
     }
 
-    /// On the medium widget, a date over a brewed bag's solid box needs dark text.
+    /// On the medium widget, a date over a bag's solid box needs dark text.
     private func isOnSolidBox(column: Int) -> Bool {
         guard !isLarge else { return false }
-        return segments.contains {
-            $0.lane == 0 && $0.startColumn <= column && column <= $0.endColumn && $0.event.beanID != nil && $0.event.isActual
-        }
+        return segments.contains { $0.startColumn <= column && column <= $0.endColumn && $0.event.beanID != nil }
     }
 
     @ViewBuilder
@@ -215,8 +213,8 @@ private struct WidgetWeek: View {
     }
 }
 
-/// One span in a week: solid for brewed days, tinted for projected ones,
-/// dashed for skipped days and days with no coffee.
+/// One span in a week: solid in the roaster's colour for a bag, dashed for
+/// skipped days and days with no coffee.
 private struct WidgetBar: View {
     let segment: MonthGrid.Segment
     let color: Color
@@ -255,11 +253,9 @@ private struct WidgetBar: View {
         case .gap:
             return Look(fill: Palette.gap.opacity(0.14), stroke: Palette.gap, text: Palette.gapText, dash: [3, 2])
         default:
-            // The roaster colours are light, so a solid bar takes dark text
-            if event.isActual { return Look(fill: color, stroke: .clear, text: Palette.ground) }
-            // Medium boxes have no outline: where two bags share a day it
-            // would run through the date
-            return Look(fill: color.opacity(isLarge ? 0.25 : 0.35), stroke: isLarge ? color : .clear, text: Palette.text)
+            // Brewed and projected days look the same: the full roaster
+            // colour, which is light, so it takes dark text
+            return Look(fill: color, stroke: .clear, text: Palette.ground)
         }
     }
 }
