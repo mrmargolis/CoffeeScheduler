@@ -110,7 +110,8 @@ cd ios/CoffeeCore
 swift test        # needs libsqlite3-dev on Linux
 ```
 
-CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4) and
+CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4),
+with CoffeeCore's line coverage per file on the run's summary page, and
 type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
 - renders every screen over sample data and uploads the images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);

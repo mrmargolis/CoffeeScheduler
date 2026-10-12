@@ -46,7 +46,20 @@ jobs:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
       - run: swift --version
-      - run: swift test
+      - run: swift test --enable-code-coverage
+      - name: Coverage summary
+        # For reading on the run's page; no threshold fails the job.
+        run: |
+          jq -r '
+            [.data[0].files[] | select(.filename | contains("/Sources/CoffeeCore/"))] as $files
+            | ($files | map(.summary.lines.count) | add) as $count
+            | ($files | map(.summary.lines.covered) | add) as $covered
+            | "### CoffeeCore line coverage: \(($covered * 1000 / $count | round) / 10)%",
+              "",
+              "| File | Lines | Covered |",
+              "| --- | ---: | ---: |",
+              ($files[] | "| \(.filename | split("/") | last) | \(.summary.lines.count) | \((.summary.lines.percent * 10 | round) / 10)% |")
+          ' "$(swift test --show-codecov-path)" >> "$GITHUB_STEP_SUMMARY"
 
   app-build:
     # Type-checks the SwiftUI app against the iOS SDK. Day-to-day builds use
