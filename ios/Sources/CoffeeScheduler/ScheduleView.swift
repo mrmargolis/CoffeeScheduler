@@ -82,7 +82,6 @@ struct ScheduleView: View {
             get: { month ?? DateUtils.firstOfMonth(model.today) },
             set: { month = $0 }
         )
-        let monthEnd = DateUtils.addDays(DateUtils.addMonths(shown.wrappedValue, 1), -1)
         Section {
             MonthView(
                 month: shown,
@@ -92,8 +91,7 @@ struct ScheduleView: View {
             .listRowInsets(EdgeInsets(top: 12, leading: 10, bottom: 10, trailing: 10))
         }
         .listRowBackground(Theme.card)
-        let runs = Scheduler.bagRuns(model.schedule)
-            .filter { $0.start <= monthEnd && $0.end >= shown.wrappedValue }
+        let runs = model.bagRuns(inMonth: shown.wrappedValue)
         if !runs.isEmpty {
             Section {
                 BagKey(runs: runs) { path.append(BeanRoute(id: $0)) }

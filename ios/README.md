@@ -150,7 +150,7 @@ switches the file to a rollback journal the first time it opens it.
 ## Buying the next bag
 
 Under the calendar the Schedule screen says how long the coffee lasts and
-when to buy the next bag: "Coffee through Nov 23. Buy the next bag by Oct 24
+when to buy the next bag: "Coffee through Nov 23. Buy the next bag by Oct 25
 so it's rested in time." The buy-by day is the first day with no coffee,
 less the default rest in Settings, taking a bag to be roasted the day it's
 bought. Once that day has gone it says when a bag bought today would be
@@ -159,6 +159,14 @@ shown while the schedule has coffee as far as it reaches (four months).
 
 The schedule is only as current as the last import, since brews arrive with
 one; the import row in Settings says how long ago that was.
+
+## Sharing
+
+The share button beside the month's name sends a picture of that month: the
+grid and its bags. The one in a day's options (tap the day's date) sends
+that day. The picture is drawn when the share sheet asks for it
+(`ScheduleSnapshot`), from the same views the screens use, and CI saves
+examples with the screenshots.
 
 ## Widget
 

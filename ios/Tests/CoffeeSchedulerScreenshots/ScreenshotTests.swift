@@ -14,10 +14,41 @@ final class ScreenshotTests: XCTestCase {
     /// iPhone 16/17 screen, in points.
     static let screenSize = CGSize(width: 393, height: 852)
 
-    func testScreenshots() throws {
+    private func outputDirectory() throws -> URL {
         let base = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"] ?? NSTemporaryDirectory()
         let outDir = URL(fileURLWithPath: base).appendingPathComponent("screenshots")
         try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        return outDir
+    }
+
+    /// The pictures the share buttons send, as they'd arrive: the month, a
+    /// day with its own amount, and a skipped day.
+    func testSharedPictures() throws {
+        let outDir = try outputDirectory()
+        let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
+        let pictures: [(String, ScheduleSnapshot.Subject)] = [
+            ("14-share-month", .month("2026-10-01")),
+            ("15-share-day", .day("2026-10-14")),
+            ("16-share-skipped-day", .day("2026-10-17")),
+        ]
+
+        for (name, subject) in pictures {
+            let data = try ScheduleSnapshot(subject, model: model).png()
+            let image = try XCTUnwrap(UIImage(data: data))
+            // Drawn at 3x, and tall enough to hold more than its heading
+            XCTAssertGreaterThan(image.size.width, 1000, name)
+            XCTAssertGreaterThan(image.size.height, 400, name)
+            try data.write(to: outDir.appendingPathComponent("\(name).png"))
+
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "\(name).png"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+    }
+
+    func testScreenshots() throws {
+        let outDir = try outputDirectory()
 
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         XCTAssertNil(model.message, "Sample data failed to load: \(model.message?.body ?? "")")

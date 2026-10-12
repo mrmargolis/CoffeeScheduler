@@ -1,6 +1,14 @@
 import CoffeeCore
 import SwiftUI
 
+extension AppModel {
+    /// The bags drunk in the month starting on `month`, in the order they're drunk.
+    func bagRuns(inMonth month: String) -> [BagRun] {
+        let monthEnd = DateUtils.addDays(DateUtils.addMonths(month, 1), -1)
+        return Scheduler.bagRuns(schedule).filter { $0.start <= monthEnd && $0.end >= month }
+    }
+}
+
 /// Which bag runs over which dates, in the order they're drunk. Tapping a
 /// bag opens it.
 struct BagKey: View {

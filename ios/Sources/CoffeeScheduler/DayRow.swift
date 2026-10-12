@@ -11,6 +11,8 @@ struct DayRow: View {
     let runs: [String: BagRun]
     let openBean: (String) -> Void
     let openDay: () -> Void
+    /// Days already brewed are faded in the list; not in a shared picture.
+    var dimsPast = true
 
     private var isToday: Bool { day.date == model.today }
     private var override: ConsumptionOverride? { model.consumptionOverride(on: day.date) }
@@ -30,7 +32,7 @@ struct DayRow: View {
             }
         }
         .frame(minHeight: 44)
-        .opacity(day.isActual && !isToday ? 0.6 : 1)
+        .opacity(dimsPast && day.isActual && !isToday ? 0.6 : 1)
         .listRowBackground(RowCard(tile: isToday ? .today : .none))
     }
 

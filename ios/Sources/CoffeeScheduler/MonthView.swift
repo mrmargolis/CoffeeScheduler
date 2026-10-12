@@ -11,6 +11,8 @@ struct MonthView: View {
     @Binding var month: String
     let openBean: (String) -> Void
     let openDay: (String) -> Void
+    /// The title, the arrows and the share button; left out of a shared picture.
+    var showsHeader = true
 
     var body: some View {
         let events = MonthGrid.joined(
@@ -19,7 +21,7 @@ struct MonthView: View {
         let days = Dictionary(model.schedule.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
 
         VStack(spacing: 0) {
-            header
+            if showsHeader { header }
             HStack(spacing: 0) {
                 ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, letter in
                     Text(letter).frame(maxWidth: .infinity)
@@ -48,7 +50,10 @@ struct MonthView: View {
             step(-1, icon: "chevron.left", label: "Previous month")
                 .disabled(month <= firstMonth)
             Spacer()
+            // As wide as the share button, so the title stays in the middle
+            Color.clear.frame(width: 44, height: 1)
             Text(Format.monthTitle(month)).font(.headline.bold())
+            ShareScheduleLink(subject: .month(month)).buttonStyle(.plain)
             Spacer()
             step(1, icon: "chevron.right", label: "Next month")
                 .disabled(month >= lastMonth)
