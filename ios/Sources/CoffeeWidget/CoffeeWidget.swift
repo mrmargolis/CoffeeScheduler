@@ -69,7 +69,8 @@ struct MonthProvider: TimelineProvider {
 /// The app's colours (`Theme` in the app target, which the widget can't import).
 enum Palette {
     static let ground = Color(hex: "#15110D")
-    static let hairline = Color(hex: "#382C1F")
+    /// The line over each week of the month grid.
+    static let weekLine = Color(hex: "#4D3E2D")
     static let text = Color(hex: "#F4ECDD")
     static let text2 = Color(hex: "#BBAA92")
     static let text3 = Color(hex: "#94836C")

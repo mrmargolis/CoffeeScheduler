@@ -32,7 +32,7 @@ struct MonthView: View {
             .padding(.vertical, 10)
 
             ForEach(weeks, id: \.self) { monday in
-                Theme.hairline.frame(height: 1)
+                Theme.weekLine.frame(height: 1)
                 WeekRow(
                     monday: monday, month: month,
                     segments: MonthGrid.segments(events, week: monday),
