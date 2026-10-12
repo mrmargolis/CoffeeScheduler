@@ -1,0 +1,17 @@
+name: Install XcodeGen
+description: >-
+  Download the pinned XcodeGen release, check it against its SHA-256, and put
+  it on the PATH. To upgrade, change the version and the checksum together.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        XCODEGEN_VERSION: 2.42.0
+        XCODEGEN_SHA256: a760b4bf97460341316a2c00d8c87b2946c6c2729eb57e9a72abb3ef7bc0ef82
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+          "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+        echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+        unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"

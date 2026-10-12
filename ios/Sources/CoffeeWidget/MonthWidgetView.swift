@@ -30,7 +30,7 @@ struct MonthWidgetView: View {
         return VStack(spacing: 0) {
             header(isLarge: isLarge)
             HStack(spacing: 0) {
-                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, letter in
+                ForEach(Array(MonthGrid.weekdayLetters.enumerated()), id: \.offset) { _, letter in
                     Text(letter).frame(maxWidth: .infinity)
                 }
             }
@@ -94,7 +94,7 @@ struct MonthWidgetView: View {
     private static func title(_ month: String) -> String {
         var style = Date.FormatStyle.dateTime.month(.wide).year()
         style.timeZone = TimeZone(identifier: "UTC") ?? .current
-        return Date(timeIntervalSince1970: Double(DateUtils.dayNumber(month) ?? 0) * 86_400 + 43_200).formatted(style)
+        return DateUtils.noonUTC(month).formatted(style)
     }
 }
 
@@ -172,9 +172,12 @@ private struct WidgetWeek: View {
     }
 
     /// On the medium widget, a date over a bag's solid box needs dark text.
+    /// Only brewed days are solid; a projected day's box is a tint.
     private func isOnSolidBox(column: Int) -> Bool {
         guard !isLarge else { return false }
-        return segments.contains { $0.startColumn <= column && column <= $0.endColumn && $0.event.beanID != nil }
+        return segments.contains {
+            $0.startColumn <= column && column <= $0.endColumn && $0.event.beanID != nil && $0.event.isActual
+        }
     }
 
     @ViewBuilder
@@ -213,8 +216,9 @@ private struct WidgetWeek: View {
     }
 }
 
-/// One span in a week: solid in the roaster's colour for a bag, dashed for
-/// skipped days and days with no coffee.
+/// One span in a week, shaded as in the app's month view: a bag is solid in
+/// its roaster's colour for brewed days and a tint of it with an outline for
+/// projected ones; skipped days and days with no coffee are dashed.
 private struct WidgetBar: View {
     let segment: MonthGrid.Segment
     let color: Color
@@ -253,9 +257,12 @@ private struct WidgetBar: View {
         case .gap:
             return Look(fill: Palette.gap.opacity(0.14), stroke: Palette.gap, text: Palette.gapText, dash: [3, 2])
         default:
-            // Brewed and projected days look the same: the full roaster
-            // colour, which is light, so it takes dark text
-            return Look(fill: color, stroke: .clear, text: Palette.ground)
+            // As in the app: brewed days are solid, projected ones tinted
+            // and outlined. The roaster colours are light, so a solid bar
+            // takes dark text
+            if event.isActual { return Look(fill: color, stroke: .clear, text: Palette.ground) }
+            let isEarly = event.daysEarly > 0 && segment.isStart
+            return Look(fill: color.opacity(0.2), stroke: color, text: isEarly ? Palette.accent : Palette.text)
         }
     }
 }

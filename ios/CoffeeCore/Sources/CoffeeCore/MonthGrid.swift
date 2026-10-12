@@ -18,6 +18,9 @@ public enum MonthGrid {
         public let isEnd: Bool
     }
 
+    /// The heading over each column, Monday first.
+    public static let weekdayLetters = ["M", "T", "W", "T", "F", "S", "S"]
+
     /// 0 = Monday ... 6 = Sunday. 1970-01-01 was a Thursday.
     public static func weekdayIndex(_ iso: String) -> Int {
         ((DateUtils.dayNumber(iso) ?? 0) + 3) % 7

@@ -45,6 +45,12 @@ public enum DateUtils {
         return format(c.year!, c.month!, c.day!)
     }
 
+    /// Noon UTC on an ISO day, for a formatter set to UTC: half a day from
+    /// either midnight, so the day it prints can't shift.
+    public static func noonUTC(_ iso: String) -> Date {
+        Date(timeIntervalSince1970: Double(dayNumber(iso) ?? 0) * 86_400 + 43_200)
+    }
+
     /// Today in the device's local time zone.
     public static func today() -> String {
         isoString(Date())

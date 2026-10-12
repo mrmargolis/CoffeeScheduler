@@ -5,7 +5,7 @@ import Foundation
 enum Format {
     static func date(_ iso: String) -> Date {
         // Noon UTC rendered in UTC, so the calendar day can't shift.
-        Date(timeIntervalSince1970: Double(DateUtils.dayNumber(iso) ?? 0) * 86_400 + 43_200)
+        DateUtils.noonUTC(iso)
     }
 
     private static func formatter(_ template: String) -> DateFormatter {

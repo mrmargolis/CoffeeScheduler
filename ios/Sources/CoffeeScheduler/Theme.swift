@@ -1,32 +1,33 @@
+import CoffeeCore
 import SwiftUI
 
 /// The app's one look: warm and dark, taken from the app icon. There is no
-/// light variant, so these are fixed colours rather than adaptive ones.
+/// light variant, so these are fixed colours rather than adaptive ones. The
+/// colours the widget draws with too are `Palette`'s, in CoffeeCore.
 enum Theme {
     /// Screen background.
-    static let ground = Color(hex: "#15110D")
+    static let ground = Palette.ground
     static let card = Color(hex: "#201910")
     /// Chips, stepper wells and round buttons on a card.
     static let raised = Color(hex: "#2A2117")
     /// Dividers inside cards.
     static let hairline = Color(hex: "#382C1F")
-    /// The line over each week of the month grid: a step lighter than a
-    /// hairline, which is hard to see across the full width of the grid.
-    static let weekLine = Color(hex: "#5E4E3B")
+    /// The line over each week of the month grid.
+    static let weekLine = Palette.weekLine
 
-    static let text = Color(hex: "#F4ECDD")
-    static let text2 = Color(hex: "#BBAA92")
+    static let text = Palette.text
+    static let text2 = Palette.text2
     /// Section labels.
-    static let text3 = Color(hex: "#94836C")
+    static let text3 = Palette.text3
     /// Dates outside the month and dashed outlines.
-    static let dim = Color(hex: "#6E5F4C")
+    static let dim = Palette.dim
 
     /// Gold: the selected tab, today, links and early-start notes.
-    static let accent = Color(hex: "#E0AA45")
+    static let accent = Palette.accent
     static let frozen = Color(hex: "#6FC3D6")
     static let frozenText = Color(hex: "#8DD3E3")
-    static let gap = Color(hex: "#E5766A")
-    static let gapText = Color(hex: "#F0A096")
+    static let gap = Palette.gap
+    static let gapText = Palette.gapText
     static let ready = Color(hex: "#9AD493")
 
     /// A section label sits just inside its card's edge.

@@ -15,5 +15,5 @@ updates:
     schedule:
       interval: weekly
 
-# Not covered: SwiftLint (ios/lint.sh) and XcodeGen (the workflow) are
+# Not covered: SwiftLint (ios/lint.sh) and XcodeGen (.github/actions/xcodegen) are
 # downloads pinned by version and checksum, and are upgraded by hand.

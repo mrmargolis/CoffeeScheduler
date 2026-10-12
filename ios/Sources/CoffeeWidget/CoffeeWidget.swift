@@ -1,6 +1,7 @@
 import CoffeeCore
 import SwiftUI
 import WidgetKit
+import os
 
 /// The app's widgets. xtool packs this target as an app extension (see
 /// `extensions` in xtool.yml).
@@ -58,36 +59,19 @@ struct MonthProvider: TimelineProvider {
 
     /// The snapshot the app last wrote into the shared App Group container.
     private static func load() -> WidgetSnapshot? {
-        guard
-            let folder = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup),
-            let data = try? Data(contentsOf: folder.appendingPathComponent(WidgetSnapshot.fileName))
-        else { return nil }
-        return try? WidgetSnapshot(decoding: data)
+        guard let folder = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup) else {
+            log.error("No App Group container: the widget was signed without the group")
+            return nil
+        }
+        do {
+            return try WidgetSnapshot(decoding: Data(contentsOf: folder.appendingPathComponent(WidgetSnapshot.fileName)))
+        } catch {
+            // Also what a new install says, until the app has been opened
+            log.error("Couldn't read the snapshot: \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
-}
 
-/// The app's colours (`Theme` in the app target, which the widget can't import).
-enum Palette {
-    static let ground = Color(hex: "#15110D")
-    /// The line over each week of the month grid.
-    static let weekLine = Color(hex: "#5E4E3B")
-    static let text = Color(hex: "#F4ECDD")
-    static let text2 = Color(hex: "#BBAA92")
-    static let text3 = Color(hex: "#94836C")
-    static let dim = Color(hex: "#6E5F4C")
-    static let accent = Color(hex: "#E0AA45")
-    static let gap = Color(hex: "#E5766A")
-    static let gapText = Color(hex: "#F0A096")
-}
-
-extension Color {
-    /// A colour from "#rrggbb".
-    init(hex: String) {
-        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
-        self.init(
-            red: Double((value >> 16) & 0xff) / 255,
-            green: Double((value >> 8) & 0xff) / 255,
-            blue: Double(value & 0xff) / 255
-        )
-    }
+    /// Under the app's subsystem, so one filter shows both (see "Logs" in the README).
+    private static let log = Logger(subsystem: "net.mattmargolis.CoffeeScheduler", category: "widget-extension")
 }

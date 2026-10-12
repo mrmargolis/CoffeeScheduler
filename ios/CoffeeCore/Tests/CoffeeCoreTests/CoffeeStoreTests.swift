@@ -132,6 +132,41 @@ import Testing
         #expect(days[2].consumptions.first?.grams == 45)
     }
 
+    @Test func aNewDatabaseIsAtTheCurrentSchemaVersion() throws {
+        let store = try CoffeeStore.inMemory()
+        #expect(try store.db.query("PRAGMA user_version").first?.int("user_version") == Schema.version)
+    }
+
+    @Test func anUnversionedDatabaseIsMigrated() throws {
+        // As the web app left it: no version, and a beans table without the newer columns
+        let db = try SQLiteDatabase(path: ":memory:")
+        try db.execute(
+            """
+            CREATE TABLE beans (
+              id TEXT PRIMARY KEY, name TEXT NOT NULL, roaster TEXT NOT NULL DEFAULT '', roast_date TEXT,
+              weight_grams REAL NOT NULL DEFAULT 0, cost REAL, flavour_profile TEXT, country TEXT, region TEXT,
+              variety TEXT, processing TEXT, archived INTEGER NOT NULL DEFAULT 0, rest_days INTEGER,
+              is_frozen INTEGER NOT NULL DEFAULT 0, notes TEXT, display_order INTEGER
+            );
+            INSERT INTO beans (id, name, roast_date, weight_grams) VALUES ('old', 'Old Bean', '2026-01-15', 250);
+            """)
+
+        let store = try CoffeeStore(db: db)
+        try store.updateBeanSettings(id: "old", BeanSettings(roastDate: "2026-01-15", plannedThawDate: "2026-03-01"))
+
+        #expect(try store.bean(id: "old")?.plannedThawDate == "2026-03-01")
+        #expect(try db.query("PRAGMA user_version").first?.int("user_version") == Schema.version)
+    }
+
+    @Test func aDatabaseFromANewerBuildIsRefusedAndLeftAlone() throws {
+        let db = try SQLiteDatabase(path: ":memory:")
+        try db.execute("PRAGMA user_version = 99")
+
+        #expect(throws: SchemaError.newerThanApp(found: 99)) { try CoffeeStore(db: db) }
+        #expect(try db.query("SELECT name FROM sqlite_master").isEmpty)
+        #expect(try db.query("PRAGMA user_version").first?.int("user_version") == 99)
+    }
+
     @Test func persistsToFile() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("coffee-\(UUID().uuidString).db")

@@ -36,6 +36,13 @@ import Testing
         #expect(DateUtils.dayNumber("not a date") == nil)
     }
 
+    @Test func noonUTCIsTheSameDayInUTC() {
+        #expect(DateUtils.noonUTC("2024-02-01") == Date(timeIntervalSince1970: 1_706_788_800))
+        for day in ["1999-12-31", "2026-03-29", "2026-10-25"] {
+            #expect(DateUtils.isoString(DateUtils.noonUTC(day), timeZone: TimeZone(identifier: "UTC")!) == day)
+        }
+    }
+
     @Test func isoStringUsesTimeZone() {
         let date = Date(timeIntervalSince1970: 1_706_788_800)  // 2024-02-01 12:00 UTC
         #expect(DateUtils.isoString(date, timeZone: TimeZone(identifier: "UTC")!) == "2024-02-01")

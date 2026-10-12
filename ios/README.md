@@ -114,6 +114,7 @@ CI (`.github/workflows/ios.yml`) lints and runs these on Linux (Swift 6.4),
 with CoffeeCore's line coverage per file on the run's summary page, and
 type-checks the app against the iOS SDK on a macOS runner. On an iOS Simulator it also:
 
+- runs the tests that need the iOS SDK (`Tests/CoffeeSchedulerTests`): the copies to and from iCloud Drive, with a temporary folder standing in for it;
 - renders every screen over sample data and uploads the images as the `screenshots` artifact (`Tests/CoffeeSchedulerScreenshots`);
 - runs end-to-end UI tests (`E2E/Tests`) that launch the app and tap through
   each feature. XCUITest needs an app target, which a Swift package can't
@@ -124,6 +125,23 @@ Both use the sample data in `Sources/CoffeeScheduler/SampleData.swift`. A
 debug build launched with `-sample-data` opens it in memory with today pinned
 to 2026-10-12, so every run starts from the same state.
 
+## Logs
+
+The app and the widget log what goes wrong where nothing is shown: a widget
+snapshot that can't be written or read, a reminder iOS won't take, a folder
+bookmark that no longer resolves, and each copy to or from iCloud Drive. The
+subsystem is `net.mattmargolis.CoffeeScheduler`, with the categories `sync`,
+`store`, `widget`, `reminders` and, from the widget itself,
+`widget-extension`.
+
+With the phone plugged in, read them in Linux or WSL (`libimobiledevice-utils`):
+
+```bash
+idevicesyslog | grep -E 'CoffeeScheduler|CoffeeWidget'
+```
+
+On a Mac, filter Console by the subsystem.
+
 ## Where the data lives
 
 On first launch, pick a folder in iCloud Drive (Settings → Storage). The app
@@ -132,9 +150,14 @@ keeps `coffee.db` there:
 - SQLite works on a local copy in the app's Application Support directory.
 - After every change the local copy is written back to the iCloud folder, and
   when the app comes to the foreground it pulls the iCloud copy if it is newer.
-  Both go through `NSFileCoordinator`.
+  Both go through `NSFileCoordinator`, off the main thread: a pull waits for
+  iCloud to download the file, and the app shows the local copy meanwhile.
 - The database uses a rollback journal, not WAL, so the single file is always
   complete.
+- The file carries its schema version (SQLite's `user_version`, `Schema.version`
+  in CoffeeCore). A build that finds a higher one than it knows refuses the
+  file rather than write to it, so update the app on every device after a
+  schema change.
 
 Why a picked folder rather than the app's own iCloud container: an iCloud
 container needs the iCloud capability on the App ID, and xtool can't
@@ -247,8 +270,10 @@ Xcode does without being asked have to be done by hand with xtool:
   `Support/IntentsMetadata/<target>/Metadata.appintents`, and `xtool.yml`
   ships them as resources. After adding or changing an intent or a Siri
   phrase, replace the copies with the `intents-metadata` artifact from the CI
-  run; the job warns when they differ. Without the metadata a widget button
-  does nothing and Siri doesn't know the phrases.
+  run; the job fails until they match (`Support/IntentsMetadata/compare.py`,
+  which lets through the parts Xcode writes differently on every build).
+  Without the metadata a widget button does nothing and Siri doesn't know
+  the phrases.
 - **A reference from the code.** The app is linked from a static library, so
   code nothing refers to is left out. `CoffeeSchedulerApp.init` calls
   `CoffeeShortcuts.updateAppShortcutParameters()`, which keeps the intents

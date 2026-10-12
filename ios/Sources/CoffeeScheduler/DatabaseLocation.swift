@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Keeps the database in a folder the user picked in iCloud Drive.
 ///
@@ -8,6 +9,11 @@ import Foundation
 /// Both copies go through NSFileCoordinator, which is what lets iCloud Drive
 /// download an evicted file first and keeps it from syncing a half-written one.
 ///
+/// Each copy has two halves. The working copy is read and written here, on
+/// the main actor, where SQLite is too, so it is never read part way through
+/// a write. The iCloud file is read and written off the main actor
+/// (`CloudFile`), since a coordinated read waits for a download.
+///
 /// A folder picked through the document picker needs no iCloud entitlement, so
 /// this works with xtool, which can't provision iCloud containers, and with a
 /// free Apple ID.
@@ -16,12 +22,12 @@ final class DatabaseLocation {
     static let fileName = "coffee.db"
     static let backupFileName = "coffee.backup.db"
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let bookmarkKey = "databaseFolderBookmark"
     private let syncedDateKey = "databaseLastSyncedRemoteDate"
 
     /// The local copy SQLite opens.
-    let workingCopy = DatabaseLocation.workingCopyURL
+    let workingCopy: URL
 
     /// Where the local copy lives, for code that only reads it.
     static var workingCopyURL: URL {
@@ -32,77 +38,124 @@ final class DatabaseLocation {
 
     /// The picked folder, if any. Access to it is held open for the app's lifetime.
     private(set) var folder: URL?
+    private var isScoped = false
+
+    /// Counts the changes made to the working copy, to tell when one lands
+    /// while the iCloud file is being fetched.
+    private var changes = 0
+    private var needsPush = false
 
     var remoteFile: URL? { folder?.appendingPathComponent(Self.fileName) }
 
-    init() {
+    /// The defaults and the working copy are parameters for the tests.
+    init(defaults: UserDefaults = .standard, workingCopy: URL = DatabaseLocation.workingCopyURL) {
+        self.defaults = defaults
+        self.workingCopy = workingCopy
         guard let data = defaults.data(forKey: bookmarkKey) else { return }
-        var stale = false
-        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale) else { return }
-        guard url.startAccessingSecurityScopedResource() else { return }
-        folder = url
-        if stale { saveBookmark(for: url) }
+        do {
+            var stale = false
+            let url = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale)
+            guard open(url) else {
+                Log.sync.error("No access to the folder the bookmark names")
+                return
+            }
+            if stale { saveBookmark(for: url) }
+        } catch {
+            Log.sync.error("Couldn't find the folder again: \(String(describing: error), privacy: .public)")
+        }
     }
 
-    /// Adopt a folder returned by the document picker. If the folder already
-    /// holds a `coffee.db` (from another device) it replaces the
-    /// working copy; otherwise the working copy is copied into the folder.
-    func choose(folder url: URL) throws {
-        folder?.stopAccessingSecurityScopedResource()
-        guard url.startAccessingSecurityScopedResource() else {
+    /// Adopt a folder returned by the document picker. The caller then pulls
+    /// the folder's `coffee.db` (from another device) if it has one, and
+    /// pushes the working copy into it if not.
+    func adopt(folder url: URL) throws {
+        let previous = isScoped ? folder : nil
+        guard open(url) else {
             throw LocationError("Couldn't get access to that folder.")
         }
-        folder = url
+        previous?.stopAccessingSecurityScopedResource()
         saveBookmark(for: url)
         defaults.removeObject(forKey: syncedDateKey)
+        needsPush = true
+    }
 
-        if remoteModificationDate() != nil {
-            try pullIfNewer()
-        } else {
-            try push()
-        }
+    var hasRemoteFile: Bool { remoteModificationDate() != nil }
+
+    /// Say that the working copy has changed and is to be pushed.
+    func workingCopyChanged() {
+        changes += 1
+        needsPush = true
     }
 
     /// Copy the iCloud file over the working copy if it changed since we last
-    /// synced. The caller must close the database first. Returns true when the
-    /// working copy was replaced.
+    /// synced. `close` is called just before the working copy is replaced:
+    /// SQLite must let go of the file first. Returns true when it was replaced.
+    ///
+    /// The working copy is left alone if it changed while the iCloud file was
+    /// being fetched. That change is pushed next and wins, as a change made
+    /// here always has.
     @discardableResult
-    func pullIfNewer() throws -> Bool {
+    func pullIfNewer(closing close: () -> Void) async throws -> Bool {
         guard let remote = remoteFile, let remoteDate = remoteModificationDate() else { return false }
         if let synced = defaults.object(forKey: syncedDateKey) as? Date, remoteDate <= synced {
             return false
         }
 
-        try coordinate(reading: remote) { source in
-            try Self.copy(source, over: self.workingCopy)
+        let before = changes
+        let data = try await CloudFile.read(remote)
+        guard changes == before else {
+            Log.sync.notice("Kept a change made here over the newer copy in iCloud Drive")
+            return false
         }
+
+        close()
+        try data.write(to: workingCopy, options: .atomic)
         defaults.set(remoteModificationDate() ?? remoteDate, forKey: syncedDateKey)
+        Log.sync.notice("Pulled \(data.count) bytes from iCloud Drive")
         return true
     }
 
-    /// Copy the working copy out to the iCloud folder.
-    func push() throws {
-        guard let remote = remoteFile,
+    /// Copy the working copy out to the iCloud folder, if it has changed
+    /// since it was last copied there.
+    func push() async throws {
+        guard needsPush, let remote = remoteFile,
             FileManager.default.fileExists(atPath: workingCopy.path)
         else { return }
 
-        try coordinate(writing: remote) { destination in
-            try Self.copy(self.workingCopy, over: destination)
+        needsPush = false
+        do {
+            try await CloudFile.write(try Data(contentsOf: workingCopy), to: remote)
+        } catch {
+            needsPush = true
+            throw error
         }
         defaults.set(remoteModificationDate() ?? Date(), forKey: syncedDateKey)
+        Log.sync.notice("Pushed to iCloud Drive")
     }
 
     /// Keep a copy of the working copy beside the database in the iCloud
     /// folder, replacing the last one. Taken before an import, so the data
     /// as it was can be put back from Files by renaming the copy.
-    func backUp() throws {
+    func backUp() async throws {
         guard let backup = folder?.appendingPathComponent(Self.backupFileName),
             FileManager.default.fileExists(atPath: workingCopy.path)
         else { return }
 
-        try coordinate(writing: backup) { destination in
-            try Self.copy(self.workingCopy, over: destination)
+        try await CloudFile.write(try Data(contentsOf: workingCopy), to: backup)
+    }
+
+    /// Take `url` as the folder, if it is there and can be read. A folder
+    /// from the document picker is security-scoped; one that isn't is
+    /// taken as it is.
+    private func open(_ url: URL) -> Bool {
+        let scoped = url.startAccessingSecurityScopedResource()
+        guard FileManager.default.isReadableFile(atPath: url.path) else {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+            return false
         }
+        folder = url
+        isScoped = scoped
+        return true
     }
 
     private func remoteModificationDate() -> Date? {
@@ -113,31 +166,39 @@ final class DatabaseLocation {
     }
 
     private func saveBookmark(for url: URL) {
-        if let data = try? url.bookmarkData() {
-            defaults.set(data, forKey: bookmarkKey)
+        do {
+            defaults.set(try url.bookmarkData(), forKey: bookmarkKey)
+        } catch {
+            // The folder works until the app is next launched
+            Log.sync.error("Couldn't remember the folder: \(String(describing: error), privacy: .public)")
         }
+    }
+}
+
+/// The iCloud Drive side of a copy, off the main actor: a coordinated read
+/// waits for iCloud to download a file it has evicted, which can take as long
+/// as the network does.
+private enum CloudFile {
+    @concurrent
+    static func read(_ url: URL) async throws -> Data {
+        var coordinatorError: NSError?
+        var result: Result<Data, any Error>?
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { url in
+            result = Result { try Data(contentsOf: url) }
+        }
+        if let coordinatorError { throw coordinatorError }
+        guard let result else { throw LocationError("Couldn't read \(url.lastPathComponent).") }
+        return try result.get()
     }
 
     /// Small file, so a whole-file atomic write is simplest: it writes a temp
     /// file beside the destination and renames it into place.
-    private static func copy(_ source: URL, over destination: URL) throws {
-        try Data(contentsOf: source).write(to: destination, options: .atomic)
-    }
-
-    private func coordinate(reading url: URL, _ body: (URL) throws -> Void) throws {
-        var coordinatorError: NSError?
-        var bodyError: (any Error)?
-        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { url in
-            do { try body(url) } catch { bodyError = error }
-        }
-        if let error = coordinatorError ?? bodyError { throw error }
-    }
-
-    private func coordinate(writing url: URL, _ body: (URL) throws -> Void) throws {
+    @concurrent
+    static func write(_ data: Data, to url: URL) async throws {
         var coordinatorError: NSError?
         var bodyError: (any Error)?
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinatorError) { url in
-            do { try body(url) } catch { bodyError = error }
+            do { try data.write(to: url, options: .atomic) } catch { bodyError = error }
         }
         if let error = coordinatorError ?? bodyError { throw error }
     }

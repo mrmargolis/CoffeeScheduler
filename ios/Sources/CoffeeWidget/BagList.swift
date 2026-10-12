@@ -83,6 +83,6 @@ struct BagList: View {
     private static func day(_ iso: String) -> String {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.timeZone = TimeZone(identifier: "UTC") ?? .current
-        return Date(timeIntervalSince1970: Double(DateUtils.dayNumber(iso) ?? 0) * 86_400 + 43_200).formatted(style)
+        return DateUtils.noonUTC(iso).formatted(style)
     }
 }
