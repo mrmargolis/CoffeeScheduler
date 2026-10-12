@@ -1,18 +1,6 @@
 import CoffeeCore
 import SwiftUI
 
-extension Color {
-    /// A colour from "#rrggbb".
-    init(hex: String) {
-        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
-        self.init(
-            red: Double((value >> 16) & 0xff) / 255,
-            green: Double((value >> 8) & 0xff) / 255,
-            blue: Double(value & 0xff) / 255
-        )
-    }
-}
-
 extension AppModel {
     /// A roaster's rail colour: the schedule's collision-free assignment, or
     /// its hashed colour for a roaster not in the schedule.

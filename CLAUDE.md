@@ -24,7 +24,8 @@ Windows.
 
 - `ios/CoffeeCore` is a platform-independent Swift package, tested on Linux:
   the scheduler, the BeanConqueror parser, the SQLite store and schema, and
-  the layout the month view and widget share.
+  the layout and colours the month view and widget share (`Palette`, the
+  package's only SwiftUI, compiled only where SwiftUI exists).
 - `ios/Sources/CoffeeScheduler` is the app, `ios/Sources/CoffeeWidget` the
   home screen widget.
 

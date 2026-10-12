@@ -30,7 +30,7 @@ struct MonthWidgetView: View {
         return VStack(spacing: 0) {
             header(isLarge: isLarge)
             HStack(spacing: 0) {
-                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, letter in
+                ForEach(Array(MonthGrid.weekdayLetters.enumerated()), id: \.offset) { _, letter in
                     Text(letter).frame(maxWidth: .infinity)
                 }
             }
@@ -94,7 +94,7 @@ struct MonthWidgetView: View {
     private static func title(_ month: String) -> String {
         var style = Date.FormatStyle.dateTime.month(.wide).year()
         style.timeZone = TimeZone(identifier: "UTC") ?? .current
-        return Date(timeIntervalSince1970: Double(DateUtils.dayNumber(month) ?? 0) * 86_400 + 43_200).formatted(style)
+        return DateUtils.noonUTC(month).formatted(style)
     }
 }
 

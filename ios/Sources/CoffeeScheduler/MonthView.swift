@@ -23,7 +23,7 @@ struct MonthView: View {
         VStack(spacing: 0) {
             if showsHeader { header }
             HStack(spacing: 0) {
-                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, letter in
+                ForEach(Array(MonthGrid.weekdayLetters.enumerated()), id: \.offset) { _, letter in
                     Text(letter).frame(maxWidth: .infinity)
                 }
             }
