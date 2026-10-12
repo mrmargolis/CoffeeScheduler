@@ -23,6 +23,7 @@ import Foundation
             try event("gesha", "freeze", "2026-08-16", into: db)
 
             try db.run("INSERT INTO skip_days (start_date, end_date, reason) VALUES ('2026-10-16', '2026-10-18', 'Away')")
+            try db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_import_date', '2026-10-11')")
             // Same as the global default, so the schedule is unchanged
             try db.run("INSERT INTO roaster_defaults (roaster, rest_days) VALUES ('Coffee Collective', 30)")
             try db.run(

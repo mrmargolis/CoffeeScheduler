@@ -12,6 +12,7 @@ struct WeekList: View {
 
     var body: some View {
         let runs = Dictionary(Scheduler.bagRuns(model.schedule).map { ($0.beanID, $0) }, uniquingKeysWith: { a, _ in a })
+        let weeks = self.weeks
         ForEach(weeks, id: \.first?.date) { week in
             Section {
                 ForEach(Self.entries(week, today: model.today, expanded: expanded)) { entry in
@@ -32,6 +33,8 @@ struct WeekList: View {
                 )
                 .listRowInsets(Theme.labelInsets)
             }
+            // Under this week, so the days at hand stay at the top
+            if week.first?.date == weeks.first?.first?.date { RunwaySection() }
         }
     }
 

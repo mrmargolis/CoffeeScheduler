@@ -20,6 +20,9 @@ final class AppModel {
     /// Consumption overrides within the schedule window.
     private(set) var consumptionOverrides: [ConsumptionOverride] = []
     private(set) var settings = ScheduleSettings(dailyConsumptionGrams: Scheduler.defaultDailyGrams, defaultRestDays: 30)
+    /// When the coffee runs out; nil with no bags, or none running out in the schedule.
+    private(set) var runway: Runway?
+    private(set) var lastImportDate: String?
     private(set) var today = DateUtils.today()
 
     /// Shown as an alert: import results and errors.
@@ -116,6 +119,8 @@ final class AppModel {
         consumptionOverrides = try store.consumptionOverrides(from: start)
         roasterColors = Scheduler.roasterColors(schedule)
         ageRanges = Scheduler.ageRanges(schedule, beans: activeBeans + archivedBeans, today: today)
+        runway = activeBeans.isEmpty ? nil : Scheduler.runway(schedule, restDays: settings.defaultRestDays, today: today)
+        lastImportDate = try store.lastImportDate()
         // Sample data stays out of the real widget
         if location != nil {
             WidgetBridge.publish(WidgetSnapshot(schedule: schedule, skipRanges: skipRanges, roasterColors: roasterColors))
@@ -183,7 +188,7 @@ final class AppModel {
             }
 
             guard let store else { return }
-            let summary = try store.importExport(parsed)
+            let summary = try store.importExport(parsed, on: today)
             try save()
 
             var body = "\(summary.beansImported) beans, \(summary.brewsImported) brews."

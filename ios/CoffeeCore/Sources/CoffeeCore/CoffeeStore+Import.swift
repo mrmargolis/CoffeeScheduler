@@ -16,11 +16,14 @@ extension CoffeeStore {
     /// The one exception: a roast date the export doesn't have keeps the
     /// one already stored, so a date entered
     /// in the app for a bag BeanConqueror has none for survives a re-import.
-    public func importExport(_ parsed: BeanConquerorParser.ParseResult) throws -> ImportSummary {
+    ///
+    /// `date` is kept as the day of the last import.
+    public func importExport(_ parsed: BeanConquerorParser.ParseResult, on date: String = DateUtils.today()) throws -> ImportSummary {
         try db.transaction { () throws -> ImportSummary in
             for bean in parsed.beans { try upsert(bean) }
             for event in parsed.freezeEvents { try recordFreeze(event) }
             try replaceBrews(parsed.brews)
+            try db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_import_date', ?)", [.text(date)])
 
             return ImportSummary(
                 beansImported: parsed.beans.count,
@@ -28,6 +31,12 @@ extension CoffeeStore {
                 errors: parsed.errors
             )
         }
+    }
+
+    /// The day of the last import; nil before the first one. The schedule
+    /// is only as current as this, since brews arrive with an import.
+    public func lastImportDate() throws -> String? {
+        try db.query("SELECT value FROM settings WHERE key = 'last_import_date'").first?.string("value")
     }
 
     private func upsert(_ bean: BeanConquerorParser.RawBean) throws {

@@ -168,7 +168,9 @@ struct SettingsView: View {
             } label: {
                 IconRow(
                     icon: "square.and.arrow.down", color: Theme.accent,
-                    title: "Import from BeanConqueror", subtitle: "Or share the export ZIP to this app"
+                    title: "Import from BeanConqueror",
+                    subtitle: model.lastImportDate.map { "Last imported \(Format.daysAgo($0, today: model.today))" }
+                        ?? "Or share the export ZIP to this app"
                 )
             }
             .buttonStyle(.plain)

@@ -147,6 +147,19 @@ A `coffee.db` from the web app this one replaced still works: copy it into
 the chosen iCloud Drive folder. The web app used WAL, and the iOS app
 switches the file to a rollback journal the first time it opens it.
 
+## Buying the next bag
+
+Under the calendar the Schedule screen says how long the coffee lasts and
+when to buy the next bag: "Coffee through Nov 23. Buy the next bag by Oct 24
+so it's rested in time." The buy-by day is the first day with no coffee,
+less the default rest in Settings, taking a bag to be roasted the day it's
+bought. Once that day has gone it says when a bag bought today would be
+rested instead. Skipped days don't count as running out, and the line isn't
+shown while the schedule has coffee as far as it reaches (four months).
+
+The schedule is only as current as the last import, since brews arrive with
+one; the import row in Settings says how long ago that was.
+
 ## Widget
 
 **Coffee month** is a home screen widget (medium or large) that draws the

@@ -103,6 +103,7 @@ struct ScheduleView: View {
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)
         }
+        RunwaySection()
     }
 }
 
