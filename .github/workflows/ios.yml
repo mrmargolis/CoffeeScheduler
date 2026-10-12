@@ -148,11 +148,12 @@ jobs:
           retention-days: 14
 
   intents-metadata:
-    # The widget's buttons run App Intents, and iOS finds those through a
-    # Metadata.appintents bundle that only Xcode's build generates. This
-    # builds the widget as an Xcode extension and uploads that bundle; the
-    # copy xtool ships is ios/Support/IntentsMetadata/Metadata.appintents.
-    name: Widget intents metadata
+    # The widget's buttons and the Siri phrases run App Intents, and iOS
+    # finds those through a Metadata.appintents bundle that only Xcode's
+    # build generates. This builds the app and the widget with Xcode and
+    # uploads their bundles; the copies xtool ships are in
+    # ios/Support/IntentsMetadata/<target>/Metadata.appintents.
+    name: Intents metadata
     runs-on: macos-26
     timeout-minutes: 30
     defaults:
@@ -172,25 +173,30 @@ jobs:
           echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
           unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
-      - name: Build the widget with Xcode
+      - name: Build the app and the widget with Xcode
         run: |
           xcodegen generate --spec Support/IntentsMetadata/project.yml
-          xcodebuild build -project Support/IntentsMetadata/CoffeeIntents.xcodeproj -target CoffeeWidget \
-            -sdk iphoneos -configuration Release SYMROOT="$RUNNER_TEMP/intents" CODE_SIGNING_ALLOWED=NO
+          for target in CoffeeScheduler CoffeeWidget; do
+            xcodebuild build -project Support/IntentsMetadata/CoffeeIntents.xcodeproj -target "$target" \
+              -sdk iphoneos -configuration Release SYMROOT="$RUNNER_TEMP/intents" CODE_SIGNING_ALLOWED=NO
+          done
       - name: Collect the metadata
         run: |
-          found=$(find "$RUNNER_TEMP/intents" -type d -name Metadata.appintents -path '*CoffeeWidget.appex*' | head -n 1)
-          test -n "$found"
-          mkdir -p "$RUNNER_TEMP/metadata"
-          cp -R "$found" "$RUNNER_TEMP/metadata/"
+          for bundle in CoffeeScheduler.app CoffeeWidget.appex; do
+            target=${bundle%.*}
+            found=$(find "$RUNNER_TEMP/intents" -type d -name Metadata.appintents -path "*/$bundle/Metadata.appintents" | head -n 1)
+            test -n "$found"
+            mkdir -p "$RUNNER_TEMP/metadata/$target"
+            cp -R "$found" "$RUNNER_TEMP/metadata/$target/"
+            # Say so when the committed copy has fallen behind the intents
+            if ! diff -r "$found" "Support/IntentsMetadata/$target/Metadata.appintents"; then
+              echo "::warning::ios/Support/IntentsMetadata/$target/Metadata.appintents differs from what Xcode generates; replace it with this run's intents-metadata artifact."
+            fi
+          done
           find "$RUNNER_TEMP/metadata" -type f -exec ls -l {} \;
-          # Say so when the committed copy has fallen behind the widget's intents
-          if ! diff -r "$found" Support/IntentsMetadata/Metadata.appintents; then
-            echo "::warning::ios/Support/IntentsMetadata/Metadata.appintents differs from what Xcode generates; replace it with this run's widget-intents-metadata artifact."
-          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: widget-intents-metadata
+          name: intents-metadata
           path: ${{ runner.temp }}/metadata
           if-no-files-found: error
           retention-days: 30

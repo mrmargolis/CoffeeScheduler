@@ -1,2 +1,2 @@
 *.xcodeproj
-Info.plist
+*-Info.plist

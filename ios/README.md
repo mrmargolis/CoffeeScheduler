@@ -177,19 +177,43 @@ Apple ID, and the widget then only says to open the app.
 
 The arrows beside the month name show the month before or after, and the
 name goes back to the current month. They run an App Intent
-(`ShiftMonthIntent`), which iOS can only find through a `Metadata.appintents`
-bundle that Xcode generates at build time and xtool does not. So the CI job
-"Widget intents metadata" builds the widget as an Xcode extension
-(`Support/IntentsMetadata/project.yml`) and uploads the bundle, and a copy is
-committed in `Support/IntentsMetadata/Metadata.appintents`, which `xtool.yml`
-ships as a resource of the extension. After adding or changing an intent,
-replace that copy with the `widget-intents-metadata` artifact from the CI
-run; the job warns when the two differ. Without it the buttons do nothing.
+(`ShiftMonthIntent`); see [App Intents](#app-intents) for what that needs.
 
 The widget target asks the linker for `_main` (`Package.swift`). An
 extension starts at `NSExtensionMain`, so without that nothing refers to the
 widget's code, it is left out of the binary, and signing fails with "Can't
 find free space of LoadCommands for CodeSignature".
+
+## Siri
+
+Ask "What's my coffee today in Coffee Scheduler" (or "tomorrow", or "What
+coffee is today in Coffee Scheduler"). Siri says which bags are scheduled,
+whether the day is skipped or has no coffee ready, and when a bag starts
+before it has finished resting. iOS requires the app's name in the phrase.
+The same action is in the Shortcuts app as "Coffee for the day".
+
+The answer comes from the app's local copy of the database
+(`CoffeeForDayIntent`), so it is as fresh as the last time the app was open.
+The sentence is built by `SpokenSchedule` in CoffeeCore.
+
+## App Intents
+
+The Siri action and the widget's arrows are App Intents. Two things that
+Xcode does without being asked have to be done by hand with xtool:
+
+- **Metadata.** iOS finds an intent through a `Metadata.appintents` bundle
+  that Xcode generates at build time. The CI job "Intents metadata" builds
+  the app and the widget with Xcode (`Support/IntentsMetadata/project.yml`)
+  and uploads both bundles; copies are committed in
+  `Support/IntentsMetadata/<target>/Metadata.appintents`, and `xtool.yml`
+  ships them as resources. After adding or changing an intent or a Siri
+  phrase, replace the copies with the `intents-metadata` artifact from the CI
+  run; the job warns when they differ. Without the metadata a widget button
+  does nothing and Siri doesn't know the phrases.
+- **A reference from the code.** The app is linked from a static library, so
+  code nothing refers to is left out. `CoffeeSchedulerApp.init` calls
+  `CoffeeShortcuts.updateAppShortcutParameters()`, which keeps the intents
+  in. Without it the shortcut fails with "an internal error occurred".
 
 ## Importing from BeanConqueror
 

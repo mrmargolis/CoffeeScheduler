@@ -1,8 +1,10 @@
-# Builds the widget as an Xcode app extension, only to get the App Intents
-# metadata Xcode generates for it (Metadata.appintents). iOS needs that bundle
-# to run the widget's buttons, and xtool, which builds with SwiftPM, doesn't
-# produce it. CI builds this and uploads the bundle; the copy xtool ships is
-# committed beside this file. Nothing built here is installed.
+# Builds the app and the widget with Xcode, only to get the App Intents
+# metadata Xcode generates for each (Metadata.appintents). iOS needs that
+# bundle to run the widget's buttons and to answer the Siri phrases, and
+# xtool, which builds with SwiftPM, doesn't produce it. CI builds this and
+# uploads the bundles; the copies xtool ships are committed in the
+# CoffeeScheduler and CoffeeWidget folders beside this file. Nothing built
+# here is installed.
 name: CoffeeIntents
 options:
   bundleIdPrefix: net.mattmargolis
@@ -11,7 +13,28 @@ options:
 packages:
   CoffeeCore:
     path: ../../CoffeeCore
+# The metadata names each intent by module, so each target's module must have
+# the name of its SwiftPM target.
 targets:
+  CoffeeScheduler:
+    type: application
+    platform: iOS
+    sources: [../../Sources/CoffeeScheduler]
+    dependencies:
+      - package: CoffeeCore
+        product: CoffeeCore
+    info:
+      path: App-Info.plist
+      properties:
+        CFBundleDisplayName: Coffee Scheduler
+        UILaunchScreen: {}
+    settings:
+      base:
+        PRODUCT_NAME: CoffeeScheduler
+        PRODUCT_MODULE_NAME: CoffeeScheduler
+        PRODUCT_BUNDLE_IDENTIFIER: net.mattmargolis.CoffeeScheduler
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: NO
   CoffeeWidget:
     type: app-extension
     platform: iOS
@@ -20,14 +43,12 @@ targets:
       - package: CoffeeCore
         product: CoffeeCore
     info:
-      path: Info.plist
+      path: Widget-Info.plist
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        # The metadata names each intent by module, so this must match the
-        # SwiftPM target's name.
         PRODUCT_NAME: CoffeeWidget
         PRODUCT_MODULE_NAME: CoffeeWidget
         PRODUCT_BUNDLE_IDENTIFIER: net.mattmargolis.CoffeeScheduler.CoffeeWidget
