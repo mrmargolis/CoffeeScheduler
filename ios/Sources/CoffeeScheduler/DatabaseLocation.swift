@@ -144,11 +144,15 @@ final class DatabaseLocation {
         try await CloudFile.write(try Data(contentsOf: workingCopy), to: backup)
     }
 
-    /// Take `url` as the folder. A folder from the document picker is
-    /// security-scoped; one that isn't only has to be readable.
+    /// Take `url` as the folder, if it is there and can be read. A folder
+    /// from the document picker is security-scoped; one that isn't is
+    /// taken as it is.
     private func open(_ url: URL) -> Bool {
         let scoped = url.startAccessingSecurityScopedResource()
-        guard scoped || FileManager.default.isReadableFile(atPath: url.path) else { return false }
+        guard FileManager.default.isReadableFile(atPath: url.path) else {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+            return false
+        }
         folder = url
         isScoped = scoped
         return true

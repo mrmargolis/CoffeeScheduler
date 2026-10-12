@@ -9,6 +9,8 @@ through:
   phrases in root.ssu.yaml, which is compared.
 - extract.actionsdata lists each parameter's resolvableInputTypes in a
   different order each time, so those lists are sorted first.
+- The JSON files' keys come in a different order each time, so they are
+  compared as values, not as text.
 """
 
 import json
@@ -37,7 +39,8 @@ def ordered(value):
 
 def content(path: Path):
     data = path.read_bytes()
-    return ordered(json.loads(data)) if path.name == "extract.actionsdata" else data
+    is_json = path.name == "extract.actionsdata" or path.suffix == ".json"
+    return ordered(json.loads(data)) if is_json else data
 
 
 def main() -> int:
