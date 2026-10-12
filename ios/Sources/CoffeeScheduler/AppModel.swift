@@ -125,6 +125,14 @@ final class AppModel {
         if location != nil {
             WidgetBridge.publish(WidgetSnapshot(schedule: schedule, skipRanges: skipRanges, roasterColors: roasterColors))
         }
+        scheduleReminders()
+    }
+
+    /// Hand the schedule's reminders to iOS. Sample data sets none.
+    func scheduleReminders() {
+        guard location != nil else { return }
+        let plan = ScheduleReminders.plan(schedule: schedule, beans: activeBeans, runway: runway, today: today)
+        ReminderScheduler.schedule(plan, today: today)
     }
 
     /// Save the working copy to iCloud Drive after a change.

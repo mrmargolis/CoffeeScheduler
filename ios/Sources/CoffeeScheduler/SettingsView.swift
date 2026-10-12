@@ -22,6 +22,7 @@ struct SettingsView: View {
                     scheduleSection
                     roasterSection
                     skipDaysSection
+                    RemindersSection()
                     dataSection
                 }
                 .listRowBackground(Theme.card)

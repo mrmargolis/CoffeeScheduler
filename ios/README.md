@@ -160,6 +160,24 @@ shown while the schedule has coffee as far as it reaches (four months).
 The schedule is only as current as the last import, since brews arrive with
 one; the import row in Settings says how long ago that was.
 
+## Reminders
+
+Settings → Reminders has three switches, all off to begin with:
+
+- **Thaw a bag**, on a frozen bag's planned thaw date. The app moves the bag
+  back into the schedule on that day by itself; this is the nudge to take it
+  out of the freezer.
+- **New bag**, the day an unopened bag starts.
+- **Buy coffee**, on the buy-by day above.
+
+They are local notifications sent at 8 in the morning, which need no
+entitlement, so they work with xtool and a free Apple ID. The first switch
+turned on asks for permission. `ScheduleReminders` in CoffeeCore plans them
+from the schedule, and the app hands them to iOS each time the schedule
+changes (`ReminderScheduler`), so like the widget they are as current as the
+last time the app was open. The switches are kept per device, not in the
+database.
+
 ## Sharing
 
 The share button beside the month's name sends a picture of that month: the
