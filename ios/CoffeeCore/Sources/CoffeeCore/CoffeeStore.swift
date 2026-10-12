@@ -1,8 +1,7 @@
 import Foundation
 
-/// Queries and writes against the coffee database. Ports the web app's
-/// `bean-queries.ts`, `schedule-loader.ts`, `freeze-utils.ts`, the auto
-/// freeze/thaw jobs, and the import and settings API routes.
+/// Queries and writes against the coffee database: beans, the schedule's
+/// inputs, freezing, the auto freeze/thaw jobs, the import and the settings.
 ///
 /// This file has the settings and the beans; the rest is in the
 /// `CoffeeStore+*.swift` extensions.
@@ -60,8 +59,7 @@ public final class CoffeeStore {
         }
     }
 
-    /// Set a roaster's default rest days, or remove it with nil, as
-    /// `PATCH /api/settings` does for each `roaster_defaults` entry.
+    /// Set a roaster's default rest days, or remove it with nil.
     public func setRoasterRestDays(_ roaster: String, _ restDays: Int?) throws {
         if let restDays {
             guard restDays >= 0 else { throw BeanSettingsError.negativeRestDays }
@@ -80,8 +78,8 @@ public final class CoffeeStore {
             .compactMap { $0.string("roaster") }
     }
 
-    /// Render whole numbers without a trailing ".0", as JavaScript's String() does,
-    /// so the web app reads the same text back.
+    /// Render whole numbers without a trailing ".0", which is how databases
+    /// written by the old web app stored them.
     private static func format(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(value)
     }
@@ -182,8 +180,7 @@ public final class CoffeeStore {
         )
     }
 
-    /// Save the user-managed settings on a bag. Mirrors the bean detail
-    /// form's `PATCH /api/beans/[id]`: every field is written, and nil
+    /// Save the user-managed settings on a bag: every field is written, and nil
     /// clears it (rest days then fall back to the roaster or global default).
     public func updateBeanSettings(id: String, _ settings: BeanSettings) throws {
         guard

@@ -4,8 +4,6 @@ import ZIPFoundation
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/lib/bc-json-parser.test.ts.
-
 let utc = TimeZone(identifier: "UTC")!
 
 func makeZip(_ files: [String: Any]) throws -> Data {

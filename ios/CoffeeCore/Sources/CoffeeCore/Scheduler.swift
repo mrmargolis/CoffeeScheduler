@@ -1,7 +1,6 @@
 import Foundation
 
-/// Port of `src/lib/scheduler.ts`. Keep the two in step: the web app and the
-/// iOS app read the same database and should project the same schedule.
+/// Projects the schedule: which bags are drunk on which days.
 public enum Scheduler {
     /// Minimum viable dose. Beans with less than this remaining are done.
     public static let minDoseGrams: Double = 12

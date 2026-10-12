@@ -2,8 +2,6 @@ import Testing
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/lib/freeze-utils.test.ts.
-
 @Suite struct EffectiveAgeTests {
     @Test func calendarAgeMinusFrozenDays() {
         #expect(effectiveAge(roastDate: "2026-01-01", asOf: "2026-04-01", frozenDays: 30) == 60)
@@ -122,7 +120,6 @@ import Testing
     }
 }
 
-// Ported from the freeze tests in src/__tests__/api/beans.test.ts.
 @Suite struct ToggleFreezeTests {
     let store: CoffeeStore
 

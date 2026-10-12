@@ -13,8 +13,8 @@ extension CoffeeStore {
     /// owns bean metadata and brews; user-managed fields (rest days, queue
     /// order, freeze plans, notes) are left alone.
     ///
-    /// One deliberate difference from the web app's import: a roast date the
-    /// export doesn't have keeps the one already stored, so a date entered
+    /// The one exception: a roast date the export doesn't have keeps the
+    /// one already stored, so a date entered
     /// in the app for a bag BeanConqueror has none for survives a re-import.
     public func importExport(_ parsed: BeanConquerorParser.ParseResult) throws -> ImportSummary {
         try db.transaction { () throws -> ImportSummary in

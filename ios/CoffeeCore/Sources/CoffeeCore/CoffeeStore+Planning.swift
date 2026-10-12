@@ -5,7 +5,7 @@ extension CoffeeStore {
     // MARK: - Queue order
 
     /// Set the manual queue order to `ids`, numbered 1...n, as dragging a bag
-    /// in the web app's queue does. Any other bag that still has a manual
+    /// in the queue does. Any other bag that still has a manual
     /// position keeps its relative order after them, so no two bags share
     /// a number.
     public func reorderQueue(_ ids: [String]) throws {
@@ -50,7 +50,7 @@ extension CoffeeStore {
     }
 
     /// Skip `date`, or stop skipping it, and return whether it's now skipped.
-    /// Port of `POST /api/skip-days/toggle`, which keeps skip_days as merged
+    /// The skip_days table is kept as merged
     /// ranges: skipping a day next to a range extends it (bridging two ranges
     /// when it fills the gap between them), and un-skipping a day shrinks,
     /// splits or deletes the range that holds it.
@@ -103,7 +103,6 @@ extension CoffeeStore {
     // MARK: - Consumption overrides
 
     /// Overrides that haven't ended before `from`, earliest first.
-    /// Port of `GET /api/consumption-overrides`.
     public func consumptionOverrides(from: String) throws -> [ConsumptionOverride] {
         try db.query(
             "SELECT * FROM consumption_overrides WHERE end_date >= ? ORDER BY start_date, id", [.text(from)]
@@ -115,7 +114,7 @@ extension CoffeeStore {
         }
     }
 
-    /// Set a different amount for one day, as the web app's day options do:
+    /// Set a different amount for one day, as the day options sheet does:
     /// an override already covering the day is replaced by a one-day override.
     public func setConsumptionOverride(date: String, dailyGrams: Double, doseSizeGrams: Double) throws {
         guard dailyGrams > 0, doseSizeGrams > 0, dailyGrams.isFinite, doseSizeGrams.isFinite

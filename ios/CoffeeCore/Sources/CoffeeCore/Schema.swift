@@ -1,7 +1,7 @@
 import Foundation
 
-/// Same schema and migrations as the web app (`src/lib/schema.ts`), so a
-/// `coffee.db` can move between the two. Change both together.
+/// The database's tables and migrations. The schema began in a web app this
+/// one replaced, so a `coffee.db` from it still opens.
 enum Schema {
     static let sql = """
         CREATE TABLE IF NOT EXISTS settings (

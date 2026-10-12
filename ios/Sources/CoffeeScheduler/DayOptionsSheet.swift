@@ -7,8 +7,7 @@ struct DayRoute: Identifiable, Hashable {
     var id: String { date }
 }
 
-/// Options for one schedule day, opened by tapping its date. Mirrors
-/// `src/components/DayOptionsModal.tsx`: skip the day, or drink a different
+/// Options for one schedule day, opened by tapping its date: skip the day, or drink a different
 /// amount that day.
 struct DayOptionsSheet: View {
     @Environment(AppModel.self) private var model

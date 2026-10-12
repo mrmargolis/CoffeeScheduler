@@ -2,7 +2,7 @@ import CoffeeCore
 import SwiftUI
 
 /// Edit a bag's rest days, roast date, planned thaw and freeze-after grams.
-/// Mirrors the "Adjust" form in `src/components/BeanDetail.tsx`: the roast
+/// The roast
 /// date is offered only when BeanConqueror didn't supply one, the planned thaw
 /// only for a frozen bag, and freeze-after only for one that isn't frozen.
 struct BeanSettingsForm: View {
@@ -109,7 +109,7 @@ struct BeanSettingsForm: View {
         }
     }
 
-    /// Every field is saved, as the web form does; ones not shown keep their value.
+    /// Every field is saved; ones not shown keep their value.
     private var settings: BeanSettings {
         BeanSettings(
             restDays: restDays,

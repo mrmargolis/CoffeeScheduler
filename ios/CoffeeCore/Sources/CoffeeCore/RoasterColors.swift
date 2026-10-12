@@ -1,6 +1,5 @@
 /// One roaster's colours, as hex strings: `border` is the rail beside a bag,
 /// `bg` the (dark theme) tint behind it, `text` the label on that tint.
-/// Port of `src/lib/colors.ts`.
 public struct RoasterColor: Hashable, Sendable {
     public var bg: String
     public var border: String
@@ -24,7 +23,7 @@ public struct RoasterColor: Hashable, Sendable {
     /// enough to jump to a clearly different hue rather than the next one.
     static let probeStride = 3
 
-    /// The web app's string hash: `hash = (hash << 5) - hash + charCode` over
+    /// A string hash: `hash = (hash << 5) - hash + charCode` over
     /// UTF-16 code units in 32-bit arithmetic, then its absolute value.
     static func hash(_ string: String) -> Int {
         var hash: Int32 = 0

@@ -21,7 +21,7 @@ extension AppModel {
     }
 }
 
-/// The thin roaster-coloured bar beside a bag, as in the web app.
+/// The thin roaster-coloured bar beside a bag.
 struct RoasterRail: View {
     let color: Color
     var width: CGFloat = 3

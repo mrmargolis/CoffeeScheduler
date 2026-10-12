@@ -21,10 +21,10 @@ ios/
     Tests/CoffeeCoreTests/
 ```
 
-`CoffeeCore` is a port of the web app's `src/lib` (scheduler, BC parser, bean
-queries, schedule loader, freeze logic, import route). It uses the same SQLite
-schema, so one `coffee.db` works in both apps. When the scheduling rules change
-in TypeScript, change the Swift port and its tests too.
+`CoffeeCore` holds everything that doesn't need iOS: the scheduler, the
+BeanConqueror parser, bean queries, freeze logic, the import, and the SQLite
+schema. Scheduling rules and their tests belong there, where they run on
+Linux.
 
 ## Setup
 
@@ -88,8 +88,8 @@ cd ios
 
 [Periphery](https://github.com/peripheryapp/periphery) finds unused code. It
 isn't part of `lint.sh` or CI: it has no Linux binary (build it from source
-with `swift build -c release`), and its findings need judgement, since fields
-mirrored from the web app's models show up as assign-only. To run it over the
+with `swift build -c release`), and its findings need judgement, since model
+fields that are stored but not yet shown come up as assign-only. To run it over the
 app and CoffeeCore together, build with xtool first and point it at that
 build's index:
 
@@ -142,10 +142,9 @@ it removes App ID capabilities it doesn't recognize, so even enabling iCloud
 by hand in the developer portal wouldn't stick. A folder picked through the
 document picker needs no entitlement and works with a free Apple ID too.
 
-To move data over from the web app, stop the dev server (the web app uses WAL,
-so a copy taken while it runs can miss recent writes) and copy
-`data/coffee.db` into the chosen iCloud Drive folder. The iOS app switches the
-file to a rollback journal the first time it opens it.
+A `coffee.db` from the web app this one replaced still works: copy it into
+the chosen iCloud Drive folder. The web app used WAL, and the iOS app
+switches the file to a rollback journal the first time it opens it.
 
 ## Widget
 
@@ -223,18 +222,7 @@ app registers as a viewer for ZIP files (`CFBundleDocumentTypes` in
 show in the share sheet, save the ZIP to Files and use **Settings → Import
 BeanConqueror export**.
 
-Imports behave like the web app's `/api/import`: BeanConqueror owns bean
-details and brew history, and the app's own fields (rest days, queue order,
-freeze plans, notes) are kept. One deliberate difference: when the export
-has no roast date for a bag, the iOS import keeps the one already stored (for
-example, one entered in the app); the web import clears it.
-
-## Not ported yet
-
-The app shows the schedule, the bean queue, each bag's detail, and the
-settings, and can edit a bag's settings, freeze or thaw it, reorder the
-queue, mark skip days, set a day's consumption, and set rest days by
-roaster, with a month view with roaster colours and a bag key. The web app's
-runway summary (days of coffee, the bag in progress) is deliberately left
-off the phone, which opens straight on the calendar. Publishing is only in
-the web app for now (tracked in issue #6).
+BeanConqueror owns bean details and brew history, and the app's own fields
+(rest days, queue order, freeze plans, notes) are kept across imports. One
+exception: when the export has no roast date for a bag, the import keeps the
+one already stored (for example, one entered in the app).

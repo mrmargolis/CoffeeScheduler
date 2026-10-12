@@ -2,7 +2,6 @@ import Testing
 
 @testable import CoffeeCore
 
-// Ported from src/__tests__/api/skip-days.test.ts.
 @Suite struct SkipDaysTests {
     let store: CoffeeStore
 

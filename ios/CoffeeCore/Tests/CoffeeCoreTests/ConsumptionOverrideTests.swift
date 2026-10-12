@@ -2,8 +2,7 @@ import Testing
 
 @testable import CoffeeCore
 
-// The web app has no tests for /api/consumption-overrides; these cover the
-// store methods and that the schedule applies what they save.
+// The store methods, and that the schedule applies what they save.
 @Suite struct ConsumptionOverrideTests {
     let store: CoffeeStore
 

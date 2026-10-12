@@ -1,7 +1,7 @@
 import Foundation
 import ZIPFoundation
 
-/// Port of `src/lib/bc-json-parser.ts`: reads a BeanConqueror export ZIP.
+/// Reads a BeanConqueror export ZIP.
 public enum BeanConquerorParser {
     public struct RawBean: Equatable, Sendable {
         public var id: String
@@ -39,8 +39,7 @@ public enum BeanConquerorParser {
         public var errors: [String] = []
     }
 
-    /// Parse an export ZIP. Brew dates use `timeZone` (the device's by default),
-    /// matching the web app, which uses the server's local time zone.
+    /// Parse an export ZIP. Brew dates use `timeZone` (the device's by default).
     public static func parse(zipData: Data, timeZone: TimeZone = .current) -> ParseResult {
         let archive: Archive
         do {
@@ -176,9 +175,8 @@ public enum BeanConquerorParser {
     }
 }
 
-/// Loosely typed JSON, so the parser can treat fields the way the TypeScript
-/// version does (`typeof x === "number"`, `x || null`) without a Codable model
-/// for BeanConqueror's whole export format.
+/// Loosely typed JSON, so the parser can check a field's type as it reads it
+/// without a Codable model for BeanConqueror's whole export format.
 enum JSONValue: Decodable {
     case null
     case bool(Bool)

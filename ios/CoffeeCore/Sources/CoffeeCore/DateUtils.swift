@@ -1,6 +1,6 @@
 import Foundation
 
-/// Dates are ISO 8601 day strings (`YYYY-MM-DD`), same as the web app and the
+/// Dates are ISO 8601 day strings (`YYYY-MM-DD`), same as the
 /// database. Arithmetic is done on whole days since 1970-01-01 so no time zone
 /// or DST can shift a result; only `today()` looks at the local calendar.
 public enum DateUtils {
