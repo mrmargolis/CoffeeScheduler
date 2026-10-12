@@ -270,8 +270,10 @@ Xcode does without being asked have to be done by hand with xtool:
   `Support/IntentsMetadata/<target>/Metadata.appintents`, and `xtool.yml`
   ships them as resources. After adding or changing an intent or a Siri
   phrase, replace the copies with the `intents-metadata` artifact from the CI
-  run; the job warns when they differ. Without the metadata a widget button
-  does nothing and Siri doesn't know the phrases.
+  run; the job fails until they match (`Support/IntentsMetadata/compare.py`,
+  which lets through the parts Xcode writes differently on every build).
+  Without the metadata a widget button does nothing and Siri doesn't know
+  the phrases.
 - **A reference from the code.** The app is linked from a static library, so
   code nothing refers to is left out. `CoffeeSchedulerApp.init` calls
   `CoffeeShortcuts.updateAppShortcutParameters()`, which keeps the intents
