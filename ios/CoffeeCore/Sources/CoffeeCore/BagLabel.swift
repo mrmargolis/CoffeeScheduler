@@ -65,6 +65,18 @@ public enum BagLabel {
         return URL(string: searchPage + "?" + query.joined(separator: "&"))
     }
 
+    public static let googlePage = "https://www.google.com/search"
+
+    /// A Google search for the roaster's full name and the coffee, for a
+    /// coffee Bean Base doesn't have. Nil when there's nothing to search for.
+    public static func googleURL(for reading: Reading) -> URL? {
+        let terms = [reading.roaster, reading.coffee]
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !terms.isEmpty else { return nil }
+        return URL(string: googlePage + "?q=" + encode(terms.joined(separator: " ")))
+    }
+
     /// Percent-encodes all but letters, digits and `-._~`, as JavaScript's
     /// encodeURIComponent does (bar its `!'()*`).
     private static func encode(_ text: String) -> String {

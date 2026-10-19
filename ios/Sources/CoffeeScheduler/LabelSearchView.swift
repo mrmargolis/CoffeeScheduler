@@ -3,7 +3,7 @@ import SafariServices
 import SwiftUI
 
 /// Photograph a bag, read its label on the phone, and look the coffee up on
-/// Bean Base. The reading can be corrected before searching.
+/// Bean Base or Google. The reading can be corrected before searching.
 struct LabelSearchView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -11,12 +11,26 @@ struct LabelSearchView: View {
     @State private var lines: [BagLabel.Line] = []
     @State private var reading = BagLabel.Reading(roaster: "", coffee: "")
     @State private var error: String?
-    @State private var showingResults = false
+    @State private var search: Search?
 
     private enum Step {
         case camera
         case reading
         case review
+    }
+
+    private enum Search: Identifiable {
+        case beanBase
+        case google
+
+        var id: Self { self }
+
+        func url(for reading: BagLabel.Reading) -> URL? {
+            switch self {
+            case .beanBase: BagLabel.searchURL(for: reading)
+            case .google: BagLabel.googleURL(for: reading)
+            }
+        }
     }
 
     var body: some View {
@@ -41,8 +55,8 @@ struct LabelSearchView: View {
                         }
                     }
             }
-            .sheet(isPresented: $showingResults) {
-                if let url = BagLabel.searchURL(for: reading) {
+            .sheet(item: $search) { search in
+                if let url = search.url(for: reading) {
                     SafariView(url: url).ignoresSafeArea()
                 }
             }
@@ -55,8 +69,11 @@ struct LabelSearchView: View {
                 Section {
                     TextField("Coffee", text: $reading.coffee)
                     TextField("Roaster", text: $reading.roaster)
-                    Button("Search Bean Base") { showingResults = true }
-                        .disabled(step != .review || BagLabel.searchURL(for: reading) == nil)
+                    HStack {
+                        searchButton("Search Bean Base", .beanBase)
+                        Spacer()
+                        searchButton("Search Google", .google)
+                    }
                 } header: {
                     Text("Search for")
                 } footer: {
@@ -78,6 +95,13 @@ struct LabelSearchView: View {
             .listRowSeparatorTint(Theme.hairline)
         }
         .themedList()
+    }
+
+    /// Borderless, so each of the row's two buttons takes only its own taps.
+    private func searchButton(_ title: String, _ search: Search) -> some View {
+        Button(title) { self.search = search }
+            .buttonStyle(.borderless)
+            .disabled(step != .review || search.url(for: reading) == nil)
     }
 
     @ViewBuilder private var footer: some View {

@@ -122,6 +122,17 @@ import Testing
         #expect(BagLabel.searchURL(for: BagLabel.Reading(roaster: " ", coffee: "")) == nil)
     }
 
+    @Test func searchesGoogleForTheRoastersFullNameAndTheCoffee() {
+        let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: "H&S Coffee Roasters", coffee: "Pepe Jijón"))
+        #expect(url?.absoluteString == BagLabel.googlePage + "?q=H%26S%20Coffee%20Roasters%20Pepe%20Jij%C3%B3n")
+    }
+
+    @Test func searchesGoogleForWhicheverIsGiven() {
+        let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: " ", coffee: "Putushio"))
+        #expect(url?.absoluteString == BagLabel.googlePage + "?q=Putushio")
+        #expect(BagLabel.googleURL(for: BagLabel.Reading(roaster: "", coffee: " ")) == nil)
+    }
+
     @Test func readsTheModelsAnswer() {
         let answer = "Sure!\n**Roaster:** Onyx Coffee Lab\nCoffee: Colombia La Fortuna\n"
         #expect(BagLabel.reading(fromModelAnswer: answer) == BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia La Fortuna"))
