@@ -112,7 +112,8 @@ struct AddBagView: View {
                 return
             }
             var found = BagLabel.details(in: lines, today: DateUtils.today())
-            found.reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
+            let reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
+            found.take(reading, knownRoasters: model.roasters)
             photos.append(lines)
             fill(found, from: photos.count == 1 ? "the photo" : "photo \(photos.count)")
         } catch {
@@ -120,15 +121,25 @@ struct AddBagView: View {
         }
     }
 
-    /// Fills what's still empty from a photo or page, and says how much.
+    /// Merges a photo or page into the bag, and says what changed: empty
+    /// fields filled, and guesses replaced by what the source states.
     private func fill(_ found: BagDraft, from source: String) {
-        let before = draft.filledCount
-        draft = draft.filling(from: found)
-        let added = draft.filledCount - before
+        let merged = draft.merging(found)
+        let (filled, replaced) = draft.changes(to: merged)
+        draft = merged
+        let filledText = "\(filled) \(filled == 1 ? "field" : "fields")"
+        let replacedText = "\(replaced) \(replaced == 1 ? "field" : "fields")"
+        let change =
+            switch (filled, replaced) {
+            case (0, 0): "Nothing new"
+            case (_, 0): "Filled \(filledText)"
+            case (0, _): "Updated \(replacedText)"
+            default: "Filled \(filledText) and updated \(replaced)"
+            }
         status = .filled(
-            added == 0
-                ? "Nothing more from \(source). Fill in the rest by hand."
-                : "Filled \(added) \(added == 1 ? "field" : "fields") from \(source). Check them before adding.")
+            filled + replaced == 0
+                ? "Nothing new from \(source). Fill in the rest by hand."
+                : "\(change) from \(source). Check them before adding.")
     }
 
     private func addToBeanConqueror() {

@@ -3,24 +3,27 @@ import Foundation
 /// The rest of a bag: its roast date, weight, tasting notes and origin.
 extension BagLabel {
     /// The details on a label, from its lines in reading order: what's
-    /// labelled ("Process: Washed") first, then what's recognisable by its
-    /// words ("Huila, Colombia", "Pink Bourbon / Washed") or form (a list of
-    /// tasting notes, a date, a weight).
+    /// labelled ("Process: Washed"), which is stated, and else what's
+    /// recognisable by its words ("Huila, Colombia", "Pink Bourbon / Washed")
+    /// or form (a list of tasting notes, a date, a weight), which is guessed.
     public static func details(in lines: [Line], today: String) -> BagDraft {
         let texts = lines.map(\.text)
-        let draft = labelled(texts, today: today)
-        return draft.filling(from: recognised(texts, today: today))
+        return labelled(texts, today: today).merging(recognised(texts, today: today))
     }
 
     /// The details on a web page, from its text: only what's labelled, since
     /// a page's menus and other coffees name countries and flavours too. The
     /// page's title, site name and address are the coffee, roaster and link.
+    /// All of it is stated: it's the page for the coffee.
     public static func details(ofPage text: String, title: String, site: String, url: String, today: String) -> BagDraft {
         let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         var draft = labelled(lines, today: today)
         draft.coffee = title.split(whereSeparator: \.isNewline).first.map { tidy(String($0)) } ?? ""
         draft.roaster = tidy(site)
         draft.url = url
+        for field in [BagField.coffee, .roaster, .url] where draft.has(field) {
+            draft.certainty[field] = .stated
+        }
         return draft
     }
 
@@ -78,20 +81,25 @@ extension BagLabel {
         return draft
     }
 
-    /// Sets a field from a labelled value, unless it's already set.
+    /// Sets a field from a labelled value, as stated, unless it's already set.
     private static func set(_ field: Field, to value: String, in draft: inout BagDraft, today: String) {
         let value = firstSentence(value)
         guard !value.isEmpty else { return }
+        var found = BagDraft()
         switch field {
-        case .notes where draft.notes.isEmpty: draft.notes = tidy(value)
-        case .country where draft.country.isEmpty: draft.country = names(in: value, from: countries).first ?? tidy(value)
-        case .region where draft.region.isEmpty: draft.region = tidy(value)
-        case .producer where draft.producer.isEmpty: draft.producer = tidy(value)
-        case .variety where draft.variety.isEmpty: draft.variety = tidy(value)
-        case .process where draft.process.isEmpty: draft.process = tidy(value)
-        case .roastDate where draft.roastDate == nil: draft.roastDate = date(in: value, today: today, standalone: true)
-        case .weight where draft.weightGrams == nil: draft.weightGrams = weight(in: value)
-        default: break
+        case .notes: found.notes = tidy(value)
+        case .country: found.country = names(in: value, from: countries).first ?? tidy(value)
+        case .region: found.region = tidy(value)
+        case .producer: found.producer = tidy(value)
+        case .variety: found.variety = tidy(value)
+        case .process: found.process = tidy(value)
+        case .roastDate: found.roastDate = date(in: value, today: today, standalone: true)
+        case .weight: found.weightGrams = weight(in: value)
+        }
+        // The first label for a field wins: fill only what's empty
+        for field in BagField.allCases where found.has(field) && !draft.has(field) {
+            found.certainty[field] = .stated
+            draft = draft.merging(found)
         }
     }
 

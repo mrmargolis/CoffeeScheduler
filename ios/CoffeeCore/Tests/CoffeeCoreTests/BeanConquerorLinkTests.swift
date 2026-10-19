@@ -76,16 +76,4 @@ import Testing
         #expect(BeanConquerorLink.instant(of: "2026-10-12", in: TimeZone(identifier: "Asia/Tokyo")!) == "2026-10-11T15:00:00.000Z")
         #expect(BeanConquerorLink.instant(of: "2026-13-40", in: chicago) == nil)
     }
-
-    @Test func fillingKeepsWhatsThereAndTakesTheRest() {
-        var typed = BagDraft()
-        typed.coffee = "Final Frontier (typed)"
-        typed.weightGrams = 340
-        let filled = typed.filling(from: finalFrontier)
-        #expect(filled.coffee == "Final Frontier (typed)")
-        #expect(filled.weightGrams == 340)
-        #expect(filled.roaster == "Proud Mary Coffee USA")
-        #expect(filled.roastDate == "2026-10-12")
-        #expect(filled.filledCount == 11)
-    }
 }

@@ -38,30 +38,28 @@ struct BagDraftForm: View {
     let onSearch: (BagSearch) -> Void
 
     /// The text fields, for the rows and for "Use as" on a line of the label.
-    private static var textFields: [(title: String, field: WritableKeyPath<BagDraft, String>)] {
-        [
-            ("Coffee", \.coffee), ("Roaster", \.roaster), ("Tasting notes", \.notes), ("Country", \.country),
-            ("Region", \.region), ("Producer", \.producer), ("Variety", \.variety), ("Process", \.process),
-        ]
-    }
+    private static let textFields: [(title: String, field: BagField)] = [
+        ("Coffee", .coffee), ("Roaster", .roaster), ("Tasting notes", .notes), ("Country", .country),
+        ("Region", .region), ("Producer", .producer), ("Variety", .variety), ("Process", .process),
+    ]
 
     var body: some View {
         Form {
             Group {
                 fillSection
                 Section {
-                    BagTextRow(title: "Coffee", text: $draft.coffee)
-                    BagTextRow(title: "Roaster", text: $draft.roaster)
-                    RoastDateRow(date: $draft.roastDate)
-                    WeightRow(grams: $draft.weightGrams)
+                    BagTextRow(title: "Coffee", text: typed(.coffee))
+                    BagTextRow(title: "Roaster", text: typed(.roaster))
+                    RoastDateRow(date: typed(\.roastDate, .roastDate))
+                    WeightRow(grams: typed(\.weightGrams, .weight))
                 } header: {
                     SectionLabel(title: "Bag").listRowInsets(Theme.labelInsets)
                 }
                 Section {
                     ForEach(Self.textFields.dropFirst(2), id: \.title) { row in
-                        BagTextRow(title: row.title, text: $draft[dynamicMember: row.field])
+                        BagTextRow(title: row.title, text: typed(row.field))
                     }
-                    BagTextRow(title: "Link", text: $draft.url, prompt: "None")
+                    BagTextRow(title: "Link", text: typed(.url), prompt: "None")
                 } header: {
                     SectionLabel(title: "Notes and origin").listRowInsets(Theme.labelInsets)
                 }
@@ -74,6 +72,24 @@ struct BagDraftForm: View {
             .listRowSeparatorTint(Theme.hairline)
         }
         .themedList()
+    }
+
+    /// A text field's binding: what's typed there stays, whatever's read later.
+    private func typed(_ field: BagField) -> Binding<String> {
+        Binding {
+            field.text.map { draft[keyPath: $0] } ?? ""
+        } set: { text in
+            draft.type(text, in: field)
+        }
+    }
+
+    private func typed<Value>(_ path: WritableKeyPath<BagDraft, Value>, _ field: BagField) -> Binding<Value> {
+        Binding {
+            draft[keyPath: path]
+        } set: { value in
+            draft[keyPath: path] = value
+            draft.certainty[field] = .typed
+        }
     }
 
     private var addSection: some View {
@@ -119,8 +135,9 @@ struct BagDraftForm: View {
         } footer: {
             SectionFooter(
                 text: """
-                    Or type it in below. Each photo, front or back, and each page you use fills in what's still \
-                    empty; what's already there stays. On the coffee's page, tap Use this page.
+                    Or type it in below. Each photo, front or back, and each page you use fills in what's empty, \
+                    and replaces guesses with what it states outright. What you type stays. On the coffee's page, \
+                    tap Use this page.
                     """)
         }
         .disabled(status == .reading)
@@ -131,7 +148,7 @@ struct BagDraftForm: View {
             ForEach(Array(labelText.enumerated()), id: \.offset) { _, line in
                 Menu {
                     ForEach(Self.textFields, id: \.title) { row in
-                        Button("Use as \(row.title.lowercased())") { draft[keyPath: row.field] = BagLabel.tidy(line) }
+                        Button("Use as \(row.title.lowercased())") { draft.type(BagLabel.tidy(line), in: row.field) }
                     }
                 } label: {
                     Text(line).foregroundStyle(Theme.text2).frame(maxWidth: .infinity, alignment: .leading)
