@@ -15,6 +15,8 @@ import Testing
         #expect(date("roasted: 3rd October 2026") == "2026-10-03")
         #expect(date("Sept. 28, '26") == "2026-09-28")
         #expect(date("12 Dec") == "2025-12-12")  // Not yet this year, so last year's
+        #expect(date("Batch P25Sep26-1") == "2026-09-25")  // GWO's batch codes: day, month, year, batch
+        #expect(date("Roasted Sep 26") == "2026-09-26")
     }
 
     @Test func readsNumericDates() {

@@ -23,9 +23,9 @@ extension BagLabel {
             return day(year: Int(match[1] ?? ""), month: Int(match[2] ?? ""), day: Int(match[3] ?? ""), today: today)
                 .map { ($0, false) }
         }
-        let numeric = #"(?<![0-9./-])(\d{1,2})([./-])(\d{1,2})(?:\2(\d{4}|\d{2}))?(?![0-9]|\.[0-9]|\s*(?:oz|g|kg|lb))"#
-        if let match = groups(numeric, in: folded) {
-            guard match[4] != nil || standalone else { return nil }
+        // Not part of a code, as "P25Sep26-1"'s "26-1" is
+        let numeric = #"(?<![0-9a-z./-])(\d{1,2})([./-])(\d{1,2})(?:\2(\d{4}|\d{2}))?(?![0-9]|\.[0-9]|\s*(?:oz|g|kg|lb))"#
+        if let match = groups(numeric, in: folded), match[4] != nil || standalone {
             return numericDate(
                 Int(match[1] ?? "") ?? 0, Int(match[3] ?? "") ?? 0, year: match[4].flatMap { Int($0) }, today: today,
                 monthFirst: monthFirst)
@@ -45,17 +45,25 @@ extension BagLabel {
         }
     }
 
-    /// A date with its month's name: "Aug 5", "3rd October 2026".
+    /// A date with its month's name: "Aug 5", "3rd October 2026", or a
+    /// batch code's "P25Sep26-1". Whichever way round starts first is the
+    /// date, so "25Sep26" is the 25th, not September 26th.
     private static func namedDate(_ folded: String, today: String) -> String? {
         let months = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?"
         let year = #"(?:,?\s*('?\d{4}|'?\d{2})(?![0-9]))?"#
-        if let match = groups(months + #"\s*(\d{1,2})(?:st|nd|rd|th)?(?![0-9])"# + year, in: folded) {
-            return day(year: Self.year(match[3]), month: month(match[1]), day: Int(match[2] ?? ""), today: today)
+        let monthFirst = groups(months + #"\s*(\d{1,2})(?:st|nd|rd|th)?(?![0-9])"# + year, in: folded).map { match in
+            (start: start(of: match, in: folded), month: match[1], day: match[2], year: match[3])
         }
-        if let match = groups(#"(?<![0-9])(\d{1,2})(?:st|nd|rd|th)?\s*(?:of\s+)?"# + months + year, in: folded) {
-            return day(year: Self.year(match[3]), month: month(match[2]), day: Int(match[1] ?? ""), today: today)
+        let dayFirst = groups(#"(?<![0-9])(\d{1,2})(?:st|nd|rd|th)?\s*(?:of\s+)?"# + months + year, in: folded).map { match in
+            (start: start(of: match, in: folded), month: match[2], day: match[1], year: match[3])
         }
-        return nil
+        guard let first = [monthFirst, dayFirst].compactMap({ $0 }).min(by: { $0.start < $1.start }) else { return nil }
+        return day(year: Self.year(first.year), month: month(first.month), day: Int(first.day ?? ""), today: today)
+    }
+
+    /// Where a match starts in the text it was found in.
+    private static func start(of match: [String?], in text: String) -> String.Index {
+        match[0].flatMap { text.range(of: $0)?.lowerBound } ?? text.endIndex
     }
 
     /// Whether the phone's region writes dates month first, as the US does.
