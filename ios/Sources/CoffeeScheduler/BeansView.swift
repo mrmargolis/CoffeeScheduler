@@ -63,7 +63,7 @@ struct BeansView: View {
             if !isReordering {
                 PillButton(title: "Scan") { scanningLabel = true }
                     .accessibilityLabel("Scan a bag's label")
-                    .accessibilityHint("Photographs a bag, or picks a photo of one, and searches for the coffee")
+                    .accessibilityHint("Photographs a bag, or picks a photo of one, and fills in its details to add to BeanConqueror")
             }
             if queue.count > 1 {
                 PillButton(title: isReordering ? "Done" : "Reorder") {

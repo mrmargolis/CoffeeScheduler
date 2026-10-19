@@ -1,69 +1,76 @@
 import CoffeeCore
-import SafariServices
 import SwiftUI
 
-/// Photograph a bag, or pick a photo of one, read its label on the phone, and look the coffee up on
-/// Bean Base or Google. The reading can be corrected before searching.
+/// Photograph a bag, or pick a photo of one, and read its label on the
+/// phone; add photos of its other side and the roaster's page for what the
+/// label leaves out; correct anything by hand; and add it to BeanConqueror.
 struct LabelSearchView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var step = Step.camera
-    @State private var lines: [BagLabel.Line] = []
-    @State private var reading = BagLabel.Reading(roaster: "", coffee: "")
-    @State private var error: String?
-    @State private var search: Search?
+    @Environment(\.openURL) private var openURL
+    @State private var showingCamera = true
     @State private var choosingPhoto = false
+    @State private var draft = BagDraft()
+    /// Each photo's lines, in reading order.
+    @State private var photos: [[BagLabel.Line]] = []
+    @State private var status = ScanStatus.ready
+    @State private var browsing: Browse?
 
-    private enum Step {
-        case camera
-        case reading
-        case review
-    }
-
-    private enum Search: Identifiable {
-        case beanBase
-        case google
-
-        var id: Self { self }
-
-        func url(for reading: BagLabel.Reading) -> URL? {
-            switch self {
-            case .beanBase: BagLabel.searchURL(for: reading)
-            case .google: BagLabel.googleURL(for: reading)
-            }
-        }
+    private struct Browse: Identifiable {
+        let url: URL
+        var id: URL { url }
     }
 
     var body: some View {
-        if step == .camera {
+        if showingCamera {
             camera
         } else {
             NavigationStack {
                 form
-                    .navigationTitle("Bag label")
+                    .navigationTitle("Add a bag")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Retake") { step = .camera }.disabled(step == .reading)
+                            Button("Start over", action: startOver).disabled(status == .reading)
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { dismiss() }
                         }
                     }
             }
-            .sheet(item: $search) { search in
-                if let url = search.url(for: reading) {
-                    SafariView(url: url).ignoresSafeArea()
+            .sheet(item: $browsing) { browse in
+                PageBrowser(start: browse.url) { page in
+                    fill(
+                        BagLabel.details(ofPage: page.text, title: page.title, site: page.site, url: page.url, today: DateUtils.today()),
+                        from: URL(string: page.url)?.host() ?? "the page")
                 }
             }
         }
     }
 
+    private var form: some View {
+        BagDraftForm(
+            draft: $draft,
+            labelText: photos.flatMap { $0.map(\.text) },
+            status: status,
+            onAdd: addToBeanConqueror,
+            onAddPhoto: { showingCamera = true },
+            onSearch: { search in
+                browsing = search.url(for: draft).map(Browse.init)
+            })
+    }
+
     /// The camera, with a button over it for a photo already taken.
+    /// Cancelling goes back to the bag, or closes the screen before there's one.
     private var camera: some View {
         LabelCamera { image in
-            guard let image else { return dismiss() }
-            startReading(image)
+            if let image {
+                startReading(image)
+            } else if photos.isEmpty && draft == BagDraft() {
+                dismiss()
+            } else {
+                showingCamera = false
+            }
         }
         .ignoresSafeArea()
         .overlay(alignment: .top) {
@@ -80,103 +87,59 @@ struct LabelSearchView: View {
                 if let image { startReading(image) }
             } onFailure: {
                 choosingPhoto = false
-                lines = []
-                error = "Couldn't open that photo. Retake it or choose another."
-                step = .review
+                showingCamera = false
+                status = .failed("Couldn't open that photo. Take it again or choose another.")
             }
             .ignoresSafeArea()
         }
     }
 
-    private var form: some View {
-        Form {
-            Group {
-                Section {
-                    TextField("Coffee", text: $reading.coffee)
-                    TextField("Roaster", text: $reading.roaster)
-                    HStack {
-                        searchButton("Search Bean Base", .beanBase)
-                        Spacer()
-                        searchButton("Search Google", .google)
-                    }
-                } header: {
-                    Text("Search for")
-                } footer: {
-                    footer
-                }
-                if !lines.isEmpty {
-                    Section {
-                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                            lineMenu(line.text)
-                        }
-                    } header: {
-                        Text("Text on the label")
-                    } footer: {
-                        Text("Tap a line to use it instead.")
-                    }
-                }
-            }
-            .listRowBackground(Theme.card)
-            .listRowSeparatorTint(Theme.hairline)
-        }
-        .themedList()
-    }
-
-    /// Borderless, so each of the row's two buttons takes only its own taps.
-    private func searchButton(_ title: String, _ search: Search) -> some View {
-        Button(title) { self.search = search }
-            .buttonStyle(.borderless)
-            .disabled(step != .review || search.url(for: reading) == nil)
-    }
-
-    @ViewBuilder private var footer: some View {
-        if step == .reading {
-            HStack(spacing: 6) {
-                ProgressView()
-                Text("Reading the label…")
-            }
-        } else if let error {
-            Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
-        } else {
-            Text("Read on this iPhone. Fix anything it got wrong before searching.")
-        }
-    }
-
-    private func lineMenu(_ text: String) -> some View {
-        Menu {
-            Button("Use as coffee") { reading.coffee = text }
-            Button("Use as roaster") { reading.roaster = text }
-        } label: {
-            Text(text).foregroundStyle(Theme.text2).frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     private func startReading(_ image: UIImage) {
-        step = .reading
+        showingCamera = false
+        status = .reading
         Task { await read(image) }
     }
 
     private func read(_ image: UIImage) async {
-        error = nil
         do {
-            lines = try await LabelReader.lines(in: image, customWords: model.roasters)
-            reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters)
-            if lines.isEmpty { error = "No text found. Retake the photo closer to the label." }
+            let lines = try await LabelReader.lines(in: image, customWords: model.roasters)
+            guard !lines.isEmpty else {
+                status = .failed("No text found. Take the photo closer to the label.")
+                return
+            }
+            var found = BagLabel.details(in: lines, today: DateUtils.today())
+            found.reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters)
+            photos.append(lines)
+            fill(found, from: photos.count == 1 ? "the photo" : "photo \(photos.count)")
         } catch {
-            lines = []
-            self.error = "Couldn't read the photo: \(error.localizedDescription)"
+            status = .failed("Couldn't read the photo: \(error.localizedDescription)")
         }
-        step = .review
-    }
-}
-
-/// Safari inside the app, so the search is one swipe from the app.
-private struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
     }
 
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
+    /// Fills what's still empty from a photo or page, and says how much.
+    private func fill(_ found: BagDraft, from source: String) {
+        let before = draft.filledCount
+        draft = draft.filling(from: found)
+        let added = draft.filledCount - before
+        status = .filled(
+            added == 0
+                ? "Nothing more from \(source). Fill in the rest by hand."
+                : "Filled \(added) \(added == 1 ? "field" : "fields") from \(source). Check them before adding.")
+    }
+
+    private func addToBeanConqueror() {
+        guard let url = BeanConquerorLink.url(for: draft) else { return }
+        openURL(url) { opened in
+            if !opened {
+                status = .failed("Couldn't open BeanConqueror. Is it installed?")
+            }
+        }
+    }
+
+    private func startOver() {
+        draft = BagDraft()
+        photos = []
+        status = .ready
+        showingCamera = true
+    }
 }
