@@ -25,21 +25,32 @@ public enum BagLabel {
             self.roaster = roaster
             self.coffee = coffee
         }
-
-        /// The search text: the coffee, then the roaster.
-        public var query: String {
-            [coffee, roaster].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " ")
-        }
     }
 
     public static let searchPage = "https://www.loffeelabs.com/bean-base/search"
 
-    /// Bean Base's search for the reading; nil when there's nothing to search for.
+    /// Bean Base's search for the reading: its roaster filter, and its text
+    /// search for the coffee. Nil when there's nothing to search for.
+    ///
+    /// Each filter is a numbered parameter, `f1=AND:roaster:Thankfully%20Coffee`,
+    /// whose value is percent-encoded once inside it and then again as a
+    /// whole: `f1=AND%3Aroaster%3AThankfully%2520Coffee`.
     public static func searchURL(for reading: Reading) -> URL? {
-        let query = reading.query
-        guard !query.isEmpty, var components = URLComponents(string: searchPage) else { return nil }
-        components.queryItems = [URLQueryItem(name: "q", value: query)]
-        return components.url
+        let filters = [("roaster", reading.roaster), ("search", reading.coffee)]
+            .map { ($0, $1.trimmingCharacters(in: .whitespaces)) }
+            .filter { !$1.isEmpty }
+        guard !filters.isEmpty else { return nil }
+        let query = filters.enumerated().map { index, filter in
+            "f\(index + 1)=" + encode("AND:\(filter.0):" + encode(filter.1))
+        }
+        return URL(string: searchPage + "?" + query.joined(separator: "&"))
+    }
+
+    /// Percent-encodes all but letters, digits and `-._~`, as JavaScript's
+    /// encodeURIComponent does (bar its `!'()*`).
+    private static func encode(_ text: String) -> String {
+        let unreserved = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
+        return text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? text
     }
 
     /// A best guess from the label's lines in reading order. A roaster the

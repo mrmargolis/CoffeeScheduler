@@ -61,11 +61,23 @@ import Testing
         #expect(BagLabel.read([], knownRoasters: ["Sey"]) == BagLabel.Reading(roaster: "", coffee: ""))
     }
 
-    @Test func searchesForTheCoffeeThenTheRoaster() throws {
-        let url = try #require(BagLabel.searchURL(for: BagLabel.Reading(roaster: "Sey", coffee: "Pepe Jijón")))
-        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        #expect(url.absoluteString.hasPrefix(BagLabel.searchPage + "?"))
-        #expect(components.queryItems == [URLQueryItem(name: "q", value: "Pepe Jijón Sey")])
+    @Test func filtersByTheRoasterAndSearchesForTheCoffee() {
+        // The search Bean Base's own page makes for these
+        let url = BagLabel.searchURL(for: BagLabel.Reading(roaster: "Thankfully Coffee", coffee: "Putushio"))
+        #expect(
+            url?.absoluteString
+                == "https://www.loffeelabs.com/bean-base/search?f1=AND%3Aroaster%3AThankfully%2520Coffee&f2=AND%3Asearch%3APutushio"
+        )
+    }
+
+    @Test func leavesOutAnEmptyFilter() {
+        let url = BagLabel.searchURL(for: BagLabel.Reading(roaster: " ", coffee: "Pepe Jijón"))
+        #expect(url?.absoluteString == BagLabel.searchPage + "?f1=AND%3Asearch%3APepe%2520Jij%25C3%25B3n")
+    }
+
+    @Test func encodesCharactersThatWouldEndTheFilter() {
+        let url = BagLabel.searchURL(for: BagLabel.Reading(roaster: "A&B", coffee: ""))
+        #expect(url?.absoluteString == BagLabel.searchPage + "?f1=AND%3Aroaster%3AA%2526B")
     }
 
     @Test func hasNoSearchWithNothingToSearchFor() {
