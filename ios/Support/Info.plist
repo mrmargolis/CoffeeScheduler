@@ -22,6 +22,9 @@
 			</array>
 		</dict>
 	</array>
+	<!-- The Scan button on the Beans screen photographs a bag's label. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Photograph a coffee bag's label to look the coffee up on Bean Base. The photo is read on this iPhone and isn't kept.</string>
 	<!-- Shared files are copied into the app's Inbox rather than opened in place. -->
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>

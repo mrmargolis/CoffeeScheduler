@@ -32,6 +32,16 @@ final class CoffeeE2ETests: XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout: 10), "Missing: \(element)", file: file, line: line)
     }
 
+    /// Tap until `shown` appears: on a stalled simulator a tap can be
+    /// dropped, and the screen it opens never comes.
+    private func tap(_ element: XCUIElement, until shown: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        for _ in 0..<3 where !shown.exists {
+            if element.isHittable { element.tap() }
+            _ = shown.waitForExistence(timeout: 5)
+        }
+        waitFor(shown, file: file, line: line)
+    }
+
     private func day(_ date: String) -> XCUIElement {
         app.buttons["day-\(date)"]
     }
@@ -262,7 +272,7 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(add)
         XCTAssertFalse(element(containing: "Square Mile").exists)
 
-        add.tap()
+        tap(add, until: app.navigationBars["Add a roaster"])
         let squareMile = app.buttons["Square Mile"]
         waitFor(squareMile)
         squareMile.tap()
