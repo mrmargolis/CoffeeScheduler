@@ -81,7 +81,7 @@ import Testing
         let lines = ["Hanan Million", "Process: Natural", "Ethiopia"].enumerated().map {
             BagLabel.Line($1, x: 0.1, y: 0.9 - Double($0) * 0.1, width: 0.5, height: 0.02)
         }
-        let details = BagLabel.details(in: lines, today: "2026-10-19")
+        let details = BagLabel.details(in: lines, today: "2026-10-19", monthFirst: true)
         #expect(details.certainty[.process] == .stated)
         #expect(details.country == "Ethiopia")
         #expect((details.certainty[.country] ?? .guessed) == .guessed)

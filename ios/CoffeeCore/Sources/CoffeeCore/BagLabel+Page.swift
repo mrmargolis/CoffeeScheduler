@@ -9,14 +9,16 @@ extension BagLabel {
     /// is the end of the browser's title ("suke quto – delicate coffee
     /// roasters"), and a roaster the app knows keeps its name in the app.
     /// All of it is stated: it's the page for the coffee.
-    public static func details(of page: Page, knownRoasters: [String], today: String) -> BagDraft {
+    public static func details(
+        of page: Page, knownRoasters: [String], today: String, monthFirst: Bool = regionIsMonthFirst
+    ) -> BagDraft {
         // The page's summary for search engines last, in sentences: "Chelbesa — Ethiopia, Gedeb, Gedeo.
         // Tasting notes: Yellow Nectarine, Wildflower Honey, Orange Zest"
         let summary = page.summary.components(separatedBy: ". ")
         let lines = (page.text.split(whereSeparator: \.isNewline).map(String.init) + summary)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        var draft = labelled(lines, today: today)
+        var draft = labelled(lines, today: today, monthFirst: monthFirst)
         draft.coffee = coffeeName(inHeading: page.heading)
         let roaster = tidy(page.site.isEmpty ? siteName(inTitle: page.title, heading: draft.coffee) : page.site, name: true)
         draft.roaster = knownRoaster(named: roaster, from: knownRoasters) ?? roaster

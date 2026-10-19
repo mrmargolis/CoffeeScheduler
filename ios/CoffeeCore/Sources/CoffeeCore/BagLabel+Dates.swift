@@ -4,24 +4,49 @@ import Foundation
 extension BagLabel {
     /// The date in `text`, `YYYY-MM-DD`, or nil. A date without a year is
     /// the latest one that isn't after `today`; one after `today` is a best
-    /// before, not a roast date. Numbers like 10/12 are month first, as US
-    /// labels print them, and 10.12 day first, as European ones do, unless
-    /// the first can only be a day. A bare "4.4" is a date only when
+    /// before, not a roast date. A bare "4.4" is a date only when
     /// `standalone`, so a weight like "4.4 oz" isn't read as one.
-    static func date(in text: String, today: String, standalone: Bool) -> String? {
+    static func date(in text: String, today: String, standalone: Bool, monthFirst: Bool) -> String? {
+        dated(text, today: today, standalone: standalone, monthFirst: monthFirst)?.iso
+    }
+
+    /// A date, `YYYY-MM-DD`, and whether its day and month were a guess.
+    typealias Dated = (iso: String, isGuess: Bool)
+
+    /// The date in `text`, and whether its order was a guess. Numbers like
+    /// 10/08 are read the one way that's a day by `today`, whatever their
+    /// separator; when both are, in the order the phone's region writes
+    /// dates (`monthFirst`), as a guess.
+    static func dated(_ text: String, today: String, standalone: Bool, monthFirst: Bool) -> Dated? {
         let folded = fold(text)
         if let match = groups(#"(?<![0-9])(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?![0-9])"#, in: folded) {
             return day(year: Int(match[1] ?? ""), month: Int(match[2] ?? ""), day: Int(match[3] ?? ""), today: today)
+                .map { ($0, false) }
         }
         let numeric = #"(?<![0-9./-])(\d{1,2})([./-])(\d{1,2})(?:\2(\d{4}|\d{2}))?(?![0-9]|\.[0-9]|\s*(?:oz|g|kg|lb))"#
         if let match = groups(numeric, in: folded) {
             guard match[4] != nil || standalone else { return nil }
-            let first = Int(match[1] ?? "") ?? 0
-            let second = Int(match[3] ?? "") ?? 0
-            let dayFirst = (match[2] == "." && second <= 12) || first > 12
-            return day(
-                year: match[4].flatMap { Int($0) }, month: dayFirst ? second : first, day: dayFirst ? first : second, today: today)
+            return numericDate(
+                Int(match[1] ?? "") ?? 0, Int(match[3] ?? "") ?? 0, year: match[4].flatMap { Int($0) }, today: today,
+                monthFirst: monthFirst)
         }
+        return namedDate(folded, today: today).map { ($0, false) }
+    }
+
+    /// A date of numbers, the month first or second.
+    private static func numericDate(_ first: Int, _ second: Int, year: Int?, today: String, monthFirst: Bool) -> Dated? {
+        let monthFirstDay = day(year: year, month: first, day: second, today: today)
+        let dayFirstDay = day(year: year, month: second, day: first, today: today)
+        switch (monthFirstDay, dayFirstDay) {
+        case (let month?, let day?): return (monthFirst ? month : day, month != day)
+        case (let month?, nil): return (month, false)
+        case (nil, let day?): return (day, false)
+        case (nil, nil): return nil
+        }
+    }
+
+    /// A date with its month's name: "Aug 5", "3rd October 2026".
+    private static func namedDate(_ folded: String, today: String) -> String? {
         let months = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?"
         let year = #"(?:,?\s*('?\d{4}|'?\d{2})(?![0-9]))?"#
         if let match = groups(months + #"\s*(\d{1,2})(?:st|nd|rd|th)?(?![0-9])"# + year, in: folded) {
@@ -31,6 +56,13 @@ extension BagLabel {
             return day(year: Self.year(match[3]), month: month(match[2]), day: Int(match[1] ?? ""), today: today)
         }
         return nil
+    }
+
+    /// Whether the phone's region writes dates month first, as the US does.
+    public static var regionIsMonthFirst: Bool {
+        let format = DateFormatter.dateFormat(fromTemplate: "Md", options: 0, locale: .current) ?? "M/d"
+        guard let month = format.firstIndex(of: "M"), let day = format.firstIndex(of: "d") else { return true }
+        return month < day
     }
 
     /// The first match's capture groups, nil for a group that didn't take

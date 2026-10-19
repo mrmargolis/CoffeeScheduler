@@ -6,9 +6,11 @@ extension BagLabel {
     /// labelled ("Process: Washed"), which is stated, and else what's
     /// recognisable by its words ("Huila, Colombia", "Pink Bourbon / Washed")
     /// or form (a list of tasting notes, a date, a weight), which is guessed.
-    public static func details(in lines: [Line], today: String) -> BagDraft {
+    /// A date like 10/08 that could be either is read as `monthFirst` says.
+    public static func details(in lines: [Line], today: String, monthFirst: Bool = regionIsMonthFirst) -> BagDraft {
         let texts = lines.map(\.text)
-        return labelled(texts, today: today).merging(recognised(texts, today: today))
+        return labelled(texts, today: today, monthFirst: monthFirst)
+            .merging(recognised(texts, today: today, monthFirst: monthFirst))
     }
 
     // MARK: Labelled
@@ -50,7 +52,7 @@ extension BagLabel {
     /// The fields given as "Label: value", "Label value" for a roast date or
     /// weight ("Roasted on Aug 5"), or a label on its own line with the value
     /// on the next.
-    static func labelled(_ lines: [String], today: String) -> BagDraft {
+    static func labelled(_ lines: [String], today: String, monthFirst: Bool) -> BagDraft {
         var draft = BagDraft()
         for (index, line) in lines.enumerated() {
             // The value on the next line, under a label of its own ("I taste:")
@@ -58,13 +60,13 @@ extension BagLabel {
             let nextIsValue = !next.isEmpty && field(labelled: next) == nil && !next.hasSuffix(":")
             if let colon = line.firstIndex(of: ":"), let field = field(labelled: String(line[..<colon])) {
                 let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
-                set(field, to: value.isEmpty && nextIsValue ? next : value, in: &draft, today: today)
+                set(field, to: value.isEmpty && nextIsValue ? next : value, in: &draft, today: today, monthFirst: monthFirst)
             } else if let field = field(labelled: line), nextIsValue {
-                set(field, to: next, in: &draft, today: today)
+                set(field, to: next, in: &draft, today: today, monthFirst: monthFirst)
             } else if fold(line).hasPrefix("roast") {
-                set(.roastDate, to: line, in: &draft, today: today)
+                set(.roastDate, to: line, in: &draft, today: today, monthFirst: monthFirst)
             } else if fold(line).hasPrefix("net") {
-                set(.weight, to: line, in: &draft, today: today)
+                set(.weight, to: line, in: &draft, today: today, monthFirst: monthFirst)
             }
         }
         return draft
@@ -72,8 +74,9 @@ extension BagLabel {
 
     /// Sets a field from a labelled value, as stated, unless it's already
     /// set. A value that's a sentence ("Pacamara, a cross between Pacas and
-    /// Maragogipe…") gives only the names in it, as guesses.
-    private static func set(_ field: Field, to value: String, in draft: inout BagDraft, today: String) {
+    /// Maragogipe…") gives only the names in it, as guesses, and so does a
+    /// date whose day and month could be either way round.
+    private static func set(_ field: Field, to value: String, in draft: inout BagDraft, today: String, monthFirst: Bool) {
         let value = cleaned(value)
         guard !value.isEmpty else { return }
         let isSentence = value.split(separator: " ").count > 8
@@ -86,13 +89,23 @@ extension BagLabel {
         // process's steps ("before being pulped"): only its first variety, and no process
         case .variety: found.variety = isSentence ? names(in: value, from: varieties).first ?? "" : tidy(value)
         case .process: found.process = isSentence ? "" : tidy(value)
-        case .roastDate: found.roastDate = date(in: value, today: today, standalone: true)
+        case .roastDate: found = roastDate(value, today: today, monthFirst: monthFirst)
         case .weight: found.weightGrams = weight(in: value)
         }
         if isSentence {
             for field in BagField.allCases where found.has(field) { found.certainty[field] = .guessed }
         }
         fillEmpty(&draft, from: found)
+    }
+
+    /// A labelled roast date; a guess when its day and month could be
+    /// either way round ("10.08.26").
+    private static func roastDate(_ value: String, today: String, monthFirst: Bool) -> BagDraft {
+        var found = BagDraft()
+        let dated = dated(value, today: today, standalone: true, monthFirst: monthFirst)
+        found.roastDate = dated?.iso
+        if dated?.isGuess == true { found.certainty[.roastDate] = .guessed }
+        return found
     }
 
     /// Labelled notes; a description ("We taste juicy and tart black
@@ -169,7 +182,7 @@ extension BagLabel {
 
     /// The fields found by their words or form, each from the first line that
     /// has one.
-    private static func recognised(_ lines: [String], today: String) -> BagDraft {
+    private static func recognised(_ lines: [String], today: String, monthFirst: Bool) -> BagDraft {
         var draft = BagDraft()
         draft.country = lines.lazy.compactMap { names(in: $0, from: countries).first }.first ?? ""
         draft.region = lines.lazy.compactMap { names(in: $0, from: regions).first }.first ?? ""
@@ -181,7 +194,7 @@ extension BagLabel {
         draft.roastDate =
             lines.lazy
             .filter { line in !["best", "exp", "use by", "bb"].contains { fold(line).contains($0) } }
-            .compactMap { date(in: $0, today: today, standalone: wordSet(fold($0)).count <= 1) }
+            .compactMap { date(in: $0, today: today, standalone: wordSet(fold($0)).count <= 1, monthFirst: monthFirst) }
             .first
         return draft
     }

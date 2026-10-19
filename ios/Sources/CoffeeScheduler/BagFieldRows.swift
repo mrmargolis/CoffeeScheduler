@@ -25,10 +25,15 @@ struct BagTextRow: View {
 
     var body: some View {
         BagFieldRow(title: title, isGuess: isGuess) {
-            TextField(title, text: $text, prompt: Text(prompt).foregroundStyle(Theme.text3), axis: .vertical)
-                .multilineTextAlignment(.trailing)
-                .foregroundStyle(Theme.text2)
-                .lineLimit(1...3)
+            HStack(spacing: 4) {
+                TextField(title, text: $text, prompt: Text(prompt).foregroundStyle(Theme.text3), axis: .vertical)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(Theme.text2)
+                    .lineLimit(1...3)
+                if !text.isEmpty {
+                    ClearButton(title: title) { text = "" }
+                }
+            }
         }
     }
 }
@@ -46,10 +51,7 @@ struct RoastDateRow: View {
                 HStack(spacing: 4) {
                     DatePicker("Roasted", selection: binding(iso), in: ...Date(), displayedComponents: .date)
                         .labelsHidden()
-                    Button("Clear the roast date", systemImage: "xmark.circle.fill") { date = nil }
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(Theme.text3)
-                        .buttonStyle(.borderless)
+                    ClearButton(title: "the roast date") { date = nil }
                 }
             } else {
                 Button("Add date") { date = DateUtils.today() }
@@ -83,6 +85,9 @@ struct WeightRow: View {
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(Theme.text2)
                 Text("g").foregroundStyle(Theme.text3)
+                if grams != nil {
+                    ClearButton(title: "Weight") { grams = nil }
+                }
             }
         }
     }
@@ -93,5 +98,18 @@ struct WeightRow: View {
         } set: { typed in
             grams = Int(typed.filter(\.isNumber))
         }
+    }
+}
+
+/// A field's button that empties it.
+private struct ClearButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button("Clear \(title)", systemImage: "xmark.circle.fill", action: action)
+            .labelStyle(.iconOnly)
+            .foregroundStyle(Theme.text3)
+            .buttonStyle(.borderless)
     }
 }

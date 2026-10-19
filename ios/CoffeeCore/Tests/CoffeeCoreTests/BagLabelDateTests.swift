@@ -5,8 +5,8 @@ import Testing
 @Suite struct BagLabelDateTests {
     private let today = "2026-10-19"
 
-    private func date(_ text: String, standalone: Bool = false) -> String? {
-        BagLabel.date(in: text, today: today, standalone: standalone)
+    private func date(_ text: String, standalone: Bool = false, monthFirst: Bool = true) -> String? {
+        BagLabel.date(in: text, today: today, standalone: standalone, monthFirst: monthFirst)
     }
 
     @Test func readsDatesWithTheMonthsName() {
@@ -20,9 +20,35 @@ import Testing
     @Test func readsNumericDates() {
         #expect(date("2026-10-12") == "2026-10-12")
         #expect(date("Roast date 10/12/26") == "2026-10-12")  // Month first, as US labels have it
-        #expect(date("12.10.2026") == "2026-10-12")  // Day first with dots
+        #expect(date("12.10.2026", monthFirst: false) == "2026-10-12")  // Day first where the phone's region is
+        #expect(date("10.08.26") == "2026-10-08")  // Dots in the US are month first too
         #expect(date("19/09/2026") == "2026-09-19")  // Only a day can be 19
         #expect(date("9/19", standalone: true) == "2026-09-19")
+    }
+
+    @Test func takesTheOnlyOrderThatsADayByToday() {
+        // 10 December hasn't come yet, so these are October 12th
+        #expect(date("10.12.26", monthFirst: false) == "2026-10-12")
+        #expect(date("12/10/26", monthFirst: true) == "2026-10-12")
+    }
+
+    @Test func readsAnEitherWayDateInTheRegionsOrderAsAGuess() {
+        let us = BagLabel.dated("10/08/26", today: today, standalone: true, monthFirst: true)
+        #expect(us?.iso == "2026-10-08")
+        #expect(us?.isGuess == true)
+        let europe = BagLabel.dated("10/08/26", today: today, standalone: true, monthFirst: false)
+        #expect(europe?.iso == "2026-08-10")
+        #expect(BagLabel.dated("19/09/26", today: today, standalone: true, monthFirst: true)?.isGuess == false)
+        #expect(BagLabel.dated("5/5/26", today: today, standalone: true, monthFirst: true)?.isGuess == false)  // The same either way
+    }
+
+    @Test func aLabelledEitherWayDateIsAGuess() {
+        let either = BagLabel.labelled(["Roasted: 10.08.26"], today: today, monthFirst: true)
+        #expect(either.roastDate == "2026-10-08")
+        #expect(either.isGuess(.roastDate))
+        let only = BagLabel.labelled(["Roasted: 19/09/26"], today: today, monthFirst: true)
+        #expect(only.roastDate == "2026-09-19")
+        #expect(!only.isGuess(.roastDate))
     }
 
     @Test func doesntTakeAWeightOrAFutureDate() {

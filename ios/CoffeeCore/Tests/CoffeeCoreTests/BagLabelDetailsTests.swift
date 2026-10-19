@@ -6,7 +6,7 @@ import Testing
     private let today = "2026-10-19"
 
     private func details(_ lines: [BagLabel.Line]) -> BagDraft {
-        BagLabel.details(in: lines, today: today)
+        BagLabel.details(in: lines, today: today, monthFirst: true)
     }
 
     /// Lines in reading order, as the app sorts them.
@@ -133,7 +133,7 @@ import Testing
             of: BagLabel.Page(
                 heading: "suke quto", title: "suke quto – delicate coffee roasters", site: "", text: sukeQuto,
                 url: "https://delicate.coffee/products/suke-quto"),
-            knownRoasters: knownRoasters, today: "2026-10-19")
+            knownRoasters: knownRoasters, today: "2026-10-19", monthFirst: true)
     }
 
     @Test func readsAPageWithoutASiteName() {
@@ -188,7 +188,7 @@ import Testing
 
     @Test func readsNotesUnderAHeadingAndMarksADescriptionAsAGuess() {
         let hAndS = BagLabel.labelled(
-            ["Coffee flavor profile", "Danjou pear, gardenia, bergamot.", "Acidity: sparkling, lively"], today: "2026-10-19")
+            ["Coffee flavor profile", "Danjou pear, gardenia, bergamot.", "Acidity: sparkling, lively"], today: "2026-10-19", monthFirst: true)
         #expect(hAndS.notes == "Danjou pear, gardenia, bergamot")
         #expect(!hAndS.isGuess(.notes))
         let september = BagLabel.labelled(
@@ -196,15 +196,15 @@ import Testing
                 "In the cup",
                 "We taste juicy and tart black currants, the acidity of grapefruit, and the sweetness of figs. This coffee has a silky body.",
             ],
-            today: "2026-10-19")
+            today: "2026-10-19", monthFirst: true)
         #expect(september.notes == "We taste juicy and tart black currants, the acidity of grapefruit, and the sweetness of figs")
         #expect(september.isGuess(.notes))
     }
 
     @Test func readsTheOriginsCountryAndRegion() {
-        let shoebox = BagLabel.labelled(["Region: Aricha, Yirgacheffe, Ethiopia"], today: "2026-10-19")
+        let shoebox = BagLabel.labelled(["Region: Aricha, Yirgacheffe, Ethiopia"], today: "2026-10-19", monthFirst: true)
         #expect([shoebox.country, shoebox.region] == ["Ethiopia", "Aricha, Yirgacheffe"])
-        let datura = BagLabel.labelled(["Origin: Kenya - Nyeri County"], today: "2026-10-19")
+        let datura = BagLabel.labelled(["Origin: Kenya - Nyeri County"], today: "2026-10-19", monthFirst: true)
         #expect([datura.country, datura.region] == ["Kenya", "Nyeri"])
         #expect(!datura.isGuess(.region))
     }
@@ -216,7 +216,7 @@ import Testing
                 "Origin", "Finca Zarza sits in the mountains of Bruselas, near Pitalito, Huila, at around 1750 to 1800 masl.",
                 "Varietal", "Pacamara, a cross between Pacas and Maragogipe developed in El Salvador.",
                 "Process", "The cherries ferment anaerobically for 72 hours submerged in water before being pulped.",
-            ], today: "2026-10-19")
+            ], today: "2026-10-19", monthFirst: true)
         #expect(dak.country == "")
         #expect(dak.region == "Huila")
         #expect(dak.variety == "Pacamara")
@@ -230,11 +230,12 @@ import Testing
                 "Varietal: Landrace(most varietals in Ethiopia are JARC selections like 74158 or 74112)",
                 "Process: Washed: Fermented in open concrete tanks for 24-48 hours, then thoroughly washed.",
                 "Tasting notes:", "Producer info and cup notes:",
-            ], today: "2026-10-19")
+            ], today: "2026-10-19", monthFirst: true)
         #expect(shoebox.variety == "Landrace")
         #expect(shoebox.process == "Washed")
         #expect(shoebox.notes == "")  // Not the next heading
-        let loveLetters = BagLabel.labelled(["I taste:", "Potent floral boquet from ground aroma. Florals present."], today: "2026-10-19")
+        let loveLetters = BagLabel.labelled(
+            ["I taste:", "Potent floral boquet from ground aroma. Florals present."], today: "2026-10-19", monthFirst: true)
         #expect(loveLetters.notes == "Potent floral boquet from ground aroma")
     }
 
@@ -244,7 +245,7 @@ import Testing
                 heading: "Ethiopia - Chelbesa", title: "Chelbesa | Thankfully Coffee", site: "", text: "Region\nGedeb, Gedeo",
                 url: "https://thankfullycoffee.com/products/chelbesa-g1",
                 summary: "Chelbesa — Ethiopia, Gedeb, Gedeo. Tasting notes: Yellow Nectarine, Wildflower Honey, Orange Zest"),
-            knownRoasters: [], today: "2026-10-19")
+            knownRoasters: [], today: "2026-10-19", monthFirst: true)
         #expect(draft.coffee == "Chelbesa")
         #expect(draft.roaster == "Thankfully Coffee")
         #expect(draft.country == "Ethiopia")
