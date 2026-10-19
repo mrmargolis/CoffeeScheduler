@@ -9,7 +9,7 @@ struct BeansView: View {
     @State private var confirmingFreeze: Bean?
     @State private var path: [BeanRoute] = []
     @State private var editMode: EditMode
-    @State private var scanningLabel = false
+    @State private var addingBag = false
 
     init(reordering: Bool = false) {
         _editMode = State(initialValue: reordering ? .active : .inactive)
@@ -46,7 +46,7 @@ struct BeansView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .freezeConfirmation(for: $confirmingFreeze)
-            .fullScreenCover(isPresented: $scanningLabel) { LabelSearchView() }
+            .fullScreenCover(isPresented: $addingBag) { AddBagView() }
         }
     }
 
@@ -61,9 +61,8 @@ struct BeansView: View {
                     .accessibilityLabel("Use automatic order")
             }
             if !isReordering {
-                PillButton(title: "Scan") { scanningLabel = true }
-                    .accessibilityLabel("Scan a bag's label")
-                    .accessibilityHint("Photographs a bag, or picks a photo of one, and fills in its details to add to BeanConqueror")
+                PillButton(title: "Add a bag") { addingBag = true }
+                    .accessibilityHint("Fills in a bag from photos of it, its page or by hand, to add to BeanConqueror")
             }
             if queue.count > 1 {
                 PillButton(title: isReordering ? "Done" : "Reorder") {

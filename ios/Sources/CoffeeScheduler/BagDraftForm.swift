@@ -11,28 +11,30 @@ enum ScanStatus: Equatable {
     case failed(String)
 }
 
-/// The searches for the coffee's page.
+/// The searches for the coffee's page: for the coffee and roaster when
+/// there are any, else the search page itself.
 enum BagSearch {
     case google
     case beanBase
 
-    func url(for draft: BagDraft) -> URL? {
+    func url(for draft: BagDraft) -> URL {
         switch self {
-        case .google: BagLabel.googleURL(for: draft.reading)
-        case .beanBase: BagLabel.searchURL(for: draft.reading)
+        case .google: BagLabel.googleURL(for: draft.reading) ?? URL(string: "https://www.google.com")!
+        case .beanBase: BagLabel.searchURL(for: draft.reading) ?? URL(string: BagLabel.searchPage)!
         }
     }
 }
 
-/// The bag being added, every field editable, with the ways to fill it in
-/// further and the button that hands it to BeanConqueror.
+/// The bag being added: the ways to fill it in, every field editable, and
+/// the button that hands it to BeanConqueror.
 struct BagDraftForm: View {
     @Binding var draft: BagDraft
     /// The text read off the photos, in reading order.
     let labelText: [String]
     let status: ScanStatus
     let onAdd: () -> Void
-    let onAddPhoto: () -> Void
+    let onTakePhoto: () -> Void
+    let onChoosePhoto: () -> Void
     let onSearch: (BagSearch) -> Void
 
     /// The text fields, for the rows and for "Use as" on a line of the label.
@@ -46,6 +48,7 @@ struct BagDraftForm: View {
     var body: some View {
         Form {
             Group {
+                fillSection
                 Section {
                     BagTextRow(title: "Coffee", text: $draft.coffee)
                     BagTextRow(title: "Roaster", text: $draft.roaster)
@@ -63,7 +66,6 @@ struct BagDraftForm: View {
                     SectionLabel(title: "Notes and origin").listRowInsets(Theme.labelInsets)
                 }
                 addSection
-                findSection
                 if !labelText.isEmpty {
                     labelSection
                 }
@@ -106,17 +108,20 @@ struct BagDraftForm: View {
         }
     }
 
-    private var findSection: some View {
+    private var fillSection: some View {
         Section {
-            Button("Add another photo", systemImage: "camera", action: onAddPhoto)
-            Button("Find the roaster's page on Google", systemImage: "magnifyingglass") { onSearch(.google) }
-                .disabled(BagSearch.google.url(for: draft) == nil)
-            Button("Find it on Bean Base", systemImage: "list.bullet.rectangle") { onSearch(.beanBase) }
-                .disabled(BagSearch.beanBase.url(for: draft) == nil)
+            Button("Take a photo of the bag", systemImage: "camera", action: onTakePhoto)
+            Button("Choose a photo", systemImage: "photo.on.rectangle", action: onChoosePhoto)
+            Button("Search Google", systemImage: "magnifyingglass") { onSearch(.google) }
+            Button("Search Bean Base", systemImage: "list.bullet.rectangle") { onSearch(.beanBase) }
         } header: {
-            SectionLabel(title: "Fill in more").listRowInsets(Theme.labelInsets)
+            SectionLabel(title: "Fill in from").listRowInsets(Theme.labelInsets)
         } footer: {
-            SectionFooter(text: "A photo of the back of the bag, or the coffee's page, fills in what's still empty; what's here stays.")
+            SectionFooter(
+                text: """
+                    Or type it in below. Each photo, front or back, and each page you use fills in what's still \
+                    empty; what's already there stays. On the coffee's page, tap Use this page.
+                    """)
         }
         .disabled(status == .reading)
     }

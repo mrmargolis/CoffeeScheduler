@@ -1,14 +1,14 @@
 import CoffeeCore
 import SwiftUI
 
-/// Photograph a bag, or pick a photo of one, and read its label on the
-/// phone; add photos of its other side and the roaster's page for what the
-/// label leaves out; correct anything by hand; and add it to BeanConqueror.
-struct LabelSearchView: View {
+/// A bag to add to BeanConqueror, filled in from photos of its label (read
+/// on the phone), from its page on the roaster's site or Bean Base, and by
+/// hand, in any mix.
+struct AddBagView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @State private var showingCamera = true
+    @State private var showingCamera = false
     @State private var choosingPhoto = false
     @State private var draft = BagDraft()
     /// Each photo's lines, in reading order.
@@ -22,28 +22,45 @@ struct LabelSearchView: View {
     }
 
     var body: some View {
-        if showingCamera {
-            camera
-        } else {
-            NavigationStack {
-                form
-                    .navigationTitle("Add a bag")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Start over", action: startOver).disabled(status == .reading)
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { dismiss() }
-                        }
-                    }
+        Group {
+            if showingCamera {
+                camera
+            } else {
+                formScreen
             }
-            .sheet(item: $browsing) { browse in
-                PageBrowser(start: browse.url) { page in
-                    fill(
-                        BagLabel.details(ofPage: page.text, title: page.title, site: page.site, url: page.url, today: DateUtils.today()),
-                        from: URL(string: page.url)?.host() ?? "the page")
+        }
+        .sheet(isPresented: $choosingPhoto) {
+            LabelPhotoPicker { image in
+                choosingPhoto = false
+                if let image { startReading(image) }
+            } onFailure: {
+                choosingPhoto = false
+                showingCamera = false
+                status = .failed("Couldn't open that photo. Take it again or choose another.")
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var formScreen: some View {
+        NavigationStack {
+            form
+                .navigationTitle("Add a bag")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Clear", action: clear).disabled(status == .reading || (draft == BagDraft() && photos.isEmpty))
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
+        }
+        .sheet(item: $browsing) { browse in
+            PageBrowser(start: browse.url) { page in
+                fill(
+                    BagLabel.details(ofPage: page.text, title: page.title, site: page.site, url: page.url, today: DateUtils.today()),
+                    from: URL(string: page.url)?.host() ?? "the page")
             }
         }
     }
@@ -54,20 +71,18 @@ struct LabelSearchView: View {
             labelText: photos.flatMap { $0.map(\.text) },
             status: status,
             onAdd: addToBeanConqueror,
-            onAddPhoto: { showingCamera = true },
+            onTakePhoto: { showingCamera = true },
+            onChoosePhoto: { choosingPhoto = true },
             onSearch: { search in
-                browsing = search.url(for: draft).map(Browse.init)
+                browsing = Browse(url: search.url(for: draft))
             })
     }
 
     /// The camera, with a button over it for a photo already taken.
-    /// Cancelling goes back to the bag, or closes the screen before there's one.
     private var camera: some View {
         LabelCamera { image in
             if let image {
                 startReading(image)
-            } else if photos.isEmpty && draft == BagDraft() {
-                dismiss()
             } else {
                 showingCamera = false
             }
@@ -80,17 +95,6 @@ struct LabelSearchView: View {
                 .padding(.vertical, 8)
                 .background(.ultraThinMaterial, in: Capsule())
                 .padding(.top, 56)
-        }
-        .sheet(isPresented: $choosingPhoto) {
-            LabelPhotoPicker { image in
-                choosingPhoto = false
-                if let image { startReading(image) }
-            } onFailure: {
-                choosingPhoto = false
-                showingCamera = false
-                status = .failed("Couldn't open that photo. Take it again or choose another.")
-            }
-            .ignoresSafeArea()
         }
     }
 
@@ -136,10 +140,9 @@ struct LabelSearchView: View {
         }
     }
 
-    private func startOver() {
+    private func clear() {
         draft = BagDraft()
         photos = []
         status = .ready
-        showingCamera = true
     }
 }
