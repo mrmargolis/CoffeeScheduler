@@ -87,12 +87,25 @@ import Testing
     }
 
     @Test func filtersByTheRoasterAndSearchesForTheCoffee() {
-        // The search Bean Base's own page makes for these
+        // Bean Base's own format; its roaster filter matches part of a name
         let url = BagLabel.searchURL(for: BagLabel.Reading(roaster: "Thankfully Coffee", coffee: "Putushio"))
         #expect(
             url?.absoluteString
-                == "https://www.loffeelabs.com/bean-base/search?f1=AND%3Aroaster%3AThankfully%2520Coffee&f2=AND%3Asearch%3APutushio"
+                == "https://www.loffeelabs.com/bean-base/search?f1=AND%3Aroaster%3AThankfully&f2=AND%3Asearch%3APutushio"
         )
+    }
+
+    @Test func filtersByTheDistinctivePartOfTheRoastersName() {
+        func filter(_ roaster: String) -> String? {
+            BagLabel.searchURL(for: BagLabel.Reading(roaster: roaster, coffee: ""))?.absoluteString
+                .replacingOccurrences(of: BagLabel.searchPage + "?f1=AND%3Aroaster%3A", with: "")
+        }
+        #expect(filter("SEPTEMBER COFFEE CO.") == "SEPTEMBER")
+        #expect(filter("Square Mile Coffee Roasters") == "Square%2520Mile")
+        #expect(filter("H&S COFFEE ROASTERS") == "H%2526S")
+        #expect(filter("Café Ayla") == "Caf%25C3%25A9%2520Ayla")
+        #expect(filter("Coffee Collective") == "Collective")
+        #expect(filter("Coffee Co") == "Coffee%2520Co")
     }
 
     @Test func leavesOutAnEmptyFilter() {

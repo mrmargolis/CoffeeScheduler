@@ -21,8 +21,15 @@ extension BagLabel {
     /// The part of a roaster's name that tells it apart: without "Coffee",
     /// "Roasters", "Co." and the like.
     static func distinctiveName(_ roaster: String) -> String {
-        let core = fold(roaster).split(separator: " ").filter { !wordSet(String($0)).isSubset(of: roasterWords) }
-        return core.isEmpty ? fold(roaster) : core.joined(separator: " ")
+        fold(searchName(roaster))
+    }
+
+    /// The distinctive part as printed: what Bean Base's roaster filter
+    /// takes, since it matches part of a name and the rest may be printed
+    /// differently from how Bean Base has it ("Co." or "Company").
+    public static func searchName(_ roaster: String) -> String {
+        let core = roaster.split(separator: " ").filter { !wordSet(fold(String($0))).isSubset(of: roasterWords) }
+        return core.isEmpty ? roaster : core.joined(separator: " ")
     }
 
     /// The known roaster with the longest distinctive name on the label.

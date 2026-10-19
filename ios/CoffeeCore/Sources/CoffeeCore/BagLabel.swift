@@ -47,14 +47,15 @@ public enum BagLabel {
 
     public static let searchPage = "https://www.loffeelabs.com/bean-base/search"
 
-    /// Bean Base's search for the reading: its roaster filter, and its text
-    /// search for the coffee. Nil when there's nothing to search for.
+    /// Bean Base's search for the reading: its roaster filter, given the
+    /// roaster's `searchName`, and its text search for the coffee. Nil when
+    /// there's nothing to search for.
     ///
     /// Each filter is a numbered parameter, `f1=AND:roaster:Thankfully%20Coffee`,
     /// whose value is percent-encoded once inside it and then again as a
     /// whole: `f1=AND%3Aroaster%3AThankfully%2520Coffee`.
     public static func searchURL(for reading: Reading) -> URL? {
-        let filters = [("roaster", reading.roaster), ("search", reading.coffee)]
+        let filters = [("roaster", searchName(reading.roaster)), ("search", reading.coffee)]
             .map { ($0, $1.trimmingCharacters(in: .whitespaces)) }
             .filter { !$1.isEmpty }
         guard !filters.isEmpty else { return nil }
