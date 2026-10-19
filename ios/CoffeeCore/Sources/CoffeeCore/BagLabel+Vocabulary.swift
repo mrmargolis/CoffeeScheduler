@@ -59,7 +59,7 @@ extension BagLabel {
             ("Pacamara", []), ("Maragogype", []), ("Mundo Novo", []), ("Villa Sarchi", []), ("Castillo", []),
             ("Catimor", []), ("Sarchimor", []), ("Tabi", []), ("Sidra", []), ("Mejorado", []), ("Wush Wush", []),
             ("Chiroso", []), ("Laurina", []), ("Eugenioides", []), ("Parainema", []), ("Lempira", []),
-            ("Marsellesa", []), ("Obata", []), ("Maracaturra", []), ("Bernardina", []), ("SL28", ["sl 28"]),
+            ("Marsellesa", []), ("Obata", []), ("Java", []), ("Maracaturra", []), ("Bernardina", []), ("SL28", ["sl 28"]),
             ("SL34", ["sl 34"]), ("Ruiru 11", []), ("Batian", []), ("K7", []), ("Landrace", []),
             ("Heirloom", []), ("74110", []), ("74112", []), ("74158", []), ("JARC", []), ("Kurume", []),
             ("Dega", []), ("Wolisho", []),

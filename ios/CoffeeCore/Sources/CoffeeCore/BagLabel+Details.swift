@@ -11,54 +11,6 @@ extension BagLabel {
         return labelled(texts, today: today).merging(recognised(texts, today: today))
     }
 
-    /// The details on a web page, from its text: only what's labelled, since
-    /// a page's menus and other coffees name countries and flavours too. The
-    /// page's heading, site name and address are the coffee, roaster and
-    /// link; without a site name, the roaster is the end of the browser's
-    /// title ("suke quto – delicate coffee roasters"), and a roaster the app
-    /// knows keeps its name in the app. All of it is stated: it's the page
-    /// for the coffee.
-    public static func details(of page: Page, knownRoasters: [String], today: String) -> BagDraft {
-        let lines = page.text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        var draft = labelled(lines, today: today)
-        draft.coffee = page.heading.split(whereSeparator: \.isNewline).first.map { tidy(String($0), name: true) } ?? ""
-        let roaster = tidy(page.site.isEmpty ? siteName(inTitle: page.title, heading: draft.coffee) : page.site, name: true)
-        draft.roaster = knownRoaster(named: roaster, from: knownRoasters) ?? roaster
-        draft.url = page.url
-        for field in [BagField.coffee, .roaster, .url] where draft.has(field) {
-            draft.certainty[field] = .stated
-        }
-        return draft
-    }
-
-    /// What "Use this page" reads off a page.
-    public struct Page: Sendable {
-        /// The main heading: on a product page, the coffee.
-        public var heading: String
-        /// The browser's title, which often ends with the site's name.
-        public var title: String
-        /// The site's own name for itself, from its `og:site_name`.
-        public var site: String
-        public var text: String
-        public var url: String
-
-        public init(heading: String, title: String, site: String, text: String, url: String) {
-            self.heading = heading
-            self.title = title
-            self.site = site
-            self.text = text
-            self.url = url
-        }
-    }
-
-    /// The site's name at the end of a browser title, after the page's own:
-    /// "delicate coffee roasters" in "suke quto – delicate coffee roasters".
-    static func siteName(inTitle title: String, heading: String) -> String {
-        let parts = title.components(separatedBy: CharacterSet(charactersIn: "|–—·")).flatMap { $0.components(separatedBy: " - ") }
-        guard parts.count > 1, let last = parts.last?.trimmingCharacters(in: .whitespaces), fold(last) != fold(heading) else { return "" }
-        return last
-    }
-
     // MARK: Labelled
 
     private enum Field {
@@ -72,6 +24,7 @@ extension BagLabel {
             [
                 "tasting notes", "notes", "cup notes", "cupping notes", "flavor notes", "flavour notes", "flavors",
                 "flavours", "flavor", "flavour", "tastes like", "in the cup", "flavor profile", "flavour profile",
+                "coffee flavor profile", "coffee flavour profile", "tasting profile", "cup profile",
             ]
         ),
         (.country, ["origin", "country", "country of origin", "from"]),
@@ -97,7 +50,7 @@ extension BagLabel {
     /// The fields given as "Label: value", "Label value" for a roast date or
     /// weight ("Roasted on Aug 5"), or a label on its own line with the value
     /// on the next.
-    private static func labelled(_ lines: [String], today: String) -> BagDraft {
+    static func labelled(_ lines: [String], today: String) -> BagDraft {
         var draft = BagDraft()
         for (index, line) in lines.enumerated() {
             if let colon = line.firstIndex(of: ":"), let field = field(labelled: String(line[..<colon])) {
@@ -119,7 +72,13 @@ extension BagLabel {
         guard !value.isEmpty else { return }
         var found = BagDraft()
         switch field {
-        case .notes: found.notes = tidy(value)
+        case .notes:
+            found.notes = tidy(value)
+            // "We taste juicy and tart black currants, …" is a description, not a list of notes
+            let items = value.split { listSeparators.contains($0) }
+            if items.contains(where: { $0.split(separator: " ").count > 4 }) {
+                found.certainty[.notes] = .guessed
+            }
         case .country:
             // "Suke Quto, Odo Shakisso, Guji, Ethiopia": the country, and a region it names
             found.country = names(in: value, from: countries).first ?? tidy(value)
@@ -134,14 +93,14 @@ extension BagLabel {
         fillEmpty(&draft, from: found)
     }
 
-    /// Fills the draft's empty fields from `found`, as stated: the first
-    /// label for a field wins.
+    /// Fills the draft's empty fields from `found`, as stated unless `found`
+    /// says otherwise: the first label for a field wins.
     private static func fillEmpty(_ draft: inout BagDraft, from found: BagDraft) {
         var found = found
         for field in BagField.allCases where found.has(field) {
             if draft.has(field) {
                 found.clear(field)
-            } else {
+            } else if found.certainty[field] == nil {
                 found.certainty[field] = .stated
             }
         }

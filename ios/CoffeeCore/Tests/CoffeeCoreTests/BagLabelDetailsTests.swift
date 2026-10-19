@@ -155,6 +155,41 @@ import Testing
         #expect(page(knownRoasters: ["Onyx Coffee Lab", "Delicate"]).roaster == "Delicate")
     }
 
+    @Test func takesTheCoffeesNameFromAShopsHeading() {
+        // Headings from H&S, Lume, September and Proud Mary's pages
+        let names = [
+            "Ethiopia Habtamu Fekadu": "Habtamu Fekadu",
+            "Burundi Mikuba 8": "Mikuba 8",
+            "Danche 125g": "Danche",
+            "Gititu AB 100g": "Gititu AB",
+            "Juliana Guevara & Wbeimar Lasso | Java 100g": "Juliana Guevara & Wbeimar Lasso",
+            "Dege Mullugeta - Ethiopia Anaerobic Natural": "Dege Mullugeta",
+            "Sugar Dust - Colombia Geisha": "Sugar Dust",
+            "Muchagara AB (Extra-light)": "Muchagara AB",
+            "ETHIOPIA | Abana Estate | Anderacha | Heirloom | Washed": "Abana Estate Anderacha",
+            "suke quto": "Suke Quto",
+            "Kenya": "Kenya",
+        ]
+        for (heading, name) in names {
+            #expect(BagLabel.coffeeName(inHeading: heading) == name, "\(heading)")
+        }
+    }
+
+    @Test func readsNotesUnderAHeadingAndMarksADescriptionAsAGuess() {
+        let hAndS = BagLabel.labelled(
+            ["Coffee flavor profile", "Danjou pear, gardenia, bergamot.", "Acidity: sparkling, lively"], today: "2026-10-19")
+        #expect(hAndS.notes == "Danjou pear, gardenia, bergamot")
+        #expect(!hAndS.isGuess(.notes))
+        let september = BagLabel.labelled(
+            [
+                "In the cup",
+                "We taste juicy and tart black currants, the acidity of grapefruit, and the sweetness of figs. This coffee has a silky body.",
+            ],
+            today: "2026-10-19")
+        #expect(september.notes == "We taste juicy and tart black currants, the acidity of grapefruit, and the sweetness of figs")
+        #expect(september.isGuess(.notes))
+    }
+
     @Test func findsTheSiteNameAtTheEndOfTheTitle() {
         #expect(BagLabel.siteName(inTitle: "suke quto – delicate coffee roasters", heading: "Suke Quto") == "delicate coffee roasters")
         #expect(BagLabel.siteName(inTitle: "Final Frontier | Proud Mary", heading: "Final Frontier") == "Proud Mary")
