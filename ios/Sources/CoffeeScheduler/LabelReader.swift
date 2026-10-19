@@ -12,30 +12,34 @@ import Vision
 /// on-device language model, where the phone has one, picks out the roaster
 /// and the coffee. Nothing is sent anywhere.
 enum LabelReader {
-    /// The label's lines, top to bottom.
-    static func lines(in image: UIImage) async throws -> [BagLabel.Line] {
+    /// The label's lines, top to bottom, and where each sits. Language correction leans
+    /// towards `customWords`, so a roaster's name already in the app isn't
+    /// "corrected" to a dictionary word.
+    static func lines(in image: UIImage, customWords: [String]) async throws -> [BagLabel.Line] {
         try await Task.detached(priority: .userInitiated) {
             guard let cgImage = image.cgImage else { return [] }
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
+            request.customWords = customWords
             let handler = VNImageRequestHandler(cgImage: cgImage, orientation: CGImagePropertyOrientation(image.imageOrientation))
             try handler.perform([request])
             return (request.results ?? []).compactMap { observation in
-                observation.topCandidates(1).first.map { BagLabel.Line($0.string, height: Double(observation.boundingBox.height)) }
+                guard let text = observation.topCandidates(1).first?.string else { return nil }
+                let box = observation.boundingBox
+                return BagLabel.Line(text, x: box.minX, y: box.minY, width: box.width, height: box.height)
             }
+            // Top to bottom, for the list of the label's text
+            .sorted { $0.y + $0.height > $1.y + $1.height }
         }.value
     }
 
     /// The roaster and coffee: the language model's reading where it has
-    /// one, filled in from the label's biggest text where it doesn't.
+    /// one and it holds up against the label, `BagLabel.read`'s otherwise.
     static func reading(of lines: [BagLabel.Line], knownRoasters: [String]) async -> BagLabel.Reading {
         let guess = BagLabel.read(lines, knownRoasters: knownRoasters)
         guard !lines.isEmpty, let model = await modelReading(of: lines, knownRoasters: knownRoasters) else { return guess }
-        return BagLabel.Reading(
-            roaster: model.roaster.isEmpty ? guess.roaster : model.roaster,
-            coffee: model.coffee.isEmpty ? guess.coffee : model.coffee
-        )
+        return BagLabel.checked(model, guess: guess, lines: lines, knownRoasters: knownRoasters)
     }
 
     private static func modelReading(of lines: [BagLabel.Line], knownRoasters: [String]) async -> BagLabel.Reading? {

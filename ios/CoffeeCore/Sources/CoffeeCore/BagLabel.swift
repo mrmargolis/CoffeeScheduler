@@ -2,17 +2,35 @@ import Foundation
 
 /// Picks a coffee's roaster and name out of the text read off a bag's label,
 /// and builds the Bean Base search for them.
+///
+/// Labels share a layout: the roaster's logo is often the biggest text, with
+/// "Coffee Roasters" or "Coffee Co." under it; the coffee's name is the
+/// biggest of the rest; and around it are lists of tasting notes, origins,
+/// varieties and processes, which are never the name.
 public enum BagLabel {
-    /// One line of text found on the label.
+    /// One line of text found on the label, with where it sits in the photo
+    /// as fractions of the photo's size, measured from the bottom left as
+    /// Vision does.
     public struct Line: Equatable, Sendable {
         public var text: String
-        /// The line's height as a fraction of the photo's: names are printed
-        /// big, tasting notes and weights small.
+        public var x: Double
+        public var y: Double
+        public var width: Double
         public var height: Double
 
-        public init(_ text: String, height: Double) {
+        public init(_ text: String, x: Double, y: Double, width: Double, height: Double) {
             self.text = text
+            self.x = x
+            self.y = y
+            self.width = width
             self.height = height
+        }
+
+        var top: Double { y + height }
+
+        /// Whether the two lines share some of the photo's width.
+        func overlapsHorizontally(_ other: Line) -> Bool {
+            x < other.x + other.width && other.x < x + width
         }
     }
 
@@ -53,102 +71,28 @@ public enum BagLabel {
         return text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? text
     }
 
-    /// A best guess from the label's lines in reading order. A roaster the
-    /// app already knows is matched by name; otherwise the biggest text is
-    /// taken for the coffee and the next biggest for the roaster.
+    /// A best guess at the roaster and coffee from the label's lines. A
+    /// roaster the app already knows is given by its name in the app.
     public static func read(_ lines: [Line], knownRoasters: [String]) -> Reading {
-        let candidates = lines.filter { isCandidate($0.text) }
-        let roaster = knownRoaster(in: lines, from: knownRoasters)
-        // The roaster's own line isn't the coffee's name
-        let rest = candidates.filter { line in roaster.map { !contains(fold(line.text), fold($0)) } ?? true }
-        let coffee = coffeeName(in: rest)
-        let guessedRoaster = roaster ?? rest.filter { $0.text != coffee }.max { $0.height < $1.height }?.text
-        return Reading(roaster: guessedRoaster ?? "", coffee: coffee ?? "")
+        let roaster = roaster(in: lines, knownRoasters: knownRoasters)
+        let candidates = lines.indices.compactMap { index -> Line? in
+            roaster.lines.contains(index) ? nil : nameCandidate(lines[index])
+        }
+        return Reading(roaster: roaster.name ?? "", coffee: coffeeName(in: candidates) ?? "")
     }
 
-    /// The tallest line, joined to the line after it when that one is
-    /// printed the same size: a long name wraps.
+    /// The biggest line (the highest of those near enough the same size),
+    /// joined to the line just under it when that's printed the same size:
+    /// a long name wraps.
     private static func coffeeName(in lines: [Line]) -> String? {
-        guard let index = lines.indices.max(by: { lines[$0].height < lines[$1].height }) else { return nil }
-        let line = lines[index]
-        let next = lines.index(after: index)
-        if next < lines.endIndex, lines[next].height >= line.height * 0.85 {
-            return "\(line.text) \(lines[next].text)"
+        guard let tallest = lines.map(\.height).max(),
+            let name = lines.filter({ $0.height >= tallest * 0.9 }).max(by: { $0.top < $1.top })
+        else { return nil }
+        let wrapped = lines.filter { line in
+            line != name && line.top <= name.y + name.height * 0.5 && line.top >= name.y - name.height * 0.8
+                && line.height >= name.height * 0.85 && line.overlapsHorizontally(name)
         }
-        return line.text
-    }
-
-    /// The longest known roaster named anywhere on the label.
-    private static func knownRoaster(in lines: [Line], from roasters: [String]) -> String? {
-        let text = fold(lines.map(\.text).joined(separator: " "))
-        return roasters.filter { !$0.isEmpty && contains(text, fold($0)) }.max { $0.count < $1.count }
-    }
-
-    /// Whether a line could be a name rather than a weight, a date, a web
-    /// address or a "Process: Washed" detail.
-    static func isCandidate(_ text: String) -> Bool {
-        let letters = text.filter(\.isLetter).count
-        guard letters >= 3, letters * 2 >= text.filter({ !$0.isWhitespace }).count else { return false }
-        let folded = fold(text)
-        if folded.contains(":") || folded.contains("www.") || folded.contains(".com") || folded.contains("@") { return false }
-        let words = Set(folded.split { !$0.isLetter }.map(String.init))
-        return words.isDisjoint(with: detailWords)
-    }
-
-    /// Words that mark a line as one of a label's details, not a name.
-    private static let detailWords: Set<String> = [
-        "roasted", "roast", "date", "net", "wt", "weight", "oz", "masl", "altitude", "elevation",
-        "process", "varietal", "variety", "notes", "tasting", "harvest", "producer", "region", "best",
-    ]
-
-    /// Lowercased, without accents, so "Jijón" on the label matches "Jijon".
-    static func fold(_ text: String) -> String {
-        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-    }
-
-    /// Whether `text` holds `word` as whole words, so "Onyx" doesn't match "Onyxa".
-    private static func contains(_ text: String, _ word: String) -> Bool {
-        guard !word.isEmpty else { return false }
-        var start = text.startIndex
-        while let range = text.range(of: word, range: start..<text.endIndex) {
-            let before = range.lowerBound == text.startIndex || !text[text.index(before: range.lowerBound)].isLetter
-            let after = range.upperBound == text.endIndex || !text[range.upperBound].isLetter
-            if before && after { return true }
-            start = text.index(after: range.lowerBound)
-        }
-        return false
-    }
-
-    /// The prompt for the on-device language model, which reads the label
-    /// better than `read` when the device has one.
-    public static func prompt(for lines: [Line], knownRoasters: [String]) -> String {
-        var prompt = """
-            This is the text on a bag of coffee beans, one line at a time. Reply with exactly two lines, \
-            "Roaster: " and the coffee roaster's name, then "Coffee: " and the coffee's name as printed. \
-            Leave either blank if the text doesn't say.
-            """
-        if !knownRoasters.isEmpty {
-            prompt += "\nRoasters the user has bought from before: \(knownRoasters.joined(separator: ", "))."
-        }
-        return prompt + "\n\n" + lines.map(\.text).joined(separator: "\n")
-    }
-
-    /// The roaster and coffee from the model's reply to `prompt`, or nil when
-    /// it didn't answer in that form.
-    public static func reading(fromModelAnswer answer: String) -> Reading? {
-        var roaster: String?
-        var coffee: String?
-        for line in answer.split(whereSeparator: \.isNewline) {
-            let line = line.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "*", with: "")
-            if let value = value(of: "roaster:", in: line) { roaster = value }
-            if let value = value(of: "coffee:", in: line) { coffee = value }
-        }
-        guard roaster != nil || coffee != nil else { return nil }
-        return Reading(roaster: roaster ?? "", coffee: coffee ?? "")
-    }
-
-    private static func value(of label: String, in line: String) -> String? {
-        guard line.lowercased().hasPrefix(label) else { return nil }
-        return line.dropFirst(label.count).trimmingCharacters(in: .whitespaces)
+        .max { $0.top < $1.top }
+        return [name, wrapped].compactMap { $0?.text }.joined(separator: " ")
     }
 }

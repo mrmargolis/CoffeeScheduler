@@ -4,57 +4,82 @@ import Testing
 @testable import CoffeeCore
 
 @Suite struct BagLabelTests {
-    private typealias Line = BagLabel.Line
+    /// A line at the left of the photo, `top` down from its top.
+    private func line(_ text: String, top: Double, height: Double) -> BagLabel.Line {
+        LabelPhotos.line(text, left: 0.1, top: top, width: 0.5, height: height)
+    }
+
+    private func isName(_ text: String) -> Bool {
+        BagLabel.nameCandidate(line(text, top: 0.5, height: 0.02)) != nil
+    }
 
     @Test func matchesAKnownRoasterAndTakesTheBiggestOtherLineForTheCoffee() {
         let lines = [
-            Line("ONYX COFFEE LAB", height: 0.04),
-            Line("Colombia La Fortuna", height: 0.08),
-            Line("Washed · Caturra", height: 0.03),
-            Line("Net Wt 10oz", height: 0.02),
+            line("ONYX COFFEE LAB", top: 0.1, height: 0.04),
+            line("Colombia La Fortuna", top: 0.2, height: 0.08),
+            line("Washed · Caturra", top: 0.3, height: 0.03),
+            line("Net Wt 10oz", top: 0.4, height: 0.02),
         ]
         let reading = BagLabel.read(lines, knownRoasters: ["Onyx Coffee Lab", "Sey"])
         #expect(reading == BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia La Fortuna"))
     }
 
     @Test func matchesARoasterWithoutItsAccents() {
-        let lines = [Line("Pepe Jijon", height: 0.07), Line("Cafe Ayla", height: 0.03)]
+        let lines = [line("Pepe Jijon", top: 0.1, height: 0.07), line("Cafe Ayla", top: 0.3, height: 0.03)]
         #expect(BagLabel.read(lines, knownRoasters: ["Café Ayla"]).roaster == "Café Ayla")
     }
 
     @Test func aRoasterMatchesOnlyWholeWords() {
-        let lines = [Line("Seyfu Hambela", height: 0.08)]
+        let lines = [line("Seyfu Hambela", top: 0.1, height: 0.08)]
         #expect(BagLabel.read(lines, knownRoasters: ["Sey"]) == BagLabel.Reading(roaster: "", coffee: "Seyfu Hambela"))
     }
 
     @Test func prefersTheLongestKnownRoaster() {
-        let lines = [Line("Square Mile Coffee Roasters", height: 0.05), Line("Red Brick", height: 0.08)]
-        #expect(BagLabel.read(lines, knownRoasters: ["Square Mile", "Square Mile Coffee Roasters"]).roaster == "Square Mile Coffee Roasters")
+        let lines = [line("Square Mile Coffee Roasters", top: 0.1, height: 0.05), line("Red Brick", top: 0.3, height: 0.08)]
+        let known = ["Square Mile", "Square Mile Coffee Roasters", "Mile"]
+        #expect(BagLabel.read(lines, knownRoasters: known) == BagLabel.Reading(roaster: "Square Mile Coffee Roasters", coffee: "Red Brick"))
     }
 
-    @Test func guessesTheRoasterAsTheNextBiggestLineWhenItIsUnknown() {
+    @Test func takesARoasterNamedOnOneLine() {
+        let lines = [line("Putushio", top: 0.1, height: 0.05), line("Thankfully Coffee", top: 0.3, height: 0.03)]
+        #expect(BagLabel.read(lines, knownRoasters: []) == BagLabel.Reading(roaster: "Thankfully Coffee", coffee: "Putushio"))
+    }
+
+    @Test func leavesTheRoasterBlankWhenNothingSaysWhich() {
         let lines = [
-            Line("Hanan Million", height: 0.09),
-            Line("Tasting notes: peach, jasmine", height: 0.05),
-            Line("Bombe", height: 0.06),
-            Line("Ethiopia", height: 0.03),
+            line("Hanan Million", top: 0.1, height: 0.09),
+            line("Tasting notes: peach, jasmine", top: 0.25, height: 0.05),
+            line("Bombe", top: 0.35, height: 0.06),
+            line("Ethiopia", top: 0.45, height: 0.03),
         ]
-        #expect(BagLabel.read(lines, knownRoasters: []) == BagLabel.Reading(roaster: "Bombe", coffee: "Hanan Million"))
+        #expect(BagLabel.read(lines, knownRoasters: []) == BagLabel.Reading(roaster: "", coffee: "Hanan Million"))
     }
 
-    @Test func joinsANameThatWrapsOntoASecondLine() {
-        let lines = [Line("Reshad Ababulgu", height: 0.08), Line("White Honey", height: 0.075), Line("Ethiopia", height: 0.03)]
-        #expect(BagLabel.read(lines, knownRoasters: []).coffee == "Reshad Ababulgu White Honey")
+    @Test func doesntJoinAProcessUnderTheName() {
+        let lines = [line("Reshad Ababulgu", top: 0.3, height: 0.08), line("White Honey", top: 0.385, height: 0.075)]
+        #expect(BagLabel.read(lines, knownRoasters: []).coffee == "Reshad Ababulgu")
     }
 
     @Test func leavesOutWeightsDatesAddressesAndDetails() {
-        #expect(!BagLabel.isCandidate("250g"))
-        #expect(!BagLabel.isCandidate("12.10.2026"))
-        #expect(!BagLabel.isCandidate("www.onyxcoffeelab.com"))
-        #expect(!BagLabel.isCandidate("Process: Washed"))
-        #expect(!BagLabel.isCandidate("1900 MASL"))
-        #expect(!BagLabel.isCandidate("Roasted on Oct 3"))
-        #expect(BagLabel.isCandidate("Finca Lerida"))
+        #expect(!isName("250g"))
+        #expect(!isName("12.10.2026"))
+        #expect(!isName("www.onyxcoffeelab.com"))
+        #expect(!isName("Process: Washed"))
+        #expect(!isName("1900 MASL"))
+        #expect(!isName("Roasted on Oct 3"))
+        #expect(!isName("Coffee Co."))
+        #expect(isName("Finca Lerida"))
+    }
+
+    @Test func leavesOutListsOriginsVarietiesAndProcesses() {
+        #expect(!isName("Green Apple, White Florals, Marshmallow"))
+        #expect(!isName("golden raspberry · lemon sugar · lilac"))
+        #expect(!isName("Landrace | Washed"))
+        #expect(!isName("El Salvador"))
+        #expect(!isName("HUILA, COLOMBIA"))
+        #expect(isName("El Paraiso"))
+        #expect(isName("Pink Bourbon"))
+        #expect(BagLabel.nameCandidate(line("Danche | Ethiopia", top: 0.5, height: 0.02))?.text == "Danche")
     }
 
     @Test func readsNothingFromAnEmptyLabel() {
@@ -94,8 +119,8 @@ import Testing
     }
 
     @Test func thePromptListsTheKnownRoastersAndTheLabel() {
-        let prompt = BagLabel.prompt(for: [Line("Hanan Million", height: 0.1)], knownRoasters: ["Bombe", "Sey"])
+        let prompt = BagLabel.prompt(for: [line("Hanan Million", top: 0.1, height: 0.1)], knownRoasters: ["Bombe", "Sey"])
         #expect(prompt.contains("Bombe, Sey"))
-        #expect(prompt.hasSuffix("\n\nHanan Million"))
+        #expect(prompt.hasSuffix("\n\n[big] Hanan Million"))
     }
 }

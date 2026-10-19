@@ -105,7 +105,7 @@ struct LabelSearchView: View {
     private func read(_ image: UIImage) async {
         error = nil
         do {
-            lines = try await LabelReader.lines(in: image)
+            lines = try await LabelReader.lines(in: image, customWords: model.roasters)
             reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters)
             if lines.isEmpty { error = "No text found. Retake the photo closer to the label." }
         } catch {
