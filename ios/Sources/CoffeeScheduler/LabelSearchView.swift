@@ -2,7 +2,7 @@ import CoffeeCore
 import SafariServices
 import SwiftUI
 
-/// Photograph a bag, read its label on the phone, and look the coffee up on
+/// Photograph a bag, or pick a photo of one, read its label on the phone, and look the coffee up on
 /// Bean Base or Google. The reading can be corrected before searching.
 struct LabelSearchView: View {
     @Environment(AppModel.self) private var model
@@ -12,6 +12,7 @@ struct LabelSearchView: View {
     @State private var reading = BagLabel.Reading(roaster: "", coffee: "")
     @State private var error: String?
     @State private var search: Search?
+    @State private var choosingPhoto = false
 
     private enum Step {
         case camera
@@ -35,12 +36,7 @@ struct LabelSearchView: View {
 
     var body: some View {
         if step == .camera {
-            LabelCamera { image in
-                guard let image else { return dismiss() }
-                step = .reading
-                Task { await read(image) }
-            }
-            .ignoresSafeArea()
+            camera
         } else {
             NavigationStack {
                 form
@@ -60,6 +56,35 @@ struct LabelSearchView: View {
                     SafariView(url: url).ignoresSafeArea()
                 }
             }
+        }
+    }
+
+    /// The camera, with a button over it for a photo already taken.
+    private var camera: some View {
+        LabelCamera { image in
+            guard let image else { return dismiss() }
+            startReading(image)
+        }
+        .ignoresSafeArea()
+        .overlay(alignment: .top) {
+            Button("Choose from Photos", systemImage: "photo.on.rectangle") { choosingPhoto = true }
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.top, 56)
+        }
+        .sheet(isPresented: $choosingPhoto) {
+            LabelPhotoPicker { image in
+                choosingPhoto = false
+                if let image { startReading(image) }
+            } onFailure: {
+                choosingPhoto = false
+                lines = []
+                error = "Couldn't open that photo. Retake it or choose another."
+                step = .review
+            }
+            .ignoresSafeArea()
         }
     }
 
@@ -124,6 +149,11 @@ struct LabelSearchView: View {
         } label: {
             Text(text).foregroundStyle(Theme.text2).frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func startReading(_ image: UIImage) {
+        step = .reading
+        Task { await read(image) }
     }
 
     private func read(_ image: UIImage) async {

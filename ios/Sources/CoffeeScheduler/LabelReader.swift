@@ -1,5 +1,6 @@
 import CoffeeCore
 import ImageIO
+import PhotosUI
 import SwiftUI
 import UIKit
 import Vision
@@ -102,6 +103,48 @@ struct LabelCamera: UIViewControllerRepresentable {
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             onFinish(nil)
+        }
+    }
+}
+
+/// A photo already in the library. Hands back the photo, or nil when
+/// cancelled; `onFailure` when the photo picked won't load. Needs no
+/// permission: the picker runs outside the app.
+struct LabelPhotoPicker: UIViewControllerRepresentable {
+    let onFinish: (UIImage?) -> Void
+    let onFailure: () -> Void
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration()
+        configuration.filter = .images
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ picker: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish, onFailure: onFailure) }
+
+    @MainActor
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let onFinish: (UIImage?) -> Void
+        let onFailure: () -> Void
+
+        init(onFinish: @escaping (UIImage?) -> Void, onFailure: @escaping () -> Void) {
+            self.onFinish = onFinish
+            self.onFailure = onFailure
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard let provider = results.first?.itemProvider else { return onFinish(nil) }
+            guard provider.canLoadObject(ofClass: UIImage.self) else { return onFailure() }
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                let image = object as? UIImage
+                Task { @MainActor in
+                    if let image { self.onFinish(image) } else { self.onFailure() }
+                }
+            }
         }
     }
 }
