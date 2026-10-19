@@ -112,7 +112,7 @@ struct AddBagView: View {
                 return
             }
             var found = BagLabel.details(in: lines, today: DateUtils.today())
-            found.reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters)
+            found.reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
             photos.append(lines)
             fill(found, from: photos.count == 1 ? "the photo" : "photo \(photos.count)")
         } catch {

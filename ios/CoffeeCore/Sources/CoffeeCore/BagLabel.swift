@@ -43,6 +43,11 @@ public enum BagLabel {
             self.roaster = roaster
             self.coffee = coffee
         }
+
+        /// Both in title case where the label prints them in capitals.
+        public var tidied: Reading {
+            Reading(roaster: BagLabel.tidy(roaster), coffee: BagLabel.tidy(coffee))
+        }
     }
 
     public static let searchPage = "https://www.loffeelabs.com/bean-base/search"

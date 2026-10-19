@@ -131,7 +131,7 @@ struct BagDraftForm: View {
             ForEach(Array(labelText.enumerated()), id: \.offset) { _, line in
                 Menu {
                     ForEach(Self.textFields, id: \.title) { row in
-                        Button("Use as \(row.title.lowercased())") { draft[keyPath: row.field] = line }
+                        Button("Use as \(row.title.lowercased())") { draft[keyPath: row.field] = BagLabel.tidy(line) }
                     }
                 } label: {
                     Text(line).foregroundStyle(Theme.text2).frame(maxWidth: .infinity, alignment: .leading)

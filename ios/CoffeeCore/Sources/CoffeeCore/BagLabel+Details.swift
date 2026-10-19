@@ -187,10 +187,23 @@ extension BagLabel {
         return items.map(tidy).joined(separator: ", ")
     }
 
-    /// Trimmed, and in title case when printed all in capitals.
-    static func tidy(_ text: String) -> String {
+    /// Trimmed, and in title case when printed all in capitals, as many
+    /// labels are: "LUME COFFEE ROASTERS" is "Lume Coffee Roasters". Codes
+    /// stay in capitals: a grade ("Gititu AB"), "USA", and a word with a
+    /// number ("SL28").
+    public static func tidy(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,;")))
         let letters = trimmed.filter(\.isLetter)
-        return !letters.isEmpty && letters == letters.uppercased() && letters.count > 3 ? trimmed.capitalized : trimmed
+        guard letters.count >= 2, letters == letters.uppercased() else { return trimmed }
+        return trimmed.split(separator: " ", omittingEmptySubsequences: false).map { word in
+            let bare = String(word.filter(\.isLetter)).lowercased()
+            return word.contains(where: \.isNumber) || codes.contains(bare) ? String(word) : word.capitalized
+        }
+        .joined(separator: " ")
+    }
+
+    /// Words a label prints in capitals that stay that way.
+    private static var codes: Set<String> {
+        ["aa", "ab", "aaa", "pb", "ea", "sl", "jarc", "usa", "uk", "nyc", "drc", "png", "ii", "iii", "iv"]
     }
 }

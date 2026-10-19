@@ -101,3 +101,28 @@ import Testing
         #expect(draft.variety == "Parainema")
     }
 }
+
+@Suite struct BagLabelTidyTests {
+    @Test func putsCapitalsInTitleCase() {
+        #expect(BagLabel.tidy("LUME COFFEE ROASTERS") == "Lume Coffee Roasters")
+        #expect(BagLabel.tidy("H&S COFFEE ROASTERS") == "H&S Coffee Roasters")
+        #expect(BagLabel.tidy("TIMOR-LESTE") == "Timor-Leste")
+        #expect(BagLabel.tidy("SEY") == "Sey")
+    }
+
+    @Test func keepsCodesInCapitals() {
+        #expect(BagLabel.tidy("GITITU AB") == "Gititu AB")
+        #expect(BagLabel.tidy("PROUD MARY COFFEE USA") == "Proud Mary Coffee USA")
+        #expect(BagLabel.tidy("SL28/34 WASHED") == "SL28/34 Washed")
+    }
+
+    @Test func leavesMixedCaseAlone() {
+        #expect(BagLabel.tidy("Onyx Coffee LAB") == "Onyx Coffee LAB")
+        #expect(BagLabel.tidy("golden raspberry") == "golden raspberry")
+    }
+
+    @Test func tidiesTheRoasterAndCoffeeReadFromALabel() {
+        let reading = BagLabel.read(LabelPhotos.lume, knownRoasters: []).tidied
+        #expect(reading.roaster == "Lume Coffee Roasters")
+    }
+}
