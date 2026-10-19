@@ -4,6 +4,8 @@ import WebKit
 /// What "Use this page" reads off a web page.
 struct PageContent: Decodable, Sendable {
     /// The page's main heading, else its title: a product page's coffee.
+    var heading: String
+    /// The browser's title, which often ends with the site's name.
     var title: String
     /// The site's name from its `og:site_name`: a roaster's shop's name.
     var site: String
@@ -11,7 +13,7 @@ struct PageContent: Decodable, Sendable {
     var url = ""
 
     private enum CodingKeys: String, CodingKey {
-        case title, site, text
+        case heading, title, site, text
     }
 }
 
@@ -104,7 +106,8 @@ final class BrowserState {
     func content() async -> PageContent? {
         let script = """
             JSON.stringify({
-              title: ((document.querySelector('h1') || {}).innerText || document.title || '').trim(),
+              heading: ((document.querySelector('h1') || {}).innerText || document.title || '').trim(),
+              title: document.title || '',
               site: (document.querySelector('meta[property="og:site_name"]') || {}).content || '',
               text: document.body ? document.body.innerText : ''
             })

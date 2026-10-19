@@ -44,9 +44,10 @@ public enum BagLabel {
             self.coffee = coffee
         }
 
-        /// Both in title case where the label prints them in capitals.
+        /// Both in title case where the label prints them all in capitals or
+        /// all in lowercase.
         public var tidied: Reading {
-            Reading(roaster: BagLabel.tidy(roaster), coffee: BagLabel.tidy(coffee))
+            Reading(roaster: BagLabel.tidy(roaster, name: true), coffee: BagLabel.tidy(coffee, name: true))
         }
     }
 

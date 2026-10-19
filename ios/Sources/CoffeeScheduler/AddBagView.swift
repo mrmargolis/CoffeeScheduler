@@ -59,7 +59,9 @@ struct AddBagView: View {
         .sheet(item: $browsing) { browse in
             PageBrowser(start: browse.url) { page in
                 fill(
-                    BagLabel.details(ofPage: page.text, title: page.title, site: page.site, url: page.url, today: DateUtils.today()),
+                    BagLabel.details(
+                        of: BagLabel.Page(heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url),
+                        knownRoasters: model.roasters, today: DateUtils.today()),
                     from: URL(string: page.url)?.host() ?? "the page")
             }
         }

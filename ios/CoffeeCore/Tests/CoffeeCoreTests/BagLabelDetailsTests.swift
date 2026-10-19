@@ -90,7 +90,10 @@ import Testing
             Also try: Peach, Mango, Lychee
             """
         let draft = BagLabel.details(
-            ofPage: page, title: "Final Frontier\n", site: "Proud Mary Coffee USA", url: "https://proudmary.example/ff", today: today)
+            of: BagLabel.Page(
+                heading: "Final Frontier\n", title: "Final Frontier – Proud Mary", site: "Proud Mary Coffee USA", text: page,
+                url: "https://proudmary.example/ff"),
+            knownRoasters: [], today: today)
         #expect(draft.coffee == "Final Frontier")
         #expect(draft.roaster == "Proud Mary Coffee USA")
         #expect(draft.url == "https://proudmary.example/ff")
@@ -102,7 +105,69 @@ import Testing
     }
 }
 
+@Suite struct BagLabelPageTests {
+    /// The text of Delicate's page for Suke Quto, as the browser gives it.
+    private let sukeQuto = """
+        shop
+        archive
+        suke quto
+        125g |
+        $19.00
+        size
+        125g
+        250g
+        1kg
+        From : Suke Quto, Odo Shakisso, Guji, Ethiopia
+        Varietal : Kurume, Welicho
+        Process : Washed
+        Producer: Tesfaye Bekele
+        Notes : Yellow Peach, Bergamot, Dandelion
+        whole coffee beans
+        Processing
+        Tesfaye Bekele collects cherries from 171 neighboring outgrowers. The cherries are pulped and fermented.
+        This is our first Guji coffee! I love Ethiopian profiles that come out of Guji.
+        """
+
+    private func page(knownRoasters: [String] = []) -> BagDraft {
+        BagLabel.details(
+            of: BagLabel.Page(
+                heading: "suke quto", title: "suke quto – delicate coffee roasters", site: "", text: sukeQuto,
+                url: "https://delicate.coffee/products/suke-quto"),
+            knownRoasters: knownRoasters, today: "2026-10-19")
+    }
+
+    @Test func readsAPageWithoutASiteName() {
+        let draft = page()
+        #expect(draft.coffee == "Suke Quto")
+        #expect(draft.roaster == "Delicate Coffee Roasters")
+        #expect(draft.country == "Ethiopia")
+        #expect(draft.region == "Guji")
+        #expect(draft.variety == "Kurume, Welicho")
+        #expect(draft.process == "Washed")  // Not the paragraph under "Processing"
+        #expect(draft.producer == "Tesfaye Bekele")
+        #expect(draft.notes == "Yellow Peach, Bergamot, Dandelion")
+        #expect(draft.weightGrams == nil)  // The sizes on sale aren't this bag's
+        let stated: [BagField] = [.coffee, .roaster, .country, .region, .variety, .process, .producer, .notes, .url]
+        #expect(stated.allSatisfy { !draft.isGuess($0) })
+    }
+
+    @Test func givesAKnownRoasterItsNameInTheApp() {
+        #expect(page(knownRoasters: ["Onyx Coffee Lab", "Delicate"]).roaster == "Delicate")
+    }
+
+    @Test func findsTheSiteNameAtTheEndOfTheTitle() {
+        #expect(BagLabel.siteName(inTitle: "suke quto – delicate coffee roasters", heading: "Suke Quto") == "delicate coffee roasters")
+        #expect(BagLabel.siteName(inTitle: "Final Frontier | Proud Mary", heading: "Final Frontier") == "Proud Mary")
+        #expect(BagLabel.siteName(inTitle: "Final Frontier", heading: "Final Frontier") == "")
+    }
+}
+
 @Suite struct BagLabelTidyTests {
+    @Test func putsALowercaseNameInTitleCase() {
+        #expect(BagLabel.tidy("gachatha ab", name: true) == "Gachatha AB")
+        #expect(BagLabel.tidy("golden raspberry") == "golden raspberry")  // Not a name: left as printed
+    }
+
     @Test func putsCapitalsInTitleCase() {
         #expect(BagLabel.tidy("LUME COFFEE ROASTERS") == "Lume Coffee Roasters")
         #expect(BagLabel.tidy("H&S COFFEE ROASTERS") == "H&S Coffee Roasters")

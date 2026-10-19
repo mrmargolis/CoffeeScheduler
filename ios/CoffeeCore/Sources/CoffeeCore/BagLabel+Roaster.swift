@@ -32,6 +32,17 @@ extension BagLabel {
         return core.isEmpty ? roaster : core.joined(separator: " ")
     }
 
+    /// The known roaster a name is, by the distinctive part of its name:
+    /// "Delicate" for "delicate coffee roasters".
+    static func knownRoaster(named name: String, from roasters: [String]) -> String? {
+        let folded = fold(name)
+        return roasters.filter { roaster in
+            let core = distinctiveName(roaster)
+            return core.filter(\.isLetter).count >= 2 && contains(folded, phrase: core)
+        }
+        .max { distinctiveName($0).count < distinctiveName($1).count }
+    }
+
     /// The known roaster with the longest distinctive name on the label.
     private static func knownRoaster(in lines: [Line], from roasters: [String]) -> RoasterMatch? {
         let folded = lines.map { fold($0.text) }

@@ -87,6 +87,11 @@ public struct BagDraft: Equatable, Sendable {
         }
     }
 
+    mutating func clear(_ field: BagField) {
+        copy(field, from: BagDraft())
+        certainty[field] = nil
+    }
+
     private mutating func copy(_ field: BagField, from other: BagDraft) {
         switch field {
         case .roastDate: roastDate = other.roastDate
