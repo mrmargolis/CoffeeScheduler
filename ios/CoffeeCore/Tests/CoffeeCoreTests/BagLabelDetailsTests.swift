@@ -169,6 +169,17 @@ import Testing
             "ETHIOPIA | Abana Estate | Anderacha | Heirloom | Washed": "Abana Estate Anderacha",
             "suke quto": "Suke Quto",
             "Kenya": "Kenya",
+            // Shoebox, Datura, Thankfully and Love Letters put details in the name itself
+            "Kenya Gachatha AB Washed(2026)": "Gachatha AB",
+            "Ethiopia Ashenafi Getaneh Black Honey": "Ashenafi Getaneh",
+            "Honduras Alexia Meija Parainema Washed": "Alexia Meija",
+            "Elida Estate Plano Gesha Washed ASD DRD Lamastus Family": "Elida Estate Plano",
+            "Kamoko Village SL28 - SL34 AA Fully Washed": "Kamoko Village",
+            "Ecuador - Finca Soledad - Mejorado Wave Washed": "Finca Soledad",
+            "Colombia - Gloria Cecilia - Chiroso (New Harvest)": "Gloria Cecilia",
+            "Ayele Tulu - Bare Station - White Honey Process Landrace Ethiopia - 120g": "Ayele Tulu Bare Station",
+            "Lady in Red": "Lady in Red",
+            "La Fortuna": "La Fortuna",
         ]
         for (heading, name) in names {
             #expect(BagLabel.coffeeName(inHeading: heading) == name, "\(heading)")
@@ -188,6 +199,58 @@ import Testing
             today: "2026-10-19")
         #expect(september.notes == "We taste juicy and tart black currants, the acidity of grapefruit, and the sweetness of figs")
         #expect(september.isGuess(.notes))
+    }
+
+    @Test func readsTheOriginsCountryAndRegion() {
+        let shoebox = BagLabel.labelled(["Region: Aricha, Yirgacheffe, Ethiopia"], today: "2026-10-19")
+        #expect([shoebox.country, shoebox.region] == ["Ethiopia", "Aricha, Yirgacheffe"])
+        let datura = BagLabel.labelled(["Origin: Kenya - Nyeri County"], today: "2026-10-19")
+        #expect([datura.country, datura.region] == ["Kenya", "Nyeri"])
+        #expect(!datura.isGuess(.region))
+    }
+
+    @Test func takesOnlyTheNamesFromASentence() {
+        // DAK's sections under each label, if its table weren't there first
+        let dak = BagLabel.labelled(
+            [
+                "Origin", "Finca Zarza sits in the mountains of Bruselas, near Pitalito, Huila, at around 1750 to 1800 masl.",
+                "Varietal", "Pacamara, a cross between Pacas and Maragogipe developed in El Salvador.",
+                "Process", "The cherries ferment anaerobically for 72 hours submerged in water before being pulped.",
+            ], today: "2026-10-19")
+        #expect(dak.country == "")
+        #expect(dak.region == "Huila")
+        #expect(dak.variety == "Pacamara")
+        #expect(dak.process == "")
+        #expect(dak.isGuess(.region) && dak.isGuess(.variety))
+    }
+
+    @Test func cleansALabelledValue() {
+        let shoebox = BagLabel.labelled(
+            [
+                "Varietal: Landrace(most varietals in Ethiopia are JARC selections like 74158 or 74112)",
+                "Process: Washed: Fermented in open concrete tanks for 24-48 hours, then thoroughly washed.",
+                "Tasting notes:", "Producer info and cup notes:",
+            ], today: "2026-10-19")
+        #expect(shoebox.variety == "Landrace")
+        #expect(shoebox.process == "Washed")
+        #expect(shoebox.notes == "")  // Not the next heading
+        let loveLetters = BagLabel.labelled(["I taste:", "Potent floral boquet from ground aroma. Florals present."], today: "2026-10-19")
+        #expect(loveLetters.notes == "Potent floral boquet from ground aroma")
+    }
+
+    @Test func readsTheHeadingAndSummaryForWhatsNotLabelled() {
+        let draft = BagLabel.details(
+            of: BagLabel.Page(
+                heading: "Ethiopia - Chelbesa", title: "Chelbesa | Thankfully Coffee", site: "", text: "Region\nGedeb, Gedeo",
+                url: "https://thankfullycoffee.com/products/chelbesa-g1",
+                summary: "Chelbesa — Ethiopia, Gedeb, Gedeo. Tasting notes: Yellow Nectarine, Wildflower Honey, Orange Zest"),
+            knownRoasters: [], today: "2026-10-19")
+        #expect(draft.coffee == "Chelbesa")
+        #expect(draft.roaster == "Thankfully Coffee")
+        #expect(draft.country == "Ethiopia")
+        #expect(draft.region == "Gedeb, Gedeo")
+        #expect(draft.notes == "Yellow Nectarine, Wildflower Honey, Orange Zest")
+        #expect(!draft.isGuess(.country) && !draft.isGuess(.notes))
     }
 
     @Test func findsTheSiteNameAtTheEndOfTheTitle() {

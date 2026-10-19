@@ -24,7 +24,7 @@ extension BagLabel {
             [
                 "tasting notes", "notes", "cup notes", "cupping notes", "flavor notes", "flavour notes", "flavors",
                 "flavours", "flavor", "flavour", "tastes like", "in the cup", "flavor profile", "flavour profile",
-                "coffee flavor profile", "coffee flavour profile", "tasting profile", "cup profile",
+                "coffee flavor profile", "coffee flavour profile", "tasting profile", "cup profile", "i taste", "we taste",
             ]
         ),
         (.country, ["origin", "country", "country of origin", "from"]),
@@ -53,10 +53,14 @@ extension BagLabel {
     static func labelled(_ lines: [String], today: String) -> BagDraft {
         var draft = BagDraft()
         for (index, line) in lines.enumerated() {
+            // The value on the next line, under a label of its own ("I taste:")
+            let next = lines.indices.contains(index + 1) ? lines[index + 1] : ""
+            let nextIsValue = !next.isEmpty && field(labelled: next) == nil && !next.hasSuffix(":")
             if let colon = line.firstIndex(of: ":"), let field = field(labelled: String(line[..<colon])) {
-                set(field, to: String(line[line.index(after: colon)...]), in: &draft, today: today)
-            } else if let field = field(labelled: line), index + 1 < lines.count, self.field(labelled: lines[index + 1]) == nil {
-                set(field, to: lines[index + 1], in: &draft, today: today)
+                let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+                set(field, to: value.isEmpty && nextIsValue ? next : value, in: &draft, today: today)
+            } else if let field = field(labelled: line), nextIsValue {
+                set(field, to: next, in: &draft, today: today)
             } else if fold(line).hasPrefix("roast") {
                 set(.roastDate, to: line, in: &draft, today: today)
             } else if fold(line).hasPrefix("net") {
@@ -66,36 +70,82 @@ extension BagLabel {
         return draft
     }
 
-    /// Sets a field from a labelled value, as stated, unless it's already set.
+    /// Sets a field from a labelled value, as stated, unless it's already
+    /// set. A value that's a sentence ("Pacamara, a cross between Pacas and
+    /// Maragogipe…") gives only the names in it, as guesses.
     private static func set(_ field: Field, to value: String, in draft: inout BagDraft, today: String) {
-        let value = firstSentence(value)
+        let value = cleaned(value)
         guard !value.isEmpty else { return }
+        let isSentence = value.split(separator: " ").count > 8
         var found = BagDraft()
         switch field {
-        case .notes:
-            found.notes = tidy(value)
-            // "We taste juicy and tart black currants, …" is a description, not a list of notes
-            let items = value.split { listSeparators.contains($0) }
-            if items.contains(where: { $0.split(separator: " ").count > 4 }) {
-                found.certainty[.notes] = .guessed
-            }
-        case .country:
-            // "Suke Quto, Odo Shakisso, Guji, Ethiopia": the country, and a region it names
-            found.country = names(in: value, from: countries).first ?? tidy(value)
-            found.region = names(in: value, from: regions).first ?? ""
-        case .region: found.region = tidy(value)
-        case .producer: found.producer = tidy(value, name: true)
-        case .variety: found.variety = tidy(value)
-        case .process: found.process = tidy(value)
+        case .notes: found = notes(labelled: value)
+        case .country, .region: found = origin(value, labelledAsRegion: field == .region, isSentence: isSentence)
+        case .producer: found.producer = isSentence ? "" : tidy(value, name: true)
+        // A sentence names a variety's parents too ("a cross between Pacas and…"), and a
+        // process's steps ("before being pulped"): only its first variety, and no process
+        case .variety: found.variety = isSentence ? names(in: value, from: varieties).first ?? "" : tidy(value)
+        case .process: found.process = isSentence ? "" : tidy(value)
         case .roastDate: found.roastDate = date(in: value, today: today, standalone: true)
         case .weight: found.weightGrams = weight(in: value)
+        }
+        if isSentence {
+            for field in BagField.allCases where found.has(field) { found.certainty[field] = .guessed }
         }
         fillEmpty(&draft, from: found)
     }
 
+    /// Labelled notes; a description ("We taste juicy and tart black
+    /// currants, …") rather than a list is only a guess.
+    private static func notes(labelled value: String) -> BagDraft {
+        var found = BagDraft()
+        found.notes = tidy(value)
+        if value.split(whereSeparator: listSeparators.contains).contains(where: { $0.split(separator: " ").count > 4 }) {
+            found.certainty[.notes] = .guessed
+        }
+        return found
+    }
+
+    /// The country and region in an origin or region: "Nyeri, Kenya",
+    /// "Kenya - Nyeri County", "Suke Quto, Odo Shakisso, Guji, Ethiopia". A
+    /// labelled region is the whole value but its country; in an origin, the
+    /// region is one the app recognises, else what's beside the country.
+    private static func origin(_ value: String, labelledAsRegion: Bool, isSentence: Bool) -> BagDraft {
+        var found = BagDraft()
+        let country = names(in: value, from: countries).first
+        found.country = country ?? (labelledAsRegion || isSentence ? "" : tidy(value))
+        let rest = value.components(separatedBy: CharacterSet(charactersIn: ",–—")).flatMap { $0.components(separatedBy: " - ") }
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && names(in: $0, from: countries).isEmpty }
+            .joined(separator: ", ")
+        let known = names(in: value, from: regions).first
+        if isSentence {
+            found.region = known ?? ""
+        } else if labelledAsRegion {
+            found.region = tidy(rest)
+        } else {
+            found.region = known ?? (country == nil ? "" : tidy(rest))
+        }
+        return found
+    }
+
+    /// A labelled value up to the end of its first sentence, without asides
+    /// in brackets, and only its lead when that's followed by a colon:
+    /// "Washed: Fermented in open concrete tanks…" is "Washed".
+    private static func cleaned(_ value: String) -> String {
+        let value = firstSentence(withoutAsides(value))
+        guard let colon = value.firstIndex(of: ":"), value[..<colon].split(separator: " ").count <= 4 else { return value }
+        return String(value[..<colon])
+    }
+
+    /// Without asides in brackets: "Landrace(most varietals in Ethiopia are…)".
+    private static func withoutAsides(_ text: String) -> String {
+        text.replacingOccurrences(of: #"\s*\([^)]*\)?"#, with: "", options: .regularExpression)
+    }
+
     /// Fills the draft's empty fields from `found`, as stated unless `found`
     /// says otherwise: the first label for a field wins.
-    private static func fillEmpty(_ draft: inout BagDraft, from found: BagDraft) {
+    static func fillEmpty(_ draft: inout BagDraft, from found: BagDraft) {
         var found = found
         for field in BagField.allCases where found.has(field) {
             if draft.has(field) {

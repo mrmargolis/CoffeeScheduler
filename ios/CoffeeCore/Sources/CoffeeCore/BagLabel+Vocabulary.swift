@@ -56,7 +56,7 @@ extension BagLabel {
         [
             ("Gesha", ["geisha"]), ("Pink Bourbon", []), ("Red Bourbon", []), ("Yellow Bourbon", []),
             ("Bourbon", []), ("Typica", []), ("Caturra", []), ("Catuai", ["catuaí"]), ("Pacas", []),
-            ("Pacamara", []), ("Maragogype", []), ("Mundo Novo", []), ("Villa Sarchi", []), ("Castillo", []),
+            ("Pacamara", []), ("Maragogype", ["maragogipe"]), ("Mundo Novo", []), ("Villa Sarchi", []), ("Castillo", []),
             ("Catimor", []), ("Sarchimor", []), ("Tabi", []), ("Sidra", []), ("Mejorado", []), ("Wush Wush", []),
             ("Chiroso", []), ("Laurina", []), ("Eugenioides", []), ("Parainema", []), ("Lempira", []),
             ("Marsellesa", []), ("Obata", []), ("Java", []), ("Maracaturra", []), ("Bernardina", []), ("SL28", ["sl 28"]),

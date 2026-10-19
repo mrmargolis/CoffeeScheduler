@@ -60,7 +60,9 @@ struct AddBagView: View {
             PageBrowser(start: browse.url) { page in
                 fill(
                     BagLabel.details(
-                        of: BagLabel.Page(heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url),
+                        of: BagLabel.Page(
+                            heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url,
+                            summary: page.summary),
                         knownRoasters: model.roasters, today: DateUtils.today()),
                     from: URL(string: page.url)?.host() ?? "the page")
             }

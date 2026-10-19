@@ -9,11 +9,13 @@ struct PageContent: Decodable, Sendable {
     var title: String
     /// The site's name from its `og:site_name`: a roaster's shop's name.
     var site: String
+    /// The page's `description`, its summary for search engines.
+    var summary: String
     var text: String
     var url = ""
 
     private enum CodingKeys: String, CodingKey {
-        case heading, title, site, text
+        case heading, title, site, summary, text
     }
 }
 
@@ -109,6 +111,7 @@ final class BrowserState {
               heading: ((document.querySelector('h1') || {}).innerText || document.title || '').trim(),
               title: document.title || '',
               site: (document.querySelector('meta[property="og:site_name"]') || {}).content || '',
+              summary: (document.querySelector('meta[name="description"]') || {}).content || '',
               text: document.body ? document.body.innerText : ''
             })
             """
