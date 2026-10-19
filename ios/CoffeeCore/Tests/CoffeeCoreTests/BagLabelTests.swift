@@ -138,6 +138,24 @@ import Testing
         #expect(BagLabel.reading(fromModelAnswer: answer) == BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia La Fortuna"))
     }
 
+    @Test func readsAModelAnswerThatGivesOnlyTheCoffee() {
+        #expect(BagLabel.reading(fromModelAnswer: "Coffee: Putushio") == BagLabel.Reading(roaster: "", coffee: "Putushio"))
+    }
+
+    @Test func givesTheModelsRoasterItsNameInTheAppWhenOnlyTheModelFoundIt() {
+        let lines = [line("onyx coffee lab", top: 0.1, height: 0.03), line("Colombia La Fortuna", top: 0.2, height: 0.08)]
+        let model = BagLabel.Reading(roaster: "ONYX COFFEE LAB", coffee: "")
+        let guess = BagLabel.Reading(roaster: "", coffee: "Colombia La Fortuna")
+        let reading = BagLabel.checked(model, guess: guess, lines: lines, knownRoasters: ["Sey", "Onyx Coffee Lab"])
+        #expect(reading == BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia La Fortuna"))
+    }
+
+    @Test func aKnownRoasterNeedsMoreThanOneLetterToMatch() {
+        // "J Coffee" is "J" once "Coffee" is left out: a stray letter on the label isn't it
+        let lines = [line("Gichathaini AA", top: 0.1, height: 0.08), line("J", top: 0.3, height: 0.02)]
+        #expect(BagLabel.read(lines, knownRoasters: ["J Coffee"]).roaster == "")
+    }
+
     @Test func rejectsAnAnswerInTheWrongForm() {
         #expect(BagLabel.reading(fromModelAnswer: "I can't tell from this text.") == nil)
     }
