@@ -61,6 +61,15 @@ import Testing
         #expect(before.changes(to: after) == (filled: 1, replaced: 1))  // The same process isn't a change
     }
 
+    @Test func onlyAFilledGuessIsAGuess() {
+        var merged = draft(.guessed, coffee: "ETHIOPIA").merging(draft(.stated, roaster: "Proud Mary"))
+        #expect(merged.isGuess(.coffee))
+        #expect(!merged.isGuess(.roaster))
+        #expect(!merged.isGuess(.process))  // Empty
+        merged.type("Abana Estate", in: .coffee)
+        #expect(!merged.isGuess(.coffee))
+    }
+
     @Test func aKnownRoasterIsStated() {
         var draft = BagDraft()
         draft.take(BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia"), knownRoasters: ["Onyx Coffee Lab"])

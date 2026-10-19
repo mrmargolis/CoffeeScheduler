@@ -1,15 +1,30 @@
 import CoffeeCore
 import SwiftUI
 
+/// A row of the bag being added: the field's name, marked when its value
+/// is a guess, and the control for it.
+struct BagFieldRow<Control: View>: View {
+    let title: String
+    let isGuess: Bool
+    @ViewBuilder let control: Control
+
+    var body: some View {
+        SettingRow(title: title, subtitle: isGuess ? "Guess" : nil, subtitleColor: Theme.accent) {
+            control
+        }
+    }
+}
+
 /// A field of the bag being added, its name on the left and what's in it,
 /// editable, on the right.
 struct BagTextRow: View {
     let title: String
     @Binding var text: String
+    var isGuess = false
     var prompt = "Not found"
 
     var body: some View {
-        SettingRow(title: title) {
+        BagFieldRow(title: title, isGuess: isGuess) {
             TextField(title, text: $text, prompt: Text(prompt).foregroundStyle(Theme.text3), axis: .vertical)
                 .multilineTextAlignment(.trailing)
                 .foregroundStyle(Theme.text2)
@@ -23,9 +38,10 @@ struct BagTextRow: View {
 struct RoastDateRow: View {
     /// `YYYY-MM-DD`.
     @Binding var date: String?
+    var isGuess = false
 
     var body: some View {
-        SettingRow(title: "Roasted") {
+        BagFieldRow(title: "Roasted", isGuess: isGuess) {
             if let iso = date {
                 HStack(spacing: 4) {
                     DatePicker("Roasted", selection: binding(iso), in: ...Date(), displayedComponents: .date)
@@ -57,9 +73,10 @@ struct RoastDateRow: View {
 /// The weight in whole grams, as BeanConqueror keeps it.
 struct WeightRow: View {
     @Binding var grams: Int?
+    var isGuess = false
 
     var body: some View {
-        SettingRow(title: "Weight") {
+        BagFieldRow(title: "Weight", isGuess: isGuess) {
             HStack(spacing: 4) {
                 TextField("Weight", text: text, prompt: Text("Not found").foregroundStyle(Theme.text3))
                     .keyboardType(.numberPad)

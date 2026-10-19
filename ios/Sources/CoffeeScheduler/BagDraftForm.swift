@@ -48,18 +48,26 @@ struct BagDraftForm: View {
             Group {
                 fillSection
                 Section {
-                    BagTextRow(title: "Coffee", text: typed(.coffee))
-                    BagTextRow(title: "Roaster", text: typed(.roaster))
-                    RoastDateRow(date: typed(\.roastDate, .roastDate))
-                    WeightRow(grams: typed(\.weightGrams, .weight))
+                    BagTextRow(title: "Coffee", text: typed(.coffee), isGuess: draft.isGuess(.coffee))
+                    BagTextRow(title: "Roaster", text: typed(.roaster), isGuess: draft.isGuess(.roaster))
+                    RoastDateRow(date: typed(\.roastDate, .roastDate), isGuess: draft.isGuess(.roastDate))
+                    WeightRow(grams: typed(\.weightGrams, .weight), isGuess: draft.isGuess(.weight))
                 } header: {
                     SectionLabel(title: "Bag").listRowInsets(Theme.labelInsets)
+                } footer: {
+                    if BagField.allCases.contains(where: draft.isGuess) {
+                        SectionFooter(
+                            text: """
+                                Guess: picked from the label by where it's printed or what it says. Check the ones you \
+                                care about; a page or label that states it, or typing it, replaces a guess.
+                                """)
+                    }
                 }
                 Section {
                     ForEach(Self.textFields.dropFirst(2), id: \.title) { row in
-                        BagTextRow(title: row.title, text: typed(row.field))
+                        BagTextRow(title: row.title, text: typed(row.field), isGuess: draft.isGuess(row.field))
                     }
-                    BagTextRow(title: "Link", text: typed(.url), prompt: "None")
+                    BagTextRow(title: "Link", text: typed(.url), isGuess: draft.isGuess(.url), prompt: "None")
                 } header: {
                     SectionLabel(title: "Notes and origin").listRowInsets(Theme.labelInsets)
                 }

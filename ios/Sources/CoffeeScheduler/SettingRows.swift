@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingRow<Control: View>: View {
     let title: String
     var subtitle: String?
+    var subtitleColor = Theme.text2
     var dot: Color?
     @ViewBuilder let control: Control
 
@@ -16,7 +17,7 @@ struct SettingRow<Control: View>: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.callout.weight(.semibold)).lineLimit(1)
                 if let subtitle {
-                    Text(subtitle).font(.caption).foregroundStyle(Theme.text2).lineLimit(1)
+                    Text(subtitle).font(.caption).foregroundStyle(subtitleColor).lineLimit(1)
                 }
             }
             Spacer(minLength: 8)

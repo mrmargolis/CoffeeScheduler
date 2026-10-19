@@ -69,6 +69,11 @@ public struct BagDraft: Equatable, Sendable {
         return (filled, changed.count - filled)
     }
 
+    /// Whether the field holds a guess: worth checking before adding.
+    public func isGuess(_ field: BagField) -> Bool {
+        has(field) && (certainty[field] ?? .guessed) == .guessed
+    }
+
     public func has(_ field: BagField) -> Bool {
         !(value(field) ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
