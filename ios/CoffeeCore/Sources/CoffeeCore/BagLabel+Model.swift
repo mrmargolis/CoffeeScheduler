@@ -53,8 +53,9 @@ extension BagLabel {
     /// The model's reading where it holds up, `guess` (from `read`) where it
     /// doesn't. The model's names must be printed on the label, so it can't
     /// make one up, and its coffee can't be a line `read` knows is only
-    /// details, such as "Kenya" or the tasting notes. A roaster the app
-    /// knows keeps its name in the app.
+    /// details, such as "Kenya" or the tasting notes, and its roaster can't
+    /// be only "Coffee Roasters". A roaster the app knows keeps its name in
+    /// the app.
     public static func checked(_ model: Reading, guess: Reading, lines: [Line], knownRoasters: [String]) -> Reading {
         let printed = Set(lines.flatMap { wordSet(fold($0.text)) })
         func isPrinted(_ text: String) -> Bool {
@@ -63,7 +64,8 @@ extension BagLabel {
         }
         let coffeeLine = Line(model.coffee, x: 0, y: 0, width: 1, height: 0.1)
         let namesRoaster = [model.roaster, guess.roaster].contains { !$0.isEmpty && contains(fold(model.coffee), phrase: distinctiveName($0)) }
-        let coffee = isPrinted(model.coffee) && nameCandidate(coffeeLine) != nil && !namesRoaster ? model.coffee : guess.coffee
+        let isName = isPrinted(model.coffee) && nameCandidate(coffeeLine) != nil && !namesRoaster
+        let coffee = isName && !namesNotes(model.coffee, lines: lines) ? model.coffee : guess.coffee
 
         let known = knownRoasters.first { fold($0) == fold(model.roaster) }
         let roaster: String
@@ -72,8 +74,20 @@ extension BagLabel {
         } else if let known {
             roaster = known
         } else {
-            roaster = isPrinted(model.roaster) ? model.roaster : guess.roaster
+            // Not just the "Coffee Roasters" under a logo it couldn't place
+            let isName = !wordSet(fold(model.roaster)).isSubset(of: roasterWords)
+            roaster = isPrinted(model.roaster) && isName ? model.roaster : guess.roaster
         }
         return Reading(roaster: roaster, coffee: coffee)
+    }
+
+    /// Whether `coffee` has a word printed only in the label's tasting notes:
+    /// "Bare - Special Prep, Golden Raspberry" beside "golden raspberry ·
+    /// lemon sugar · lilac".
+    private static func namesNotes(_ coffee: String, lines: [Line]) -> Bool {
+        let isNotes = { (line: Line) in notes(in: line.text) != nil }
+        let notesWords = Set(lines.filter(isNotes).flatMap { wordSet(fold($0.text)) })
+        let otherWords = Set(lines.filter { !isNotes($0) }.flatMap { wordSet(fold($0.text)) })
+        return !wordSet(fold(coffee)).isDisjoint(with: notesWords.subtracting(otherWords))
     }
 }

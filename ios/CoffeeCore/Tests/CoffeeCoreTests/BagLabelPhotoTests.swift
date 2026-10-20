@@ -140,10 +140,26 @@ enum LabelPhotos {
         }
     }
 
+    @Test func rejectsAModelCoffeeWithTastingNotesInIt() {
+        let guess = BagLabel.read(LabelPhotos.delicate, knownRoasters: [])
+        for coffee in ["bare - special prep, golden raspberry", "Bare Special Prep Lemon Sugar Lilac"] {
+            let model = Reading(roaster: "delicate coffee roasters", coffee: coffee)
+            let checked = BagLabel.checked(model, guess: guess, lines: LabelPhotos.delicate, knownRoasters: [])
+            #expect(checked.coffee == "bare - special prep", "\(coffee)")
+        }
+    }
+
     @Test func rejectsAModelRoasterThatIsntOnTheLabel() {
         let guess = BagLabel.read(LabelPhotos.lume, knownRoasters: [])
         let checked = BagLabel.checked(Reading(roaster: "Onyx", coffee: ""), guess: guess, lines: LabelPhotos.lume, knownRoasters: [])
         #expect(checked == guess)
+    }
+
+    @Test func rejectsAModelRoasterThatsOnlyCoffeeRoasters() {
+        let guess = BagLabel.read(LabelPhotos.lume, knownRoasters: [])
+        let model = Reading(roaster: "COFFEE ROASTERS", coffee: "Danche")
+        let checked = BagLabel.checked(model, guess: guess, lines: LabelPhotos.lume, knownRoasters: [])
+        #expect(checked.roaster == "LUME COFFEE ROASTERS")
     }
 
     @Test func keepsAKnownRoastersNameOverTheModels() {
