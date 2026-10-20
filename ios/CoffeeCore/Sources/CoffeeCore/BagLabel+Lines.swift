@@ -48,7 +48,7 @@ extension BagLabel {
         return false
     }
 
-    private static let listSeparators: Set<Character> = [",", "/", "|", "·", "•", ";"]
+    static let listSeparators: Set<Character> = [",", "/", "|", "·", "•", ";"]
 
     /// Words that put a line among the label's small print.
     private static let labelWords: Set<String> = [
