@@ -8,6 +8,7 @@ struct AddBagView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingCamera = false
     @State private var choosingPhoto = false
     @State private var draft = BagDraft()
@@ -15,6 +16,9 @@ struct AddBagView: View {
     @State private var photos: [[BagLabel.Line]] = []
     @State private var status = ScanStatus.ready
     @State private var browsing: Browse?
+    /// The coffee sent to BeanConqueror, to clear the form for the next bag
+    /// on coming back.
+    @State private var sent: String?
 
     private struct Browse: Identifiable {
         let url: URL
@@ -39,6 +43,12 @@ struct AddBagView: View {
                 status = .failed("Couldn't open that photo. Take it again or choose another.")
             }
             .ignoresSafeArea()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, let coffee = sent else { return }
+            sent = nil
+            clear()
+            status = .filled("Sent \(coffee) to BeanConqueror. Ready for the next bag.")
         }
     }
 
@@ -149,7 +159,9 @@ struct AddBagView: View {
     private func addToBeanConqueror() {
         guard let url = BeanConquerorLink.url(for: draft) else { return }
         openURL(url) { opened in
-            if !opened {
+            if opened {
+                sent = draft.coffee
+            } else {
                 status = .failed("Couldn't open BeanConqueror. Is it installed?")
             }
         }
