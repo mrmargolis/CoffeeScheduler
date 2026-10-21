@@ -50,13 +50,6 @@ struct DayOptionsSheet: View {
                     LabeledContent("Dose size") {
                         gramsField($doseSizeGrams)
                     }
-                    Button(existing == nil ? "Set override" : "Update override", action: saveOverride)
-                    if let existing {
-                        Button("Clear override", role: .destructive) {
-                            model.deleteConsumptionOverride(id: existing.id)
-                            dismiss()
-                        }
-                    }
                     if let error {
                         Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
                     }
@@ -71,6 +64,8 @@ struct DayOptionsSheet: View {
             }
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)
+
+            overrideButtons(existing: model.consumptionOverride(on: date))
         }
         .themedList()
         .onAppear {
@@ -87,6 +82,38 @@ struct DayOptionsSheet: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
             }
+        }
+    }
+
+    /// Full-width buttons on the ground rather than rows in the card, so
+    /// they read as the step that saves the amounts above.
+    private func overrideButtons(existing: ConsumptionOverride?) -> some View {
+        Section {
+            VStack(spacing: 10) {
+                Button(action: saveOverride) {
+                    Text(existing == nil ? "Set override" : "Update override")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.accent)
+                .foregroundStyle(Theme.ground)
+                if let existing {
+                    Button(role: .destructive) {
+                        model.deleteConsumptionOverride(id: existing.id)
+                        dismiss()
+                    } label: {
+                        Text("Clear override")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(Theme.gapText)
+                }
+            }
+            .controlSize(.large)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
     }
 
