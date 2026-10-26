@@ -53,6 +53,9 @@ struct BeanDetailView: View {
                     AgeCard(detail: detail, track: track, roast: roast, ready: ready, color: color)
                 }
                 BagFacts(bean: bean, today: model.today, restSource: restSource(bean))
+                if let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: bean.roaster, coffee: bean.name)) {
+                    GoogleButton(url: url)
+                }
                 if !bean.archived {
                     FreezeButton(isFrozen: bean.isFrozen) { confirmingFreeze = bean }
                 }
@@ -207,6 +210,27 @@ private struct FactTile: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+    }
+}
+
+/// A Google search for the roaster and the bag's name, to find the
+/// coffee's page without typing them. Opens in Safari.
+private struct GoogleButton: View {
+    let url: URL
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.tileRadius)
+        Link(destination: url) {
+            Label("Search Google", systemImage: "magnifyingglass")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Theme.text)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(shape.fill(Theme.card))
+                .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Searches Google for the roaster and the coffee's name")
     }
 }
 
