@@ -22,7 +22,12 @@ struct BeansView: View {
             List {
                 Group {
                     header(queue: queue, frozen: frozen)
-                    SectionLabel(title: "Queue").padding(.horizontal, 4)
+                    HStack(spacing: 0) {
+                        SectionLabel(title: "Queue")
+                        // A picture of the queue and freezer to post
+                        if !model.activeBeans.isEmpty { ShareBeansLink().padding(.vertical, -12) }
+                    }
+                    .padding(.horizontal, 4)
                     queueRows(queue)
                     footer(isEmpty: queue.isEmpty)
                     if !frozen.isEmpty {

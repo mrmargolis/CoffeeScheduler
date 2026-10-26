@@ -47,6 +47,22 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The picture the Beans screen's share button sends.
+    func testSharedBeans() throws {
+        let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
+        let data = try BeansSnapshot(model: model).png()
+        let image = try XCTUnwrap(UIImage(data: data))
+        // Drawn at 3x, and at least as tall as a 4:5 post
+        XCTAssertGreaterThan(image.size.width, 1000)
+        XCTAssertGreaterThanOrEqual(image.size.height, image.size.width * 5 / 4)
+        try data.write(to: try outputDirectory().appendingPathComponent("17-share-beans.png"))
+
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "17-share-beans.png"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testScreenshots() throws {
         let outDir = try outputDirectory()
 
