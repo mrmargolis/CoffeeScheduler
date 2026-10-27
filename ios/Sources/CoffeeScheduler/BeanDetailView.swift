@@ -71,7 +71,7 @@ struct BeanDetailView: View {
     /// Where the bag's rest days come from.
     private func restSource(_ bean: Bean) -> String {
         if bean.restDays != nil { return "Set on this bag" }
-        return model.roasterDefaults.contains { $0.roaster == bean.roaster } ? "Roaster default" : "Default rest"
+        return model.roasterDefaults.contains { $0.matches(bean.roaster) } ? "Roaster default" : "Default rest"
     }
 }
 

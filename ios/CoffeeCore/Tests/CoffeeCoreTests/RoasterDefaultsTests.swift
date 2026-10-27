@@ -74,4 +74,33 @@ import Testing
         #expect(try store.bean(id: "roaster")?.effectiveRestDays == 21)
         #expect(try store.bean(id: "global")?.effectiveRestDays == 30)
     }
+
+    @Test func roasterDefaultIgnoresCaseAndSpaces() throws {
+        try addBean("b1", roaster: "square mile")
+        try addBean("b2", roaster: " Square Mile ")
+        try store.setRoasterRestDays("Square Mile", 21)
+        #expect(try store.bean(id: "b1")?.effectiveRestDays == 21)
+        #expect(try store.bean(id: "b2")?.effectiveRestDays == 21)
+    }
+
+    @Test func settingARoasterReplacesItsOtherSpellings() throws {
+        try store.setRoasterRestDays("Square Mile", 21)
+        try store.setRoasterRestDays("square mile", 28)
+        #expect(try store.roasterDefaults() == [RoasterDefault(roaster: "square mile", restDays: 28)])
+        try store.setRoasterRestDays("SQUARE MILE", nil)
+        #expect(try store.roasterDefaults().isEmpty)
+    }
+
+    @Test func listsEachRoasterOnceWhateverItsSpelling() throws {
+        try addBean("b1", roaster: "Onyx")
+        try addBean("b2", roaster: "onyx ")
+        try addBean("b3", roaster: "Tim Wendelboe")
+        #expect(try store.roasters() == ["Onyx", "Tim Wendelboe"])
+    }
+
+    @Test func matchesARoasterDefaultWhateverItsSpelling() {
+        let entry = RoasterDefault(roaster: "Square Mile", restDays: 21)
+        #expect(entry.matches(" square MILE"))
+        #expect(!entry.matches("Square Miles"))
+    }
 }

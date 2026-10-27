@@ -239,10 +239,12 @@ final class AppModel {
         }
     }
 
-    /// Save the queue in this order; the scheduler treats it as authoritative.
-    func reorderQueue(_ ids: [String]) {
+    /// Move a bag in the queue: `ids` is the queue as it now shows. The
+    /// bags from the top down to the moved one keep their places; the rest
+    /// stay in automatic order.
+    func moveInQueue(_ ids: [String], moved: String) {
         perform("Couldn't reorder the queue") {
-            try store?.reorderQueue(ids)
+            try store?.moveInQueue(ids, moved: moved)
             try save()
         }
     }

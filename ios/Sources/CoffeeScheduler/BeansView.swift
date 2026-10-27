@@ -97,8 +97,10 @@ struct BeansView: View {
         }
         .onMove { from, to in
             var ids = queue.map(\.id)
+            let moved = from.map { ids[$0] }
             ids.move(fromOffsets: from, toOffset: to)
-            model.reorderQueue(ids)
+            // The lowest of the moved bags, so every one of them keeps its place
+            if let last = ids.last(where: moved.contains) { model.moveInQueue(ids, moved: last) }
         }
     }
 
