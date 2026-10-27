@@ -120,8 +120,7 @@ struct DayOptionsSheet: View {
     private func gramsField(_ value: Binding<Double?>) -> some View {
         HStack(spacing: 4) {
             TextField("Grams", value: value, format: .number)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
+                .numberEntry()
             Text("g").foregroundStyle(.secondary)
         }
     }

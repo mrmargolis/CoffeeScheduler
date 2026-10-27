@@ -21,6 +21,7 @@ struct CoffeeSchedulerApp: App {
                 .environment(model)
                 // BeanConqueror exports arrive here from the share sheet ("Open in").
                 .onOpenURL { url in model.importExport(at: url) }
+                .selectsNumbersOnTap()
                 // Midnight with the app open: today has moved on
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                     model.reloadFromICloud()

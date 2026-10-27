@@ -81,8 +81,7 @@ struct WeightRow: View {
         BagFieldRow(title: "Weight", isGuess: isGuess) {
             HStack(spacing: 4) {
                 TextField("Weight", text: text, prompt: Text("Not found").foregroundStyle(Theme.text3))
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                    .numberEntry(.numberPad)
                     .foregroundStyle(Theme.text2)
                 Text("g").foregroundStyle(Theme.text3)
                 if grams != nil {
