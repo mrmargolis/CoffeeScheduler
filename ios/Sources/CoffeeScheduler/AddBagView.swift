@@ -19,6 +19,8 @@ struct AddBagView: View {
     /// The coffee sent to BeanConqueror, to clear the form for the next bag
     /// on coming back.
     @State private var sent: String?
+    /// The photo being read, for the card over the form.
+    @State private var reading: BagReading?
 
     private struct Browse: Identifiable {
         let url: URL
@@ -44,6 +46,10 @@ struct AddBagView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { toolbar }
         }
+        .overlay {
+            if let reading { BagReadingCard(reading: reading) }
+        }
+        .animation(.easeInOut(duration: 0.2), value: reading == nil)
         .fullScreenCover(isPresented: $showingCamera) { camera }
         .sheet(isPresented: $choosingPhoto) { picker }
         .sheet(item: $browsing) { browse in
@@ -133,7 +139,11 @@ struct AddBagView: View {
 
     private func startReading(_ image: UIImage) {
         intake.status = .reading
-        Task { await read(image) }
+        reading = BagReading(photo: image)
+        Task {
+            await read(image)
+            reading = nil
+        }
     }
 
     private func read(_ image: UIImage) async {
@@ -143,6 +153,7 @@ struct AddBagView: View {
                 intake.status = .failed("No text found. Take the photo closer to the label.")
                 return
             }
+            reading?.step = "Picking out the coffee and roaster…"
             var found = BagLabel.details(in: lines, today: DateUtils.today())
             let reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
             found.take(reading, knownRoasters: model.roasters)
