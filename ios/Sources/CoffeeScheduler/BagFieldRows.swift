@@ -41,7 +41,14 @@ struct BagFieldName: View {
                 Text(field.title).font(.callout.weight(.semibold)).lineLimit(1)
             }
             if intake.draft.isGuess(field) {
-                GuessBadge()
+                Button {
+                    intake.confirm(field)
+                } label: {
+                    GuessBadge()
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Guess. Keep this \(field.title.lowercased())")
+                .accessibilityHint("Keeps it so a later photo or page doesn't replace it")
             }
         }
         .fixedSize()
@@ -49,18 +56,20 @@ struct BagFieldName: View {
     }
 }
 
-/// "GUESS", in a gold capsule.
+/// "GUESS ✓", in a gold capsule: tapped, the guess is kept.
 struct GuessBadge: View {
     var body: some View {
-        Text("Guess")
-            .font(.caption2.weight(.bold))
-            .textCase(.uppercase)
-            .foregroundStyle(Theme.ground)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6))
-            .lineLimit(1)
-            .fixedSize()
+        HStack(spacing: 4) {
+            Text("Guess").textCase(.uppercase)
+            Image(systemName: "checkmark").imageScale(.small)
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(Theme.ground)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6))
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 

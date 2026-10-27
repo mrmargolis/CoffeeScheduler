@@ -100,6 +100,12 @@ final class BagIntake {
         lastFill?.replaced.removeAll { $0 == replacement }
     }
 
+    /// Keeps a guess that's right, so the next photo or page can't replace it.
+    func confirm(_ field: BagField) {
+        draft.confirm(field)
+        status = .filled("Kept the \(field.title.lowercased()). A photo or page won't replace it now.")
+    }
+
     /// Text typed into a field, or a line of a label picked for it.
     func type(_ text: String, in field: BagField) {
         draft.type(text, in: field)

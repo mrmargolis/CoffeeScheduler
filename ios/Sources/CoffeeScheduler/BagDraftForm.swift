@@ -25,7 +25,6 @@ struct BagDraftForm: View {
                     BagSourcesSection(
                         intake: intake,
                         onPickText: { labelPick = LabelPick(photo: $0.id, target: nil) },
-                        onCheckGuesses: { checkGuesses(proxy) },
                         onTakePhoto: actions.takePhoto)
                     bagSection
                     originSection
@@ -115,21 +114,6 @@ struct BagDraftForm: View {
             return
         }
         go(to: fields[index + step])
-    }
-
-    /// Each tap goes to the next guess after the field being typed in.
-    private func checkGuesses(_ proxy: ScrollViewProxy) {
-        let guesses = BagField.allCases.filter(intake.draft.isGuess)
-        let order = BagField.allCases
-        let after = focus.flatMap { current in
-            guesses.first { (order.firstIndex(of: $0) ?? 0) > (order.firstIndex(of: current) ?? 0) }
-        }
-        guard let next = after ?? guesses.first else { return }
-        if next == .roastDate {
-            withAnimation { proxy.scrollTo(next, anchor: .center) }
-        } else {
-            go(to: next)
-        }
     }
 
     private func go(to field: BagField) {

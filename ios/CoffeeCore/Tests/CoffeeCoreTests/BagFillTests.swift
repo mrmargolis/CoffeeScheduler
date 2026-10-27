@@ -77,4 +77,13 @@ import Testing
         bag.type("Hambela\nNatural", in: .coffee)
         #expect(bag.coffee == "Hambela Natural")
     }
+
+    @Test func aConfirmedGuessIsKept() {
+        var bag = draft(.guessed, [.producer: "Hambela Estate"])
+        bag.confirm(.producer)
+        #expect(!bag.isGuess(.producer))
+        #expect(bag.merging(draft(.stated, [.producer: "Hambela Farm"])).producer == "Hambela Estate")
+        bag.confirm(.variety)  // Empty: nothing to keep
+        #expect(bag.certainty[.variety] == nil)
+    }
 }

@@ -8,7 +8,6 @@ struct BagSourcesSection: View {
     let intake: BagIntake
     /// A photo's tile was tapped: show the text read off it.
     let onPickText: (BagSource) -> Void
-    let onCheckGuesses: () -> Void
     let onTakePhoto: () -> Void
 
     var body: some View {
@@ -57,17 +56,12 @@ struct BagSourcesSection: View {
     @ViewBuilder private var guesses: some View {
         let count = intake.draft.count(BagField.allCases).guesses
         if count > 0 {
-            Button(action: onCheckGuesses) {
-                Label("Check \(count) \(count == 1 ? "guess" : "guesses")", systemImage: "chevron.right")
-                    .labelStyle(TrailingIcon())
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(count) \(count == 1 ? "guess" : "guesses")")
                     .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Theme.accent.opacity(0.16), in: Capsule())
-                    .lineLimit(1)
-                    .fixedSize()
+                    .foregroundStyle(Theme.accent)
+                Text("Tap Guess on a right one to keep it").font(.caption).foregroundStyle(Theme.text3)
             }
-            .buttonStyle(.borderless)
         } else {
             Label("No guesses", systemImage: "checkmark")
                 .font(.footnote.weight(.semibold))
@@ -175,15 +169,5 @@ struct BagPhotoNudge: View {
                 .buttonBorderShape(.capsule)
         }
         .padding(.vertical, 4)
-    }
-}
-
-/// A label with its icon after the title, for "Check 2 guesses ›".
-struct TrailingIcon: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
-            configuration.title
-            configuration.icon.imageScale(.small)
-        }
     }
 }

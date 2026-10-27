@@ -99,6 +99,13 @@ public struct BagDraft: Equatable, Sendable {
         certainty[field] = nil
     }
 
+    /// Keeps a field's value as it is, as if typed, so nothing read later
+    /// replaces it: a guess that's right.
+    public mutating func confirm(_ field: BagField) {
+        guard has(field) else { return }
+        certainty[field] = .typed
+    }
+
     /// Puts back a value as if typed, so nothing read later replaces it.
     public mutating func restore(_ text: String, in field: BagField) {
         switch field {
