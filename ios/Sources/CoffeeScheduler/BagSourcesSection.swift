@@ -6,7 +6,7 @@ import SwiftUI
 /// filled in, and what the last one replaced.
 struct BagSourcesSection: View {
     let intake: BagIntake
-    /// A photo's tile was tapped: show the text read off it.
+    /// A photo's or page's tile was tapped: show its text to pick from.
     let onPickText: (BagSource) -> Void
     let onTakePhoto: () -> Void
 
@@ -40,8 +40,8 @@ struct BagSourcesSection: View {
             }
             VStack(alignment: .leading, spacing: 5) {
                 Text(headline).font(.subheadline.weight(.semibold))
-                if !intake.photos.isEmpty {
-                    Text("Tap a photo to pick text from it").font(.caption).foregroundStyle(Theme.text3)
+                if !intake.sources.isEmpty {
+                    Text("Tap one to pick text from it").font(.caption).foregroundStyle(Theme.text3)
                 }
                 guesses
             }
@@ -107,33 +107,33 @@ private struct StartPrompt: View {
     }
 }
 
-/// A photo, shown small, or the page, as a globe.
+/// A photo, shown small, or the page, as a globe: tapped, its text.
 private struct SourceTile: View {
     let source: BagSource
     let action: () -> Void
 
     var body: some View {
+        Button(action: action) { face }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(source.isPhoto ? "Pick text from this photo" : "Pick text from the page")
+    }
+
+    @ViewBuilder private var face: some View {
         switch source.kind {
         case .photo(let image, _):
-            Button(action: action) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.hairline))
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Pick text from this photo")
-        case .page(let host):
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 52, height: 60)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.hairline))
+        case .page:
             VStack(spacing: 4) {
                 Image(systemName: "globe").font(.title3).foregroundStyle(Theme.accent)
                 Text("Page").font(.caption2.weight(.bold)).foregroundStyle(Theme.text2)
             }
             .frame(width: 52, height: 60)
             .background(Theme.raised, in: RoundedRectangle(cornerRadius: 10))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Filled from \(host)")
         }
     }
 }

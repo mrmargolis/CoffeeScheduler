@@ -5,10 +5,11 @@ import UIKit
 /// A photo or page the bag being added was filled in from.
 struct BagSource: Identifiable {
     enum Kind: Equatable {
-        /// A photo of the label: a small copy of it and the lines read off it.
-        case photo(UIImage, lines: [String])
-        /// The coffee's page, by its site.
-        case page(host: String)
+        /// A photo of the label, the right way up and no bigger than it needs
+        /// to be, and the lines read off it, top to bottom.
+        case photo(UIImage, lines: [BagLabel.Line])
+        /// The coffee's page, by its site, and its text a line at a time.
+        case page(host: String, lines: [String])
     }
 
     let id = UUID()
@@ -20,6 +21,14 @@ struct BagSource: Identifiable {
 
     /// The icon a field filled from it shows.
     var symbol: String { isPhoto ? "camera" : "globe" }
+
+    /// Its text, a line at a time, top to bottom.
+    var lines: [String] {
+        switch kind {
+        case .photo(_, let lines): lines.map(\.text)
+        case .page(_, let lines): lines
+        }
+    }
 }
 
 /// Where Add a bag is with reading a photo or page, for the line over Add.
@@ -63,7 +72,7 @@ final class BagIntake {
         case .photo:
             let count = photos.count + 1
             return count == 1 ? "the photo" : "photo \(count)"
-        case .page(let host):
+        case .page(let host, _):
             return host
         }
     }
@@ -110,6 +119,12 @@ final class BagIntake {
     func type(_ text: String, in field: BagField) {
         draft.type(text, in: field)
         fieldSources[field] = nil
+    }
+
+    /// A line of a photo or page picked for a field, kept as if typed.
+    func pick(_ value: String, for field: BagField) {
+        if field.text != nil { type(value, in: field) } else { set(field, to: value) }
+        status = .filled("Put \(value) in \(field.title.lowercased()).")
     }
 
     /// The roast date or weight set by hand.

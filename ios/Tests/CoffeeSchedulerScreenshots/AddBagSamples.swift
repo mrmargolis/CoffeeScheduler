@@ -14,13 +14,13 @@ enum AddBagSamples {
                 (.coffee, "Hambela Natural", .guessed), (.roaster, "Coffee Collective", .guessed),
                 (.country, "Ethiopia", .stated), (.region, "Guji", .stated), (.process, "Natural", .stated),
             ]),
-            from: .photo(label(), lines: ["COFFEE COLLECTIVE", "HAMBELA", "NATURAL", "ETHIOPIA · GUJI"]))
+            from: .photo(label(), lines: lines(["COFFEE COLLECTIVE", "HAMBELA", "NATURAL", "ETHIOPIA · GUJI"])))
         intake.fill(
             draft([
                 (.roastDate, "2026-10-14", .stated), (.weight, "250", .stated),
                 (.notes, "Peach, jasmine, black tea", .stated), (.producer, "Hambela Estate", .guessed),
             ]),
-            from: .photo(label(), lines: ["Peach, jasmine, black tea", "Producer: Hambela Estate", "Roasted 14.10.26", "250 g"]))
+            from: .photo(label(), lines: lines(["Peach, jasmine, black tea", "Producer: Hambela Estate", "Roasted 14.10.26", "250 g"])))
         return intake
     }
 
@@ -34,8 +34,15 @@ enum AddBagSamples {
                 (.region, "Guji Zone", .stated), (.variety, "Heirloom", .stated),
                 (.url, "https://coffeecollective.dk/hambela", .stated),
             ]),
-            from: .page(host: "coffeecollective.dk"))
+            from: .page(host: "coffeecollective.dk", lines: ["Hambela Natural", "Ethiopia · Guji Zone · Natural", "Variety: Heirloom"]))
         return intake
+    }
+
+    /// Lines down the middle of the photo, top to bottom.
+    private static func lines(_ texts: [String]) -> [BagLabel.Line] {
+        texts.enumerated().map { index, text in
+            BagLabel.Line(text, x: 0.2, y: 0.8 - Double(index) * 0.15, width: 0.6, height: 0.06)
+        }
     }
 
     private static func draft(_ values: [(BagField, String, Certainty)]) -> BagDraft {

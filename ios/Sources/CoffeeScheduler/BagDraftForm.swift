@@ -10,7 +10,7 @@ struct BagDraftForm: View {
     let actions: BagDockActions
     @FocusState private var focus: BagField?
     @State private var originOpen: Bool
-    @State private var labelPick: LabelPick?
+    @State private var textPick: TextPick?
 
     init(intake: BagIntake, actions: BagDockActions, originOpen: Bool = true) {
         self.intake = intake
@@ -24,7 +24,7 @@ struct BagDraftForm: View {
                 Group {
                     BagSourcesSection(
                         intake: intake,
-                        onPickText: { labelPick = LabelPick(photo: $0.id, target: nil) },
+                        onPickText: { textPick = TextPick(source: $0.id, target: nil) },
                         onTakePhoto: actions.takePhoto)
                     bagSection
                     originSection
@@ -42,8 +42,8 @@ struct BagDraftForm: View {
                 guard let field else { return }
                 withAnimation { proxy.scrollTo(field, anchor: .center) }
             }
-            .sheet(item: $labelPick) { pick in
-                BagLabelSheet(photos: intake.photos, pick: pick) { line, field in intake.type(line, in: field) }
+            .sheet(item: $textPick) { pick in
+                BagTextPicker(intake: intake, pick: pick)
             }
         }
     }
@@ -97,9 +97,11 @@ struct BagDraftForm: View {
             Button("Next field", systemImage: "chevron.down") { move(1) }
                 .disabled(focus == BagField.typed.last)
             Spacer()
-            if let photo = intake.photos.last, let field = focus, field.text != nil {
-                Button("Label text", systemImage: "text.viewfinder") { labelPick = LabelPick(photo: photo.id, target: field) }
-                    .labelStyle(.titleAndIcon)
+            if let source = intake.sources.last(where: { !$0.lines.isEmpty }), let field = focus {
+                Button(source.isPhoto ? "From photo" : "From page", systemImage: "text.viewfinder") {
+                    textPick = TextPick(source: source.id, target: field)
+                }
+                .labelStyle(.titleAndIcon)
             }
             Button("Done") { focus = nil }.fontWeight(.semibold)
         }
