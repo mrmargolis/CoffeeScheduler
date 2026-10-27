@@ -86,9 +86,24 @@ final class CoffeeE2ETests: XCTestCase {
 
     /// Replace a text field's contents: double-tap selects the number already
     /// there (a single tap can leave the cursor before it), then type over it.
-    private func replaceText(in field: XCUIElement, with text: String) {
-        field.doubleTap()
+    private func replaceText(in field: XCUIElement, with text: String, file: StaticString = #filePath, line: UInt = #line) {
+        focus(field, file: file, line: line) { $0.doubleTap() }
         field.typeText(text)
+    }
+
+    /// Tap a text field until it has the keyboard. A tap can land while its
+    /// screen is still sliding in, and typing into a field without the
+    /// keyboard fails the test.
+    private func focus(
+        _ field: XCUIElement, file: StaticString = #filePath, line: UInt = #line, by tap: (XCUIElement) -> Void = { $0.tap() }
+    ) {
+        let hasKeyboard = NSPredicate(format: "hasKeyboardFocus == true")
+        for _ in 0..<3 {
+            if field.isHittable { tap(field) }
+            let focused = XCTNSPredicateExpectation(predicate: hasKeyboard, object: field)
+            if XCTWaiter().wait(for: [focused], timeout: 3) == .completed { return }
+        }
+        XCTFail("Never got the keyboard: \(field)", file: file, line: line)
     }
 
     private func openTab(_ name: String) {
@@ -218,7 +233,7 @@ final class CoffeeE2ETests: XCTestCase {
 
         let restDays = app.textFields.firstMatch
         waitFor(restDays)
-        restDays.tap()
+        focus(restDays)
         restDays.typeText("21")
         app.buttons["Save"].tap()
 
@@ -290,7 +305,7 @@ final class CoffeeE2ETests: XCTestCase {
         // Both dates start on today; the reason is the form's only text field
         let reason = app.textFields.firstMatch
         waitFor(reason)
-        reason.tap()
+        focus(reason)
         reason.typeText("Lisbon")
         app.buttons["Save"].tap()
         waitFor(element(containing: "Lisbon"))
