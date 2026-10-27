@@ -28,10 +28,11 @@ struct AddBagView: View {
     /// Clear and Done both throw a filled-in bag away, so they ask first.
     private enum Discard { case clear, close }
 
-    /// Whether "Notes and origin" starts open, for the screenshots.
+    /// Whether "Notes and origin" starts open: it does, but a screenshot
+    /// shows it folded.
     private let showsOrigin: Bool
 
-    init(intake: BagIntake = BagIntake(), showsOrigin: Bool = false) {
+    init(intake: BagIntake = BagIntake(), showsOrigin: Bool = true) {
         _intake = State(initialValue: intake)
         self.showsOrigin = showsOrigin
     }

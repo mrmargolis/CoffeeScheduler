@@ -94,8 +94,8 @@ final class ScreenshotTests: XCTestCase {
             ("12-month", AnyView(ScheduleView(layout: .month)), model),
             ("13-skip-days", AnyView(NavigationStack { SkipRangeForm(range: model.skipRanges.first, today: SampleData.today) }), model),
             ("14-add-bag", AnyView(AddBagView()), model),
-            ("15-add-bag-photos", AnyView(AddBagView(intake: AddBagSamples.photos())), model),
-            ("16-add-bag-page", AnyView(AddBagView(intake: AddBagSamples.photosAndPage(), showsOrigin: true)), model),
+            ("15-add-bag-photos", AnyView(AddBagView(intake: AddBagSamples.photos(), showsOrigin: false)), model),
+            ("16-add-bag-page", AnyView(AddBagView(intake: AddBagSamples.photosAndPage())), model),
         ]
 
         for (name, view, model) in screens {

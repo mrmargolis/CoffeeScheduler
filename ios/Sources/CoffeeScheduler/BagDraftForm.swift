@@ -12,7 +12,7 @@ struct BagDraftForm: View {
     @State private var originOpen: Bool
     @State private var labelPick: LabelPick?
 
-    init(intake: BagIntake, actions: BagDockActions, originOpen: Bool = false) {
+    init(intake: BagIntake, actions: BagDockActions, originOpen: Bool = true) {
         self.intake = intake
         self.actions = actions
         _originOpen = State(initialValue: originOpen)

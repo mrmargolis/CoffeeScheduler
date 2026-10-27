@@ -13,7 +13,7 @@ struct BagSourcesSection: View {
     var body: some View {
         Section {
             if intake.sources.isEmpty {
-                StartPrompt()
+                StartPrompt(onTakePhoto: onTakePhoto)
             } else {
                 strip
                 ForEach(intake.lastFill?.replaced ?? [], id: \.field) { replacement in
@@ -70,23 +70,37 @@ struct BagSourcesSection: View {
     }
 }
 
-/// Before anything's read: photograph the front, then the back.
+/// Before anything's read: photograph the front, then the back. The whole
+/// prompt opens the camera, as the bar's Camera button does.
 private struct StartPrompt: View {
+    let onTakePhoto: () -> Void
+
     var body: some View {
+        Button(action: onTakePhoto) { prompt }
+            .buttonStyle(.borderless)
+            .accessibilityHint("Opens the camera")
+    }
+
+    private var prompt: some View {
         HStack(spacing: 14) {
-            Image(systemName: "camera")
+            Image(systemName: "camera.fill")
                 .font(.title3)
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.ground)
                 .frame(width: 48, height: 48)
-                .background(Theme.accent.opacity(0.16), in: Circle())
+                .background(Theme.accent, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
-                Text("Photograph the front, then the back").font(.subheadline.weight(.semibold))
+                Text("Photograph the front, then the back")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.text)
                 Text("Or find the coffee's page. Each fills what's empty and replaces guesses; what you type stays.")
                     .font(.caption)
                     .foregroundStyle(Theme.text3)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.text3)
         }
         .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }
 
