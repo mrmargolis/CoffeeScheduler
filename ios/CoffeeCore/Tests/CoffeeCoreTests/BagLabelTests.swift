@@ -24,6 +24,27 @@ import Testing
         #expect(reading == BagLabel.Reading(roaster: "Onyx Coffee Lab", coffee: "Colombia La Fortuna"))
     }
 
+    @Test func aMonthInADateIsntARoaster() {
+        // An H&S bag roasted in September, from someone who's bought from September Coffee
+        for date in ["Roasted 18 September 2026", "ROASTED: SEPT 18", "Roasted in September", "Best before September 2027"] {
+            let lines = [
+                line("H&S", top: 0.1, height: 0.06),
+                line("COFFEE ROASTERS", top: 0.165, height: 0.03),
+                line("Gesha Village", top: 0.3, height: 0.07),
+                line(date, top: 0.5, height: 0.02),
+            ]
+            let reading = BagLabel.read(lines, knownRoasters: ["September Coffee Company"])
+            #expect(reading.roaster == "H&S COFFEE ROASTERS", "\(date)")
+        }
+    }
+
+    @Test func aRoasterNamedForAMonthStillMatches() {
+        for logo in ["SEPTEMBER COFFEE CO.", "September Coffee Roasters"] {
+            let lines = [line(logo, top: 0.1, height: 0.04), line("Halo Beriti", top: 0.3, height: 0.08)]
+            #expect(BagLabel.read(lines, knownRoasters: ["September Coffee Company"]).roaster == "September Coffee Company", "\(logo)")
+        }
+    }
+
     @Test func matchesARoasterWithoutItsAccents() {
         let lines = [line("Pepe Jijon", top: 0.1, height: 0.07), line("Cafe Ayla", top: 0.3, height: 0.03)]
         #expect(BagLabel.read(lines, knownRoasters: ["Café Ayla"]).roaster == "Café Ayla")
@@ -131,6 +152,18 @@ import Testing
         let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: " ", coffee: "Putushio"))
         #expect(url?.absoluteString == BagLabel.googlePage + "?q=Putushio")
         #expect(BagLabel.googleURL(for: BagLabel.Reading(roaster: "", coffee: " ")) == nil)
+    }
+
+    @Test func theModelsKnownRoasterHasToBeOnTheLabel() {
+        // The model, told the user has bought from September Coffee, picks it from the roast date
+        let lines = [
+            line("H&S", top: 0.1, height: 0.06), line("COFFEE ROASTERS", top: 0.165, height: 0.03),
+            line("Gesha Village", top: 0.3, height: 0.07), line("Roasted 18 September 2026", top: 0.5, height: 0.02),
+        ]
+        let model = BagLabel.Reading(roaster: "September Coffee Company", coffee: "Gesha Village")
+        let guess = BagLabel.read(lines, knownRoasters: ["September Coffee Company"])
+        let reading = BagLabel.checked(model, guess: guess, lines: lines, knownRoasters: ["September Coffee Company"])
+        #expect(reading.roaster == "H&S COFFEE ROASTERS")
     }
 
     @Test func readsTheModelsAnswer() {

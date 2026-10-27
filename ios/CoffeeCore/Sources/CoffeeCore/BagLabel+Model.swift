@@ -67,7 +67,11 @@ extension BagLabel {
         let isName = isPrinted(model.coffee) && nameCandidate(coffeeLine) != nil && !namesRoaster
         let coffee = isName && !namesNotes(model.coffee, lines: lines) ? model.coffee : guess.coffee
 
-        let known = knownRoasters.first { fold($0) == fold(model.roaster) }
+        // A known roaster, if its name is on the label other than in a date
+        let label = lines.map { withoutDatesMonths(fold($0.text)) }
+        let known = knownRoasters.first { roaster in
+            fold(roaster) == fold(model.roaster) && label.contains { contains($0, phrase: distinctiveName(roaster)) }
+        }
         let roaster: String
         if knownRoasters.contains(guess.roaster) {
             roaster = guess.roaster
