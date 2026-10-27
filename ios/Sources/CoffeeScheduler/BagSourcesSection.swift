@@ -17,7 +17,9 @@ struct BagSourcesSection: View {
             } else {
                 strip
                 ForEach(intake.lastFill?.replaced ?? [], id: \.field) { replacement in
-                    ReplacedRow(replacement: replacement, source: intake.lastSourceName) { intake.keep(replacement) }
+                    ReplacedRow(
+                        replacement: replacement, now: intake.draft.value(replacement.field) ?? "", source: intake.lastSourceName
+                    ) { intake.keep(replacement) }
                 }
                 if needsThePhoto {
                     BagPhotoNudge(onTakePhoto: onTakePhoto)
@@ -96,6 +98,7 @@ private struct StartPrompt: View {
                     .font(.caption)
                     .foregroundStyle(Theme.text3)
             }
+            .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.text3)
         }
@@ -138,6 +141,8 @@ private struct SourceTile: View {
 /// A value the last photo or page replaced, with a button to put it back.
 private struct ReplacedRow: View {
     let replacement: BagFill.Replacement
+    /// What it holds now.
+    let now: String
     let source: String
     let keep: () -> Void
 
@@ -145,11 +150,12 @@ private struct ReplacedRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Replaced from \(source)").font(.caption).foregroundStyle(Theme.text3)
             HStack {
-                Text("\(replacement.field.title): \(Self.shown(replacement.old, replacement.field))")
+                let field = replacement.field
+                Text("\(field.title): \(Text(Self.shown(replacement.old, field)).strikethrough()) → \(Self.shown(now, field))")
                     .font(.subheadline)
                     .foregroundStyle(Theme.text2)
-                Spacer()
-                Button("Keep it", action: keep)
+                Spacer(minLength: 8)
+                Button("Keep old", action: keep)
                     .font(.subheadline.weight(.semibold))
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Keep \(replacement.old) as the \(replacement.field.title.lowercased())")

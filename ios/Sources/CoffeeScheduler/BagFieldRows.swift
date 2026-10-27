@@ -163,7 +163,9 @@ struct BagDateWeightRows: View {
                 .numberEntry(.numberPad)
                 .foregroundStyle(Theme.text2)
                 .focused(focus, equals: .weight)
-            Text("g").foregroundStyle(Theme.text3)
+            if intake.draft.weightGrams != nil {
+                Text("g").foregroundStyle(Theme.text3)
+            }
         }
     }
 
