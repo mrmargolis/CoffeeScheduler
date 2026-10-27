@@ -64,6 +64,8 @@ struct BagSourcesSection: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Theme.accent.opacity(0.16), in: Capsule())
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .buttonStyle(.borderless)
         } else {

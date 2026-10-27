@@ -25,22 +25,27 @@ extension BagField {
 }
 
 /// A field's name, with a gold dot when the last photo or page just changed
-/// it and a badge when its value is a guess.
+/// it and, under it, a badge when its value is a guess. It keeps its width;
+/// the value beside it gives way.
 struct BagFieldName: View {
     let field: BagField
     let intake: BagIntake
 
     var body: some View {
-        HStack(spacing: 6) {
-            if intake.lastFill?.fields.contains(field) == true {
-                Circle().fill(Theme.accent).frame(width: 7, height: 7)
-                    .accessibilityLabel("Just filled")
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                if intake.lastFill?.fields.contains(field) == true {
+                    Circle().fill(Theme.accent).frame(width: 7, height: 7)
+                        .accessibilityLabel("Just filled")
+                }
+                Text(field.title).font(.callout.weight(.semibold)).lineLimit(1)
             }
-            Text(field.title).font(.callout.weight(.semibold)).lineLimit(1)
             if intake.draft.isGuess(field) {
                 GuessBadge()
             }
         }
+        .fixedSize()
+        .padding(.vertical, intake.draft.isGuess(field) ? 4 : 0)
     }
 }
 
@@ -54,6 +59,8 @@ struct GuessBadge: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6))
+            .lineLimit(1)
+            .fixedSize()
     }
 }
 
