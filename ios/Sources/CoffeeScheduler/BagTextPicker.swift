@@ -304,7 +304,6 @@ private struct FieldTiles: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .disabled(!fits)
                 .opacity(fits ? 1 : 0.4)
                 .accessibilityAddTraits(chosen == field ? .isSelected : [])
             }

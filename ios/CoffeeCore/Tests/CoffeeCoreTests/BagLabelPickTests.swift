@@ -24,6 +24,26 @@ import Testing
         #expect(BagLabel.value(in: "Peach, jasmine", for: .producer, today: today) == "Peach, jasmine")
     }
 
+    @Test func picksADateThatSharesItsLine() {
+        // A sticker on a box, its date beside a batch code: no year, and not on a line of its own
+        #expect(BagLabel.value(in: "9/18 HSCR", for: .roastDate, today: today) == "2026-09-18")
+        #expect(BagLabel.likelyFields(in: "9/18 HSCR", today: today).contains(.roastDate))
+        #expect(BagLabel.value(in: "Lot 4 18.09", for: .roastDate, today: today, monthFirst: false) == "2026-09-18")
+        #expect(BagLabel.value(in: "Abbey Blend 9/18", for: .roastDate, today: today) == "2026-09-18")
+    }
+
+    @Test func picksADateTheTextReadingMangled() {
+        #expect(BagLabel.value(in: "9 / 18 / 26", for: .roastDate, today: today) == "2026-09-18")
+        #expect(BagLabel.value(in: "O9/18/26", for: .roastDate, today: today) == "2026-09-18")
+        #expect(BagLabel.value(in: "Roasted 9/l8", for: .roastDate, today: today) == "2026-09-18")
+        #expect(BagLabel.value(in: "SEPT 18", for: .roastDate, today: today) == "2026-09-18")
+    }
+
+    @Test func picksNoDateThatHasntComeOrIsntThere() {
+        #expect(BagLabel.value(in: "Best before 12/01/2027", for: .roastDate, today: today) == nil)
+        #expect(BagLabel.value(in: "Ola Origin", for: .roastDate, today: today) == nil)
+    }
+
     @Test func hasNoDateOrWeightInALineWithout() {
         #expect(BagLabel.value(in: "HAMBELA", for: .roastDate, today: today) == nil)
         #expect(BagLabel.value(in: "HAMBELA", for: .weight, today: today) == nil)
