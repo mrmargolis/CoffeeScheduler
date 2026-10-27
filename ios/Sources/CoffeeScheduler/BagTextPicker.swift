@@ -11,14 +11,18 @@ struct TextPick: Identifiable {
 }
 
 /// The text on a photo, outlined where it sits, or a page's, a line at a
-/// time. Tap a line, then the field it belongs in; the fields it looks
-/// like are gold. Opened for a field being typed in, a tapped line goes
-/// straight there.
+/// time, over a tile for each field. Either order works: a line, then the
+/// field it goes in (the fields it looks like are gold), or a field, then
+/// its line. Opened for a field being typed in, that field is chosen, and
+/// the sheet closes once it's filled.
 struct BagTextPicker: View {
     let intake: BagIntake
     let target: BagField?
     @State private var shown: BagSource.ID
     @State private var selected: Int?
+    @State private var chosen: BagField?
+    /// Why the last pick didn't go in: no date in the line, say.
+    @State private var problem: String?
     /// A photo's text as a list, for lines too small to tap on the photo.
     @State private var asList = false
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +32,7 @@ struct BagTextPicker: View {
         self.intake = intake
         target = pick.target
         _shown = State(initialValue: pick.source)
+        _chosen = State(initialValue: pick.target)
     }
 
     private var source: BagSource? { intake.sources.first { $0.id == shown } }
@@ -80,20 +85,12 @@ struct BagTextPicker: View {
         return "Photo \(intake.sources[...index].count(where: \.isPhoto))"
     }
 
-    @ViewBuilder private var panel: some View {
+    private var panel: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let target {
-                Text("Tap the text for \(target.title.lowercased()).").foregroundStyle(Theme.text2)
-            } else if let selected, lines.indices.contains(selected) {
-                Text("Put \(Text("“\(lines[selected])”").foregroundStyle(Theme.text)) in").foregroundStyle(Theme.text2)
-                    .lineLimit(2)
-                FieldTiles(intake: intake, line: lines[selected], today: today) { field, value in
-                    intake.pick(value, for: field)
-                    self.selected = nil
-                }
-            } else {
-                Text("Tap the text you want, then the field it goes in.").foregroundStyle(Theme.text3)
-            }
+            hint.lineLimit(2)
+            FieldTiles(
+                intake: intake, line: selected.flatMap { lines.indices.contains($0) ? lines[$0] : nil }, chosen: chosen,
+                today: today, onTap: tappedField)
         }
         .font(.subheadline)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -101,18 +98,47 @@ struct BagTextPicker: View {
         .background(Theme.card)
     }
 
+    @ViewBuilder private var hint: some View {
+        if let problem {
+            Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
+        } else if let selected, lines.indices.contains(selected) {
+            Text("Put \(Text("“\(lines[selected])”").foregroundStyle(Theme.text)) in…").foregroundStyle(Theme.text2)
+        } else if let chosen {
+            Text("Now tap the text for \(Text(chosen.title.lowercased()).foregroundStyle(Theme.text)).").foregroundStyle(Theme.text2)
+        } else {
+            Text("Tap the text, then the field it goes in. Or a field, then its text.").foregroundStyle(Theme.text3)
+        }
+    }
+
+    /// A line tapped: into the chosen field, or picked to choose one for.
     private func tapped(_ index: Int) {
-        guard let target else {
-            selected = index
+        problem = nil
+        if let chosen {
+            put(index, in: chosen)
+        } else {
+            selected = selected == index ? nil : index
+        }
+    }
+
+    /// A field tapped: the picked line goes in, or it waits for one.
+    private func tappedField(_ field: BagField) {
+        problem = nil
+        if let selected {
+            put(selected, in: field)
+        } else {
+            chosen = chosen == field ? nil : field
+        }
+    }
+
+    private func put(_ index: Int, in field: BagField) {
+        guard let value = BagLabel.value(in: lines[index], for: field, today: today) else {
+            problem = "No \(field.title.lowercased()) in “\(lines[index])”."
             return
         }
-        if let value = BagLabel.value(in: lines[index], for: target, today: today) {
-            intake.pick(value, for: target)
-            dismiss()
-        } else {
-            intake.status = .failed("No \(target.title.lowercased()) in that line.")
-            selected = index
-        }
+        intake.pick(value, for: field)
+        selected = nil
+        chosen = nil
+        if target != nil { dismiss() }
     }
 }
 
@@ -255,23 +281,32 @@ private struct LineList: View {
 /// line looks like it holds, outlined for a guess or an empty field.
 private struct FieldTiles: View {
     let intake: BagIntake
-    let line: String
+    /// The line picked, if any: tiles it can't fill are dimmed.
+    let line: String?
+    /// The field waiting for a line, if any.
+    let chosen: BagField?
     let today: String
-    let onPick: (BagField, String) -> Void
+    let onTap: (BagField) -> Void
 
     var body: some View {
-        let likely = BagLabel.likelyFields(in: line, today: today)
+        let likely = line.map { BagLabel.likelyFields(in: $0, today: today) } ?? []
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
             ForEach(BagField.allCases, id: \.self) { field in
-                let value = BagLabel.value(in: line, for: field, today: today)
+                let fits = line.map { BagLabel.value(in: $0, for: field, today: today) != nil } ?? true
                 Button {
-                    if let value { onPick(field, value) }
+                    onTap(field)
                 } label: {
                     tile(field, isLikely: likely.contains(field))
+                        .overlay {
+                            if chosen == field {
+                                RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.accent, lineWidth: 2.5)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
-                .disabled(value == nil)
-                .opacity(value == nil ? 0.4 : 1)
+                .disabled(!fits)
+                .opacity(fits ? 1 : 0.4)
+                .accessibilityAddTraits(chosen == field ? .isSelected : [])
             }
         }
     }
