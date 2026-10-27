@@ -19,6 +19,15 @@ extension CoffeeStore {
         }
     }
 
+    /// Move a bag in the queue, as dragging it does. `ids` is the queue as it
+    /// now shows: the moved bag and the bags above it are numbered in that
+    /// order so they stay put, and the bags below it that were in automatic
+    /// order stay automatic, still sorted by when they're ready.
+    public func moveInQueue(_ ids: [String], moved: String) throws {
+        guard let index = ids.firstIndex(of: moved) else { return }
+        try reorderQueue(Array(ids[...index]))
+    }
+
     /// Drop a bag's manual position so it's queued automatically again
     /// (after the manually ordered bags, in progress first, then by ready date).
     public func clearQueuePosition(id: String) throws {

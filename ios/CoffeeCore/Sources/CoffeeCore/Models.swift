@@ -122,6 +122,16 @@ public struct RoasterDefault: Hashable, Sendable, Identifiable {
         self.roaster = roaster
         self.restDays = restDays
     }
+
+    /// Whether a bag from `name` takes this default: case and surrounding
+    /// spaces don't count, as in the store.
+    public func matches(_ name: String) -> Bool {
+        Self.key(roaster) == Self.key(name)
+    }
+
+    private static func key(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespaces).lowercased()
+    }
 }
 
 public struct ScheduleSettings: Hashable, Sendable {

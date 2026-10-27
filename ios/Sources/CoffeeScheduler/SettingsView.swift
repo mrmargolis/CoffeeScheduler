@@ -92,7 +92,7 @@ struct SettingsView: View {
                     model.setRoasterRestDays(roaster, nil)
                 }
             }
-            let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.roaster == name } }
+            let unset = model.roasters.filter { name in !model.roasterDefaults.contains { $0.matches(name) } }
             if !unset.isEmpty {
                 // A pushed list, not a Menu: iOS 26 menus can't be
                 // reached by UI tests. Picking a roaster adds it at the

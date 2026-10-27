@@ -63,19 +63,36 @@ public final class CoffeeStore {
     public func setRoasterRestDays(_ roaster: String, _ restDays: Int?) throws {
         if let restDays {
             guard restDays >= 0 else { throw BeanSettingsError.negativeRestDays }
-            try db.run(
-                "INSERT OR REPLACE INTO roaster_defaults (roaster, rest_days) VALUES (?, ?)",
-                [.text(roaster), .int(Int64(restDays))]
-            )
+            try db.transaction {
+                try deleteRoasterDefault(roaster)
+                try db.run(
+                    "INSERT INTO roaster_defaults (roaster, rest_days) VALUES (?, ?)",
+                    [.text(roaster), .int(Int64(restDays))]
+                )
+            }
         } else {
-            try db.run("DELETE FROM roaster_defaults WHERE roaster = ?", [.text(roaster)])
+            try deleteRoasterDefault(roaster)
         }
+    }
+
+    /// Remove the roaster's default under any spelling of its name.
+    private func deleteRoasterDefault(_ roaster: String) throws {
+        try db.run(
+            "DELETE FROM roaster_defaults WHERE \(Self.roasterKey("roaster")) = \(Self.roasterKey("?"))",
+            [.text(roaster)])
     }
 
     /// Every roaster that appears in the beans, for picking one to set a default for.
     public func roasters() throws -> [String] {
-        try db.query("SELECT DISTINCT roaster FROM beans WHERE roaster != '' ORDER BY roaster COLLATE NOCASE")
-            .compactMap { $0.string("roaster") }
+        // One spelling of each, the first one imported
+        try db.query(
+            """
+            SELECT roaster FROM beans
+            WHERE trim(roaster) != '' AND rowid IN (SELECT MIN(rowid) FROM beans GROUP BY \(Self.roasterKey("roaster")))
+            ORDER BY roaster COLLATE NOCASE
+            """
+        )
+        .compactMap { $0.string("roaster") }
     }
 
     /// Render whole numbers without a trailing ".0", which is how databases
@@ -89,31 +106,34 @@ public final class CoffeeStore {
     static let beanSelect = """
           SELECT
             b.*,
-            COALESCE(b.rest_days, rd.rest_days,
+            COALESCE(b.rest_days,
+              (SELECT rd.rest_days FROM roaster_defaults rd
+                WHERE \(roasterKey("rd.roaster")) = \(roasterKey("b.roaster")) LIMIT 1),
               CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)
             ) as effective_rest_days,
             COALESCE(
               (SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0
             ) as total_brewed_grams
           FROM beans b
-          LEFT JOIN roaster_defaults rd ON rd.roaster = b.roaster
         """
 
-    /// Beans in queue order: manually ordered first, then by roast date.
+    /// The order beans are read in before the queue sorts them, so bags that
+    /// tie in the queue fall the same way in the list and the schedule.
+    static let beanOrder = "ORDER BY b.roast_date, b.id"
+
+    /// A roaster's name as roaster defaults match it: case and surrounding
+    /// spaces ignored, as `RoasterDefault.matches` does.
+    static func roasterKey(_ column: String) -> String {
+        "lower(trim(\(column)))"
+    }
+
+    /// Beans in the order the schedule uses them (see `Scheduler.sortQueue`).
     public func beans(archived: Bool, today: String = DateUtils.today()) throws -> [Bean] {
         let frozen = try frozenDays(today: today)
         let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
-        return try db.query(
-            """
-            \(Self.beanSelect)
-            WHERE b.archived = ?
-            ORDER BY
-              CASE WHEN b.display_order IS NOT NULL THEN 0 ELSE 1 END,
-              b.display_order,
-              b.roast_date
-            """, [SQLValue(archived)]
-        )
-        .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
+        let beans = try db.query("\(Self.beanSelect) WHERE b.archived = ? \(Self.beanOrder)", [SQLValue(archived)])
+            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
+        return Scheduler.sortQueue(beans)
     }
 
     public func bean(id: String, today: String = DateUtils.today()) throws -> Bean? {

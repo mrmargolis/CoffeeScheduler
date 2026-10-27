@@ -1,5 +1,21 @@
 import Foundation
 
+/// What the queue is sorted on, so the Beans screen lists bags in the order
+/// the schedule uses them.
+public protocol QueueOrdered {
+    var displayOrder: Int? { get }
+    var weightGrams: Double { get }
+    var remainingGrams: Double { get }
+    /// Roast date + rest days + days frozen.
+    var readyDate: String? { get }
+}
+
+extension Bean: QueueOrdered {}
+
+extension Scheduler.Bean: QueueOrdered {
+    public var readyDate: String? { Scheduler.readyDate(self) }
+}
+
 /// Projects the schedule: which bags are drunk on which days.
 public enum Scheduler {
     /// Minimum viable dose. Beans with less than this remaining are done.
@@ -83,36 +99,41 @@ public enum Scheduler {
         return date < thaw
     }
 
-    /// Sort beans by queue priority:
+    /// Sort beans by queue priority, for the schedule and the Beans screen alike:
     /// 1. Beans with a display order come first, sorted by it
-    /// 2. Then in-progress (partially consumed) beans before untouched ones
-    /// 3. Within each group, by ready date; beans with no ready date go last
-    public static func sortQueue(_ beans: [Bean]) -> [Bean] {
-        // Swift's sort isn't stable, so fall back to the input index to match JS.
+    /// 2. Then bags with coffee left before emptied ones (which aren't scheduled)
+    /// 3. Then in-progress (partially consumed) beans before untouched ones
+    /// 4. Within each group, by ready date; beans with no ready date go last
+    public static func sortQueue<B: QueueOrdered>(_ beans: [B]) -> [B] {
+        // Swift's sort isn't stable, so fall back to the input index.
         beans.enumerated().sorted { lhs, rhs in
             let order = compare(lhs.element, rhs.element)
             return order != 0 ? order < 0 : lhs.offset < rhs.offset
         }.map(\.element)
     }
 
-    private static func compare(_ a: Bean, _ b: Bean) -> Int {
-        switch (a.displayOrder, b.displayOrder) {
-        case (let ao?, let bo?): return ao == bo ? 0 : (ao < bo ? -1 : 1)
-        case (.some, nil): return -1
-        case (nil, .some): return 1
-        case (nil, nil): break
-        }
+    private static func compare(_ a: some QueueOrdered, _ b: some QueueOrdered) -> Int {
+        let manual = present(a.displayOrder, b.displayOrder)
+        if manual != 0 || a.displayOrder != nil { return manual }
+
+        let aEmptied = a.remainingGrams <= minDoseGrams
+        let bEmptied = b.remainingGrams <= minDoseGrams
+        if aEmptied != bEmptied { return aEmptied ? 1 : -1 }
 
         let aInProgress = a.remainingGrams < a.weightGrams
         let bInProgress = b.remainingGrams < b.weightGrams
-        if aInProgress && !bInProgress { return -1 }
-        if !aInProgress && bInProgress { return 1 }
+        if aInProgress != bInProgress { return aInProgress ? -1 : 1 }
 
-        switch (readyDate(a), readyDate(b)) {
-        case (let ar?, let br?): return ar == br ? 0 : (ar < br ? -1 : 1)
-        case (.some, nil): return -1
-        case (nil, .some): return 1
-        case (nil, nil): return 0
+        return present(a.readyDate, b.readyDate)
+    }
+
+    /// Ascending, with a value before none.
+    private static func present<T: Comparable>(_ a: T?, _ b: T?) -> Int {
+        switch (a, b) {
+        case (let a?, let b?): a == b ? 0 : (a < b ? -1 : 1)
+        case (.some, nil): -1
+        case (nil, .some): 1
+        case (nil, nil): 0
         }
     }
 

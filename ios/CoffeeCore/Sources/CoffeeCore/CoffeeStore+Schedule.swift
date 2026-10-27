@@ -20,7 +20,7 @@ extension CoffeeStore {
     /// All beans (including archived) so past brews can resolve names.
     private func schedulerBeans(today: String) throws -> [Scheduler.Bean] {
         let frozen = try frozenDays(today: today)
-        var beans = try db.query(Self.beanSelect).map { row -> Scheduler.Bean in
+        var beans = try db.query("\(Self.beanSelect) \(Self.beanOrder)").map { row -> Scheduler.Bean in
             let id = row.string("id") ?? ""
             let weight = row.double("weight_grams") ?? 0
             return Scheduler.Bean(
