@@ -40,8 +40,7 @@ struct BeanSettingsForm: View {
                             format: .number,
                             prompt: Text("\(bean.effectiveRestDays), inherited")
                         )
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
+                        .numberEntry(.numberPad)
                     }
                 } footer: {
                     Text("Leave empty to use the roaster's default, or the default in Settings.")
@@ -72,8 +71,7 @@ struct BeanSettingsForm: View {
                         LabeledContent("Freeze after") {
                             HStack(spacing: 4) {
                                 TextField("Grams", value: $freezeAfterGrams, format: .number, prompt: Text("e.g. 125"))
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
+                                    .numberEntry()
                                 Text("g used").foregroundStyle(.secondary)
                             }
                         }
