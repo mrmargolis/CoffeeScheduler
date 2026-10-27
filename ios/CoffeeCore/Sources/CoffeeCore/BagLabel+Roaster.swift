@@ -45,7 +45,7 @@ extension BagLabel {
 
     /// The known roaster with the longest distinctive name on the label.
     private static func knownRoaster(in lines: [Line], from roasters: [String]) -> RoasterMatch? {
-        let folded = lines.map { fold($0.text) }
+        let folded = lines.map { withoutDatesMonths(fold($0.text)) }
         let matches = roasters.compactMap { roaster -> (String, String, Set<Int>)? in
             let core = distinctiveName(roaster)
             guard core.filter(\.isLetter).count >= 2 else { return nil }
@@ -54,6 +54,26 @@ extension BagLabel {
         }
         guard let best = matches.max(by: { ($0.1.count, $0.0.count) < ($1.1.count, $1.0.count) }) else { return nil }
         return RoasterMatch(name: best.0, lines: best.2)
+    }
+
+    /// A folded line without the month names of its dates, so "September
+    /// Coffee" isn't found in "roasted 18 september 2026": a month by a
+    /// number, or any month on a line about a date ("roasted in september").
+    static func withoutDatesMonths(_ folded: String) -> String {
+        let names =
+            "january february march april may june july august september october november december sept sep"
+            + " jan feb mar apr jun jul aug oct nov dec"
+        let months = "(?:" + names.split(separator: " ").joined(separator: "|") + #")\.?"#
+        let aboutADate = #"\b(?:roasted|roast\s*date|best|harvest(?:ed)?|packed|exp(?:iry|ires)?|use by|crop)\b"#
+        if folded.range(of: aboutADate, options: .regularExpression) != nil {
+            return folded.replacingOccurrences(of: #"\b"# + months + #"(?![a-z])"#, with: " ", options: .regularExpression)
+        }
+        return
+            folded
+            .replacingOccurrences(
+                of: #"(?<![0-9])\d{1,2}(?:st|nd|rd|th)?\s*(?:of\s+)?"# + months + #"(?![a-z])"#, with: " ", options: .regularExpression
+            )
+            .replacingOccurrences(of: #"\b"# + months + #"\s*'?\d{1,4}"#, with: " ", options: .regularExpression)
     }
 
     /// The roaster as printed: a line like "Thankfully Coffee", or the logo

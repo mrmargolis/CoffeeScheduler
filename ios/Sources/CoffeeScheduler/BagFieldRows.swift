@@ -1,62 +1,180 @@
 import CoffeeCore
 import SwiftUI
 
-/// A row of the bag being added: the field's name, marked when its value
-/// is a guess, and the control for it.
-struct BagFieldRow<Control: View>: View {
-    let title: String
-    let isGuess: Bool
-    @ViewBuilder let control: Control
-
-    var body: some View {
-        SettingRow(title: title, subtitle: isGuess ? "Guess" : nil, subtitleColor: Theme.accent) {
-            control
+extension BagField {
+    /// The field's name on the form.
+    var title: String {
+        switch self {
+        case .coffee: "Coffee"
+        case .roaster: "Roaster"
+        case .roastDate: "Roasted"
+        case .weight: "Weight"
+        case .notes: "Tasting notes"
+        case .country: "Country"
+        case .region: "Region"
+        case .producer: "Producer"
+        case .variety: "Variety"
+        case .process: "Process"
+        case .url: "Link"
         }
     }
+
+    /// The fields Next and Previous step through: all but the roast date,
+    /// which is a picker.
+    static let typed: [BagField] = allCases.filter { $0 != .roastDate }
 }
 
-/// A field of the bag being added, its name on the left and what's in it,
-/// editable, on the right.
-struct BagTextRow: View {
-    let title: String
-    @Binding var text: String
-    var isGuess = false
-    var prompt = "Not found"
+/// A field's name, with a gold dot when the last photo or page just changed
+/// it and, under it, a badge when its value is a guess. It keeps its width;
+/// the value beside it gives way.
+struct BagFieldName: View {
+    let field: BagField
+    let intake: BagIntake
 
     var body: some View {
-        BagFieldRow(title: title, isGuess: isGuess) {
-            HStack(spacing: 4) {
-                TextField(title, text: $text, prompt: Text(prompt).foregroundStyle(Theme.text3), axis: .vertical)
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(Theme.text2)
-                    .lineLimit(1...3)
-                if !text.isEmpty {
-                    ClearButton(title: title) { text = "" }
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                if intake.lastFill?.fields.contains(field) == true {
+                    Circle().fill(Theme.accent).frame(width: 7, height: 7)
+                        .accessibilityLabel("Just filled")
                 }
+                Text(field.title).font(.callout.weight(.semibold)).lineLimit(1)
+            }
+            if intake.draft.isGuess(field) {
+                Button {
+                    intake.confirm(field)
+                } label: {
+                    GuessBadge()
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Guess. Keep this \(field.title.lowercased())")
+                .accessibilityHint("Keeps it so a later photo or page doesn't replace it")
             }
         }
+        .fixedSize()
+        .padding(.vertical, intake.draft.isGuess(field) ? 4 : 0)
     }
 }
 
-/// The roast date: a date picker once there is one, a button to set one
-/// until then, and a button to clear it.
-struct RoastDateRow: View {
-    /// `YYYY-MM-DD`.
-    @Binding var date: String?
-    var isGuess = false
+/// "GUESS ✓", in a gold capsule: tapped, the guess is kept.
+struct GuessBadge: View {
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Guess").textCase(.uppercase)
+            Image(systemName: "checkmark").imageScale(.small)
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(Theme.ground)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6))
+        .lineLimit(1)
+        .fixedSize()
+    }
+}
+
+/// The camera or globe by a value read from a photo or page.
+private struct SourceIcon: View {
+    let source: BagSource?
 
     var body: some View {
-        BagFieldRow(title: "Roasted", isGuess: isGuess) {
-            if let iso = date {
-                HStack(spacing: 4) {
-                    DatePicker("Roasted", selection: binding(iso), in: ...Date(), displayedComponents: .date)
-                        .labelsHidden()
-                    ClearButton(title: "the roast date") { date = nil }
-                }
+        if let source {
+            Image(systemName: source.symbol)
+                .font(.caption)
+                .foregroundStyle(Theme.text3)
+                .accessibilityLabel(source.isPhoto ? "From a photo" : "From the page")
+        }
+    }
+}
+
+/// A text field of the bag: its name on the left and its value, editable,
+/// on the right, with where it came from and a button to empty it. With
+/// the field empty, `accessory` takes the clear button's place.
+struct BagTextRow<Accessory: View>: View {
+    let field: BagField
+    @Bindable var intake: BagIntake
+    var focus: FocusState<BagField?>.Binding
+    /// Return was pressed: a field that wraps types it as a newline.
+    var onReturn: () -> Void
+    @ViewBuilder var accessory: Accessory
+
+    var body: some View {
+        HStack(spacing: 10) {
+            BagFieldName(field: field, intake: intake)
+            Spacer(minLength: 8)
+            SourceIcon(source: intake.fieldSources[field])
+            TextField(field.title, text: text, prompt: Text("Empty").foregroundStyle(Theme.text3), axis: .vertical)
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(Theme.text2)
+                .lineLimit(1...3)
+                .submitLabel(.next)
+                .focused(focus, equals: field)
+            if intake.draft.has(field) {
+                ClearButton(title: field.title) { intake.type("", in: field) }
             } else {
-                Button("Add date") { date = DateUtils.today() }
+                accessory
+            }
+        }
+        .frame(minHeight: 48)
+        .id(field)
+    }
+
+    private var text: Binding<String> {
+        Binding {
+            field.text.map { intake.draft[keyPath: $0] } ?? ""
+        } set: { typed in
+            intake.type(typed.filter { !$0.isNewline }, in: field)
+            if typed.contains(where: \.isNewline) { onReturn() }
+        }
+    }
+}
+
+/// The roast date and the weight, a row each: a picker once there's a
+/// date, and the weight in whole grams, as BeanConqueror keeps it.
+struct BagDateWeightRows: View {
+    @Bindable var intake: BagIntake
+    var focus: FocusState<BagField?>.Binding
+
+    var body: some View {
+        date.frame(minHeight: 48).id(BagField.roastDate)
+        weight.frame(minHeight: 48).id(BagField.weight)
+    }
+
+    private var date: some View {
+        HStack(spacing: 6) {
+            BagFieldName(field: .roastDate, intake: intake)
+            Spacer(minLength: 4)
+            if let iso = intake.draft.roastDate {
+                DatePicker("Roasted", selection: binding(iso), in: ...Date(), displayedComponents: .date)
+                    .labelsHidden()
+                ClearButton(title: "the roast date") { intake.set(.roastDate, to: nil) }
+            } else {
+                Button("Add date") { intake.set(.roastDate, to: DateUtils.today()) }
                     .buttonStyle(.borderless)
             }
+        }
+    }
+
+    private var weight: some View {
+        HStack(spacing: 4) {
+            BagFieldName(field: .weight, intake: intake)
+            Spacer(minLength: 4)
+            TextField("Weight", text: grams, prompt: Text("Empty").foregroundStyle(Theme.text3))
+                .numberEntry(.numberPad)
+                .foregroundStyle(Theme.text2)
+                .focused(focus, equals: .weight)
+            if intake.draft.weightGrams != nil {
+                Text("g").foregroundStyle(Theme.text3)
+            }
+        }
+    }
+
+    private var grams: Binding<String> {
+        Binding {
+            intake.draft.weightGrams.map(String.init) ?? ""
+        } set: { typed in
+            let digits = typed.filter(\.isNumber)
+            intake.set(.weight, to: digits.isEmpty ? nil : digits)
         }
     }
 
@@ -67,41 +185,13 @@ struct RoastDateRow: View {
             let components = DateComponents(year: parts.first, month: parts.dropFirst().first, day: parts.last)
             return Calendar.current.date(from: components) ?? Date()
         } set: { picked in
-            date = DateUtils.isoString(picked)
-        }
-    }
-}
-
-/// The weight in whole grams, as BeanConqueror keeps it.
-struct WeightRow: View {
-    @Binding var grams: Int?
-    var isGuess = false
-
-    var body: some View {
-        BagFieldRow(title: "Weight", isGuess: isGuess) {
-            HStack(spacing: 4) {
-                TextField("Weight", text: text, prompt: Text("Not found").foregroundStyle(Theme.text3))
-                    .numberEntry(.numberPad)
-                    .foregroundStyle(Theme.text2)
-                Text("g").foregroundStyle(Theme.text3)
-                if grams != nil {
-                    ClearButton(title: "Weight") { grams = nil }
-                }
-            }
-        }
-    }
-
-    private var text: Binding<String> {
-        Binding {
-            grams.map(String.init) ?? ""
-        } set: { typed in
-            grams = Int(typed.filter(\.isNumber))
+            intake.set(.roastDate, to: DateUtils.isoString(picked))
         }
     }
 }
 
 /// A field's button that empties it.
-private struct ClearButton: View {
+struct ClearButton: View {
     let title: String
     let action: () -> Void
 

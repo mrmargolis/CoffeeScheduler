@@ -3,19 +3,19 @@ import SwiftUI
 
 /// A bag to add to BeanConqueror, filled in from photos of its label (read
 /// on the phone), from its page on the roaster's site or Bean Base, and by
-/// hand, in any mix.
+/// hand, in any mix and any order.
 struct AddBagView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    @State private var intake: BagIntake
     @State private var showingCamera = false
     @State private var choosingPhoto = false
-    @State private var draft = BagDraft()
-    /// Each photo's lines, in reading order.
-    @State private var photos: [[BagLabel.Line]] = []
-    @State private var status = ScanStatus.ready
+    /// The photo picker asked for over the camera, which it's shown on.
+    @State private var choosingOverCamera = false
     @State private var browsing: Browse?
+    @State private var discarding: Discard?
     /// The coffee sent to BeanConqueror, to clear the form for the next bag
     /// on coming back.
     @State private var sent: String?
@@ -25,96 +25,114 @@ struct AddBagView: View {
         var id: URL { url }
     }
 
+    /// Clear and Done both throw a filled-in bag away, so they ask first.
+    private enum Discard { case clear, close }
+
+    /// Whether "Notes and origin" starts open: it does, but a screenshot
+    /// shows it folded.
+    private let showsOrigin: Bool
+
+    init(intake: BagIntake = BagIntake(), showsOrigin: Bool = true) {
+        _intake = State(initialValue: intake)
+        self.showsOrigin = showsOrigin
+    }
+
     var body: some View {
-        Group {
-            if showingCamera {
-                camera
-            } else {
-                formScreen
-            }
+        NavigationStack {
+            BagDraftForm(intake: intake, actions: actions, originOpen: showsOrigin)
+                .navigationTitle("Add a bag")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { toolbar }
         }
-        .sheet(isPresented: $choosingPhoto) {
-            LabelPhotoPicker { image in
-                choosingPhoto = false
-                if let image { startReading(image) }
-            } onFailure: {
-                choosingPhoto = false
-                showingCamera = false
-                status = .failed("Couldn't open that photo. Take it again or choose another.")
+        .fullScreenCover(isPresented: $showingCamera) { camera }
+        .sheet(isPresented: $choosingPhoto) { picker }
+        .sheet(item: $browsing) { browse in
+            PageBrowser(start: browse.url) { page in fill(from: page) }
+        }
+        .confirmationDialog("Discard this bag?", isPresented: discardingShown, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) {
+                if discarding == .close { dismiss() } else { intake.clear() }
             }
-            .ignoresSafeArea()
+        } message: {
+            Text("What's filled in so far goes.")
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, let coffee = sent else { return }
             sent = nil
-            clear()
-            status = .filled("Sent \(coffee) to BeanConqueror. Ready for the next bag.")
+            intake.clear()
+            intake.status = .filled("Sent \(coffee) to BeanConqueror. Ready for the next bag.")
         }
     }
 
-    private var formScreen: some View {
-        NavigationStack {
-            form
-                .navigationTitle("Add a bag")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Clear", action: clear).disabled(status == .reading || (draft == BagDraft() && photos.isEmpty))
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                    }
-                }
+    private var actions: BagDockActions {
+        BagDockActions(
+            takePhoto: { showingCamera = true },
+            choosePhoto: { choosingPhoto = true },
+            search: { browsing = Browse(url: $0.url(for: intake.draft)) },
+            add: addToBeanConqueror)
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Clear") { ask(.clear) }.disabled(intake.status == .reading || intake.isEmpty)
         }
-        .sheet(item: $browsing) { browse in
-            PageBrowser(start: browse.url) { page in
-                fill(
-                    BagLabel.details(
-                        of: BagLabel.Page(
-                            heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url,
-                            summary: page.summary),
-                        knownRoasters: model.roasters, today: DateUtils.today()),
-                    from: URL(string: page.url)?.host() ?? "the page")
-            }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { ask(.close) }
         }
     }
 
-    private var form: some View {
-        BagDraftForm(
-            draft: $draft,
-            labelText: photos.flatMap { $0.map(\.text) },
-            status: status,
-            onAdd: addToBeanConqueror,
-            onTakePhoto: { showingCamera = true },
-            onChoosePhoto: { choosingPhoto = true },
-            onSearch: { search in
-                browsing = Browse(url: search.url(for: draft))
-            })
+    private var discardingShown: Binding<Bool> {
+        Binding {
+            discarding != nil
+        } set: {
+            if !$0 { discarding = nil }
+        }
     }
 
-    /// The camera, with a button over it for a photo already taken.
+    private func ask(_ discard: Discard) {
+        if intake.isEmpty || sent != nil {
+            if discard == .close { dismiss() } else { intake.clear() }
+        } else {
+            discarding = discard
+        }
+    }
+
+    /// The camera, over the form so it keeps its place, with a button for a
+    /// photo already taken.
     private var camera: some View {
         LabelCamera { image in
-            if let image {
-                startReading(image)
-            } else {
-                showingCamera = false
-            }
+            showingCamera = false
+            if let image { startReading(image) }
         }
         .ignoresSafeArea()
         .overlay(alignment: .top) {
-            Button("Choose from Photos", systemImage: "photo.on.rectangle") { choosingPhoto = true }
+            Button("Choose from Photos", systemImage: "photo.on.rectangle") { choosingOverCamera = true }
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(.ultraThinMaterial, in: Capsule())
                 .padding(.top, 56)
         }
+        .sheet(isPresented: $choosingOverCamera) { picker }
+    }
+
+    private var picker: some View {
+        LabelPhotoPicker { image in
+            choosingPhoto = false
+            choosingOverCamera = false
+            showingCamera = false
+            if let image { startReading(image) }
+        } onFailure: {
+            choosingPhoto = false
+            choosingOverCamera = false
+            showingCamera = false
+            intake.status = .failed("Couldn't open that photo. Take it again or choose another.")
+        }
+        .ignoresSafeArea()
     }
 
     private func startReading(_ image: UIImage) {
-        showingCamera = false
-        status = .reading
+        intake.status = .reading
         Task { await read(image) }
     }
 
@@ -122,54 +140,36 @@ struct AddBagView: View {
         do {
             let lines = try await LabelReader.lines(in: image, customWords: model.roasters)
             guard !lines.isEmpty else {
-                status = .failed("No text found. Take the photo closer to the label.")
+                intake.status = .failed("No text found. Take the photo closer to the label.")
                 return
             }
             var found = BagLabel.details(in: lines, today: DateUtils.today())
             let reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
             found.take(reading, knownRoasters: model.roasters)
-            photos.append(lines)
-            fill(found, from: photos.count == 1 ? "the photo" : "photo \(photos.count)")
+            let thumbnail = image.preparingThumbnail(of: CGSize(width: 156, height: 180)) ?? image
+            intake.fill(found, from: .photo(thumbnail, lines: lines.map(\.text)))
         } catch {
-            status = .failed("Couldn't read the photo: \(error.localizedDescription)")
+            intake.status = .failed("Couldn't read the photo: \(error.localizedDescription)")
         }
     }
 
-    /// Merges a photo or page into the bag, and says what changed: empty
-    /// fields filled, and guesses replaced by what the source states.
-    private func fill(_ found: BagDraft, from source: String) {
-        let merged = draft.merging(found)
-        let (filled, replaced) = draft.changes(to: merged)
-        draft = merged
-        let filledText = "\(filled) \(filled == 1 ? "field" : "fields")"
-        let replacedText = "\(replaced) \(replaced == 1 ? "field" : "fields")"
-        let change =
-            switch (filled, replaced) {
-            case (0, 0): "Nothing new"
-            case (_, 0): "Filled \(filledText)"
-            case (0, _): "Updated \(replacedText)"
-            default: "Filled \(filledText) and updated \(replaced)"
-            }
-        status = .filled(
-            filled + replaced == 0
-                ? "Nothing new from \(source). Fill in the rest by hand."
-                : "\(change) from \(source). Check them before adding.")
+    private func fill(from page: PageContent) {
+        let found = BagLabel.details(
+            of: BagLabel.Page(
+                heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url,
+                summary: page.summary),
+            knownRoasters: model.roasters, today: DateUtils.today())
+        intake.fill(found, from: .page(host: URL(string: page.url)?.host() ?? "the page"))
     }
 
     private func addToBeanConqueror() {
-        guard let url = BeanConquerorLink.url(for: draft) else { return }
+        guard let url = BeanConquerorLink.url(for: intake.draft) else { return }
         openURL(url) { opened in
             if opened {
-                sent = draft.coffee
+                sent = intake.draft.coffee
             } else {
-                status = .failed("Couldn't open BeanConqueror. Is it installed?")
+                intake.status = .failed("Couldn't open BeanConqueror. Is it installed?")
             }
         }
-    }
-
-    private func clear() {
-        draft = BagDraft()
-        photos = []
-        status = .ready
     }
 }

@@ -40,19 +40,25 @@ public struct BagDraft: Equatable, Sendable {
     /// read later replaces.
     public mutating func type(_ text: String, in field: BagField) {
         guard let path = field.text else { return }
-        self[keyPath: path] = text
+        // Return in a field that wraps types a newline; a field holds one line
+        self[keyPath: path] = text.components(separatedBy: .newlines).joined(separator: " ")
         certainty[field] = .typed
     }
 
     /// This draft with `other`'s values where they're better: in a field
     /// that's empty, or stated where this one is only guessed or stated
     /// differently. A guess never replaces a value, a blank never clears
-    /// one, and nothing replaces what was typed.
+    /// one, and nothing replaces what was typed. A guess that `other` states
+    /// as the same value is stated from then on.
     public func merging(_ other: BagDraft) -> BagDraft {
         var draft = self
         for field in BagField.allCases where other.has(field) {
             let new = other.certainty[field] ?? .guessed
             let old = certainty[field] ?? .guessed
+            if new == .stated && old == .guessed && other.value(field) == value(field) {
+                draft.certainty[field] = .stated
+                continue
+            }
             let better = new == .stated && old != .typed && other.value(field) != value(field)
             guard !has(field) || better else { continue }
             draft.copy(field, from: other)
@@ -78,8 +84,9 @@ public struct BagDraft: Equatable, Sendable {
         !(value(field) ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// The field's value as text, for comparing.
-    private func value(_ field: BagField) -> String? {
+    /// The field's value as text: the roast date as `YYYY-MM-DD`, the
+    /// weight in whole grams.
+    public func value(_ field: BagField) -> String? {
         switch field {
         case .roastDate: roastDate
         case .weight: weightGrams.map(String.init)
@@ -90,6 +97,23 @@ public struct BagDraft: Equatable, Sendable {
     mutating func clear(_ field: BagField) {
         copy(field, from: BagDraft())
         certainty[field] = nil
+    }
+
+    /// Keeps a field's value as it is, as if typed, so nothing read later
+    /// replaces it: a guess that's right.
+    public mutating func confirm(_ field: BagField) {
+        guard has(field) else { return }
+        certainty[field] = .typed
+    }
+
+    /// Puts back a value as if typed, so nothing read later replaces it.
+    public mutating func restore(_ text: String, in field: BagField) {
+        switch field {
+        case .roastDate: roastDate = text.isEmpty ? nil : text
+        case .weight: weightGrams = Int(text)
+        default: if let path = field.text { self[keyPath: path] = text }
+        }
+        certainty[field] = .typed
     }
 
     private mutating func copy(_ field: BagField, from other: BagDraft) {
@@ -104,6 +128,10 @@ public struct BagDraft: Equatable, Sendable {
 /// A field of a `BagDraft`.
 public enum BagField: CaseIterable, Sendable {
     case coffee, roaster, roastDate, weight, notes, country, region, producer, variety, process, url
+
+    /// The fields at the top of the form, and the ones in "Notes and origin".
+    public static let bag: [BagField] = [.coffee, .roaster, .roastDate, .weight]
+    public static let origin: [BagField] = [.notes, .country, .region, .producer, .variety, .process, .url]
 
     /// The text field's key path; nil for the roast date and weight.
     public var text: WritableKeyPath<BagDraft, String>? {
