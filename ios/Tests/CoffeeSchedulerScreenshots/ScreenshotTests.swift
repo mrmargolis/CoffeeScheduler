@@ -96,6 +96,7 @@ final class ScreenshotTests: XCTestCase {
             ("14-add-bag", AnyView(AddBagView()), model),
             ("15-add-bag-photos", AnyView(AddBagView(intake: AddBagSamples.photos(), showsOrigin: false)), model),
             ("16-add-bag-page", AnyView(AddBagView(intake: AddBagSamples.photosAndPage())), model),
+            ("18-add-bag-pick-text", AnyView(AddBagSamples.picker()), model),
         ]
 
         for (name, view, model) in screens {

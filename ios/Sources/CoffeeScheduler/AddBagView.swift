@@ -146,8 +146,7 @@ struct AddBagView: View {
             var found = BagLabel.details(in: lines, today: DateUtils.today())
             let reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
             found.take(reading, knownRoasters: model.roasters)
-            let thumbnail = image.preparingThumbnail(of: CGSize(width: 156, height: 180)) ?? image
-            intake.fill(found, from: .photo(thumbnail, lines: lines.map(\.text)))
+            intake.fill(found, from: .photo(Self.upright(image), lines: lines))
         } catch {
             intake.status = .failed("Couldn't read the photo: \(error.localizedDescription)")
         }
@@ -159,7 +158,22 @@ struct AddBagView: View {
                 heading: page.heading, title: page.title, site: page.site, text: page.text, url: page.url,
                 summary: page.summary),
             knownRoasters: model.roasters, today: DateUtils.today())
-        intake.fill(found, from: .page(host: URL(string: page.url)?.host() ?? "the page"))
+        let lines = (page.text.split(whereSeparator: \.isNewline).map(String.init) + page.summary.components(separatedBy: ". "))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        intake.fill(found, from: .page(host: URL(string: page.url)?.host() ?? "the page", lines: lines))
+    }
+
+    /// The photo the right way up, at most 1,600 pixels on its long side:
+    /// big enough to tap its text, small enough to keep a few.
+    private static func upright(_ image: UIImage) -> UIImage {
+        let scale = min(1, 1600 / max(image.size.width, image.size.height, 1))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 
     private func addToBeanConqueror() {
