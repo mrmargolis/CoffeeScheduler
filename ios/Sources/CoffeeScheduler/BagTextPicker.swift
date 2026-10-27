@@ -38,6 +38,7 @@ struct BagTextPicker: View {
             VStack(spacing: 0) {
                 if case .photo(let image, let boxes) = source?.kind, !asList {
                     OutlinedPhoto(image: image, lines: boxes, selected: $selected, onTap: tapped)
+                        .id(shown)
                 } else {
                     LineList(lines: lines, selected: selected, onTap: tapped)
                 }
@@ -116,11 +117,13 @@ struct BagTextPicker: View {
 }
 
 /// The photo, fitted to the space, with a box over each line of text.
+/// Pinch to zoom in on small text, and drag to move around it.
 private struct OutlinedPhoto: View {
     let image: UIImage
     let lines: [BagLabel.Line]
     @Binding var selected: Int?
     let onTap: (Int) -> Void
+    @State private var zoom = Zoom()
 
     var body: some View {
         GeometryReader { space in
@@ -132,22 +135,53 @@ private struct OutlinedPhoto: View {
                 }
             }
             .frame(width: size.width, height: size.height)
+            .scaleEffect(zoom.scale)
+            .offset(zoom.offset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(gestures(fitting: size))
+            .clipped()
+            .overlay(alignment: .bottomTrailing) { fitButton }
         }
         .background(Color.black)
+    }
+
+    @ViewBuilder private var fitButton: some View {
+        if zoom.scale > 1 {
+            Button("Fit") { withAnimation { zoom = Zoom() } }
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(12)
+        }
+    }
+
+    /// Pinch to zoom, and drag to move once zoomed; a short tap still
+    /// reaches a box.
+    private func gestures(fitting size: CGSize) -> some Gesture {
+        let pinch = MagnifyGesture()
+            .onChanged { zoom.pinch(by: $0.magnification) }
+            .onEnded { _ in withAnimation { zoom.settle(fitting: size) } }
+        let drag = DragGesture(minimumDistance: 8)
+            .onChanged { zoom.drag(by: $0.translation) }
+            .onEnded { _ in withAnimation { zoom.settle(fitting: size) } }
+        return pinch.simultaneously(with: drag)
     }
 
     private func box(_ line: BagLabel.Line, index: Int, in size: CGSize) -> some View {
         let frame = line.frame(width: size.width, height: size.height)
         let isSelected = selected == index
+        // Sizes on screen stay the same however far it's zoomed
+        let point = 1 / zoom.scale
         return Button {
             onTap(index)
         } label: {
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: 4 * point)
                 .fill(Theme.accent.opacity(isSelected ? 0.4 : 0.12))
-                .strokeBorder(Theme.accent.opacity(isSelected ? 1 : 0.7), lineWidth: isSelected ? 2 : 1)
+                .strokeBorder(Theme.accent.opacity(isSelected ? 1 : 0.7), lineWidth: (isSelected ? 2 : 1) * point)
                 // Small text still gets a box big enough to tap
-                .frame(width: max(frame.width + 6, 24), height: max(frame.height + 6, 24))
+                .frame(width: max(frame.width + 6 * point, 24 * point), height: max(frame.height + 6 * point, 24 * point))
         }
         .buttonStyle(.plain)
         .position(x: frame.midX, y: frame.midY)
@@ -159,6 +193,38 @@ private struct OutlinedPhoto: View {
         guard image.size.width > 0, image.size.height > 0 else { return space }
         let scale = min(space.width / image.size.width, space.height / image.size.height)
         return CGSize(width: image.size.width * scale, height: image.size.height * scale)
+    }
+}
+
+/// How far the photo is zoomed in and moved, kept between gestures.
+private struct Zoom {
+    static let most: CGFloat = 6
+
+    var scale: CGFloat = 1
+    var offset = CGSize.zero
+    /// Where the current gesture started from.
+    private var startScale: CGFloat = 1
+    private var startOffset = CGSize.zero
+
+    mutating func pinch(by magnification: CGFloat) {
+        scale = min(max(startScale * magnification, 1), Self.most)
+    }
+
+    mutating func drag(by translation: CGSize) {
+        guard scale > 1 else { return }
+        offset = CGSize(width: startOffset.width + translation.width, height: startOffset.height + translation.height)
+    }
+
+    /// At the end of a gesture: back to fitting at all but a zoom, and
+    /// moved no further than keeps the photo's edges on screen.
+    mutating func settle(fitting size: CGSize) {
+        let spareWidth = size.width * (scale - 1) / 2
+        let spareHeight = size.height * (scale - 1) / 2
+        offset = CGSize(
+            width: min(max(offset.width, -spareWidth), spareWidth),
+            height: min(max(offset.height, -spareHeight), spareHeight))
+        startScale = scale
+        startOffset = offset
     }
 }
 
