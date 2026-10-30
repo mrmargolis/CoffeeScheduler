@@ -28,6 +28,7 @@ final class ScreenshotTests: XCTestCase {
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         let pictures: [(String, ScheduleSnapshot.Subject)] = [
             ("14-share-month", .month("2026-10-01")),
+            ("14-share-month-bags", .bags("2026-10-01")),
             ("15-share-day", .day("2026-10-14")),
             ("16-share-skipped-day", .day("2026-10-17")),
         ]
@@ -38,6 +39,8 @@ final class ScreenshotTests: XCTestCase {
             // Drawn at 3x, and tall enough to hold more than its heading
             XCTAssertGreaterThan(image.size.width, 1000, name)
             XCTAssertGreaterThan(image.size.height, 400, name)
+            // 3 wide by 4 tall, to post to Instagram as it is
+            XCTAssertEqual(image.size.width * 4, image.size.height * 3, name)
             try data.write(to: outDir.appendingPathComponent("\(name).png"))
 
             let attachment = XCTAttachment(image: image)
