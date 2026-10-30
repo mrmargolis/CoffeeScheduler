@@ -251,10 +251,25 @@ final class CoffeeE2ETests: XCTestCase {
     /// grid is 32 points tall).
     private static let audited: XCUIAccessibilityAuditType = [.sufficientElementDescription, .elementDetection, .trait]
 
+    /// Audits the screen, again if the audit runs out of time: on a slow
+    /// CI machine the first one after launch can, every time the test is
+    /// retried, while the next one in the same run finishes.
     private func audit(_ screen: String) throws {
         try XCTContext.runActivity(named: "Accessibility audit: \(screen)") { _ in
-            try app.performAccessibilityAudit(for: Self.audited)
+            for attempt in 1...3 {
+                do {
+                    try app.performAccessibilityAudit(for: Self.audited)
+                    return
+                } catch let error as NSError where Self.ranOutOfTime(error) && attempt < 3 {
+                    sleep(2)
+                }
+            }
         }
+    }
+
+    /// "Audit failed to complete in time".
+    private static func ranOutOfTime(_ error: NSError) -> Bool {
+        error.domain == "com.apple.xcode.xctest.accessibilityAudit" && error.code == -56
     }
 
     func testScreensPassTheAccessibilityAudit() throws {
