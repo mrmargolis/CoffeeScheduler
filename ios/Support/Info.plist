@@ -25,6 +25,9 @@
 	<!-- The Scan button on the Beans screen photographs a bag's label. -->
 	<key>NSCameraUsageDescription</key>
 	<string>Photograph a coffee bag's label to look the coffee up on Bean Base. The photo is read on this iPhone and isn't kept.</string>
+	<!-- Save Image in the share sheet, for a shared month or day. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Saves a picture of your coffee schedule to your photos, to post.</string>
 	<!-- Shared files are copied into the app's Inbox rather than opened in place. -->
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>

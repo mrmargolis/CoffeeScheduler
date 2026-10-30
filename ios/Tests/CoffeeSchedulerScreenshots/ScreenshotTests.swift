@@ -28,6 +28,7 @@ final class ScreenshotTests: XCTestCase {
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         let pictures: [(String, ScheduleSnapshot.Subject)] = [
             ("14-share-month", .month("2026-10-01")),
+            ("14-share-month-bags", .bags("2026-10-01")),
             ("15-share-day", .day("2026-10-14")),
             ("16-share-skipped-day", .day("2026-10-17")),
         ]
