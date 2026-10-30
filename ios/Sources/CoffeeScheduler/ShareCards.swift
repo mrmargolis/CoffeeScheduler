@@ -1,12 +1,10 @@
 import CoffeeCore
-import CoreTransferable
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
-/// A picture of a month, its bags or one day to send to someone. It's drawn when
-/// the share sheet asks for it, not each time the screen redraws.
-struct ScheduleSnapshot: Transferable, Sendable {
+/// A picture of a month, its bags or one day to send to someone. It's drawn
+/// when the share button is tapped, not each time the screen redraws.
+struct ScheduleSnapshot {
     enum Subject: Hashable, Sendable {
         /// The first of the month.
         case month(String)
@@ -24,11 +22,6 @@ struct ScheduleSnapshot: Transferable, Sendable {
     /// "October 2026" or "Monday October 12": the heading.
     let title: String
 
-    /// The file's name: a month's bags are named apart from the month.
-    var fileName: String {
-        if case .bags = subject { "Coffee \(title) bags.png" } else { "Coffee \(title).png" }
-    }
-
     @MainActor
     init(_ subject: Subject, model: AppModel) {
         self.subject = subject
@@ -39,40 +32,31 @@ struct ScheduleSnapshot: Transferable, Sendable {
         }
     }
 
-    /// A PNG file first, which the share sheet offers to save to Photos,
-    /// as it doesn't for the bare data.
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .png) { try await SentTransferredFile($0.file()) }
-        DataRepresentation(exportedContentType: .png) { try await $0.png() }
-            .suggestedFileName(\.fileName)
-    }
-
-    /// The picture written to a folder of its own, by its file's name.
-    @MainActor
-    func file() throws -> URL {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let url = folder.appendingPathComponent(fileName)
-        try png().write(to: url)
-        return url
-    }
-
     /// The card centred on a 3:4 picture, for an Instagram post: a border
     /// of the background at the sides of a month, above and below a day.
+    /// The card is drawn once and then placed, as drawing it is the slow part.
     @MainActor
-    func png() throws -> Data {
-        guard let size = ImageRenderer(content: card).uiImage?.size else { throw CocoaError(.fileWriteUnknown) }
-        let canvas = SharePicture.canvas(width: size.width, height: size.height)
+    func image() throws -> UIImage {
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        guard let card = renderer.uiImage else { throw CocoaError(.fileWriteUnknown) }
+        let canvas = SharePicture.canvas(width: card.size.width, height: card.size.height)
         // Whole points wide, so at 3x the pixels are exactly 3:4
         let width = canvas.width.rounded(.up)
-        let renderer = ImageRenderer(
-            content:
-                card
-                .frame(width: width, height: width / SharePicture.aspect)
-                .background(Theme.ground)
-        )
-        renderer.scale = 3
-        guard let data = renderer.uiImage?.pngData() else { throw CocoaError(.fileWriteUnknown) }
+        let size = CGSize(width: width, height: width / SharePicture.aspect)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(Theme.ground).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            card.draw(at: CGPoint(x: (size.width - card.size.width) / 2, y: (size.height - card.size.height) / 2))
+        }
+    }
+
+    @MainActor
+    func png() throws -> Data {
+        guard let data = try image().pngData() else { throw CocoaError(.fileWriteUnknown) }
         return data
     }
 
@@ -146,27 +130,59 @@ private struct DayPicture: View {
 
 /// The share button for a month or a day: the usual arrow out of a box. A
 /// month shares two pictures, its grid and then its bags, to post together.
+/// They're handed to the share sheet as images, so it offers Save Image.
 struct ShareScheduleLink: View {
     @Environment(AppModel.self) private var model
     let subject: ScheduleSnapshot.Subject
+    @State private var drawing = false
 
     var body: some View {
         let snapshot = ScheduleSnapshot(subject, model: model)
-        ShareLink(
-            items: pictures(snapshot), preview: { SharePreview($0.title) },
-            label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+        Button {
+            share(snapshot)
+        } label: {
+            Group {
+                if drawing {
+                    ProgressView()
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                }
             }
-        )
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+        }
+        .disabled(drawing)
         .accessibilityLabel("Share \(snapshot.title)")
+    }
+
+    private func share(_ snapshot: ScheduleSnapshot) {
+        drawing = true
+        Task {
+            // Shows the spinner before the drawing holds up the screen
+            try? await Task.sleep(for: .milliseconds(50))
+            let images = pictures(snapshot).compactMap { try? $0.image() }
+            drawing = false
+            if !images.isEmpty { ShareSheet.present(images) }
+        }
     }
 
     private func pictures(_ snapshot: ScheduleSnapshot) -> [ScheduleSnapshot] {
         guard case .month(let month) = subject, !model.bagRuns(inMonth: month).isEmpty else { return [snapshot] }
         return [snapshot, ScheduleSnapshot(.bags(month), model: model)]
+    }
+}
+
+/// The system share sheet, over whatever is showing.
+@MainActor
+enum ShareSheet {
+    static func present(_ items: [Any]) {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        guard var top = windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+        while let presented = top.presentedViewController { top = presented }
+        let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = top.view
+        top.present(sheet, animated: true)
     }
 }
