@@ -36,9 +36,20 @@ struct ScheduleSnapshot: Transferable, Sendable {
             .suggestedFileName { "Coffee \($0.title).png" }
     }
 
+    /// The card centred on a 3:4 picture, for an Instagram post: a border
+    /// of the background at the sides of a month, above and below a day.
     @MainActor
     func png() throws -> Data {
-        let renderer = ImageRenderer(content: card)
+        guard let size = ImageRenderer(content: card).uiImage?.size else { throw CocoaError(.fileWriteUnknown) }
+        let canvas = SharePicture.canvas(width: size.width, height: size.height)
+        // Whole points wide, so at 3x the pixels are exactly 3:4
+        let width = canvas.width.rounded(.up)
+        let renderer = ImageRenderer(
+            content:
+                card
+                .frame(width: width, height: width / SharePicture.aspect)
+                .background(Theme.ground)
+        )
         renderer.scale = 3
         guard let data = renderer.uiImage?.pngData() else { throw CocoaError(.fileWriteUnknown) }
         return data

@@ -38,6 +38,8 @@ final class ScreenshotTests: XCTestCase {
             // Drawn at 3x, and tall enough to hold more than its heading
             XCTAssertGreaterThan(image.size.width, 1000, name)
             XCTAssertGreaterThan(image.size.height, 400, name)
+            // 3 wide by 4 tall, to post to Instagram as it is
+            XCTAssertEqual(image.size.width * 4, image.size.height * 3, name)
             try data.write(to: outDir.appendingPathComponent("\(name).png"))
 
             let attachment = XCTAttachment(image: image)
