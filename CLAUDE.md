@@ -9,11 +9,15 @@ Run these in Linux or WSL.
 
 ```bash
 cd ios/CoffeeCore && swift test   # Unit tests (needs libsqlite3-dev)
-cd ios && xtool dev build         # Build the app against the iOS SDK
-cd ios && xtool dev               # Build and install on a plugged-in phone
+cd ios && PKG_CONFIG_PATH=$PWD/Support/pkgconfig xtool dev build   # Build the app against the iOS SDK
+cd ios && PKG_CONFIG_PATH=$PWD/Support/pkgconfig xtool dev         # Build and install on a plugged-in phone
 cd ios && ./lint.sh --fix         # Reformat and apply SwiftLint's own fixes
 cd ios && ./lint.sh               # Check formatting and lint
 ```
+
+The xtool commands need `PKG_CONFIG_PATH` pointed at `ios/Support/pkgconfig`.
+Without it, SwiftPM reads the host's `sqlite3.pc` and `zlib.pc` and the link
+fails with `ld64.lld: ... libsqlite3.so: unhandled file type`.
 
 On Windows, `ios\dev.ps1` builds in WSL and installs on a phone plugged into
 Windows.
