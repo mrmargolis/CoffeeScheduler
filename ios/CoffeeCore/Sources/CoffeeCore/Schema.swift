@@ -92,6 +92,11 @@ enum Schema {
                 try db.execute("ALTER TABLE beans ADD COLUMN freeze_after_grams REAL")
             }
         }
+        // A nullable column an older build leaves alone, so it needs no new
+        // version: added whenever a file doesn't have it yet
+        if try !db.query("PRAGMA table_info(beans)").contains(where: { $0.string("name") == "url" }) {
+            try db.execute("ALTER TABLE beans ADD COLUMN url TEXT")
+        }
         if found != version {
             try db.execute("PRAGMA user_version = \(version)")
         }

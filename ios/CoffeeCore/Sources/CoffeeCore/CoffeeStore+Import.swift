@@ -42,8 +42,8 @@ extension CoffeeStore {
     private func upsert(_ bean: BeanConquerorParser.RawBean) throws {
         try db.run(
             """
-            INSERT INTO beans (id, name, roaster, roast_date, weight_grams, cost, flavour_profile, country, region, variety, processing, archived, is_frozen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO beans (id, name, roaster, roast_date, weight_grams, cost, flavour_profile, country, region, variety, processing, archived, is_frozen, url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               name = excluded.name,
               roaster = excluded.roaster,
@@ -56,13 +56,14 @@ extension CoffeeStore {
               variety = excluded.variety,
               processing = excluded.processing,
               archived = excluded.archived,
-              is_frozen = MAX(beans.is_frozen, excluded.is_frozen)
+              is_frozen = MAX(beans.is_frozen, excluded.is_frozen),
+              url = excluded.url
             """,
             [
                 .text(bean.id), .text(bean.name), .text(bean.roaster), SQLValue(bean.roastDate),
                 .double(bean.weightGrams), SQLValue(bean.cost), SQLValue(bean.flavourProfile),
                 SQLValue(bean.country), SQLValue(bean.region), SQLValue(bean.variety),
-                SQLValue(bean.processing), SQLValue(bean.archived), SQLValue(bean.isFrozen),
+                SQLValue(bean.processing), SQLValue(bean.archived), SQLValue(bean.isFrozen), SQLValue(bean.url),
             ])
     }
 
