@@ -114,8 +114,8 @@ private struct LayoutSwitch: View {
             option("Month", .month)
             option("List", .list)
         }
-        .padding(4)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .padding(3)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func option(_ title: String, _ value: ScheduleView.Layout) -> some View {
@@ -126,8 +126,8 @@ private struct LayoutSwitch: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? Theme.ground : Theme.text2)
-                .frame(maxWidth: .infinity, minHeight: 36)
-                .background(isSelected ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .background(isSelected ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 9))
                 .contentShape(Rectangle())
         }
         // Plain, so each half takes its own taps inside the list row

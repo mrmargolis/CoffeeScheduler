@@ -34,11 +34,12 @@ struct DayOptionsSheet: View {
                         ))
                 } footer: {
                     if isSkip, let range, range.startDate != range.endDate {
-                        Text(
-                            "Part of a skip from \(Format.shortDay(range.startDate)) to \(Format.shortDay(range.endDate)). Turning it off here un-skips just this day."
+                        SectionFooter(
+                            text:
+                                "Part of a skip from \(Format.shortDay(range.startDate)) to \(Format.shortDay(range.endDate)). Turning it off here un-skips just this day."
                         )
                     } else {
-                        Text("For days away from home: no coffee is planned that day, so the bags after it are pushed back a day.")
+                        SectionFooter(text: "For days away from home: no coffee is planned that day, so the bags after it are pushed back a day.")
                     }
                 }
 
@@ -56,8 +57,9 @@ struct DayOptionsSheet: View {
                 } header: {
                     Text("Drink more or less")
                 } footer: {
-                    Text(
-                        existing == nil
+                    SectionFooter(
+                        text:
+                            existing == nil
                             ? "Usually \(Format.grams(model.settings.dailyConsumptionGrams)) g a day in \(Format.grams(Scheduler.doseSizeGrams)) g doses."
                             : "This day has an override; the usual is \(Format.grams(model.settings.dailyConsumptionGrams)) g a day.")
                 }

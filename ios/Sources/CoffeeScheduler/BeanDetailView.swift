@@ -7,13 +7,14 @@ struct BeanRoute: Hashable {
 }
 
 /// One bag: how much is left, how old it is, when it's scheduled, and its
-/// history. Edit opens `BeanSettingsForm`,
-/// and the Freeze/Thaw button asks first.
+/// history. Edit opens `BeanSettingsForm`, the Freeze/Thaw button asks
+/// first, and Take a break asks how much to drink before it.
 struct BeanDetailView: View {
     @Environment(AppModel.self) private var model
     let beanID: String
     @State private var editing = false
     @State private var confirmingFreeze: Bean?
+    @State private var breaking: BreakDraft?
 
     var body: some View {
         if let detail = model.detail(forBean: beanID) {
@@ -37,6 +38,7 @@ struct BeanDetailView: View {
                     }
                 }
                 .freezeConfirmation(for: $confirmingFreeze)
+                .breakDialog($breaking)
         } else {
             ContentUnavailableView("Bag not found", systemImage: "questionmark.circle")
         }
@@ -53,19 +55,29 @@ struct BeanDetailView: View {
                     AgeCard(detail: detail, track: track, roast: roast, ready: ready, color: color)
                 }
                 BagFacts(bean: bean, today: model.today, restSource: restSource(bean), partRuns: model.partRuns)
-                // The page saved in BeanConqueror, then a search for one
-                if let page = bean.pageURL {
-                    LinkButton(
-                        title: "Open \(Self.siteName(page))", systemImage: "safari", url: page, color: Theme.accent,
-                        hint: "Opens the coffee's page saved in BeanConqueror")
-                }
-                if let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: bean.roaster, coffee: bean.name)) {
-                    LinkButton(
-                        title: "Search Google", systemImage: "magnifyingglass", url: url, color: Theme.text,
-                        hint: "Searches Google for the roaster and the coffee's name")
+                // The page saved in BeanConqueror, then a search for one, side by side
+                HStack(spacing: 10) {
+                    if let page = bean.pageURL {
+                        LinkButton(
+                            title: Self.siteName(page), systemImage: "safari", url: page, color: Theme.accent,
+                            hint: "Opens the coffee's page saved in BeanConqueror")
+                    }
+                    if let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: bean.roaster, coffee: bean.name)) {
+                        LinkButton(
+                            title: "Google", systemImage: "magnifyingglass", url: url, color: Theme.text,
+                            hint: "Searches Google for the roaster and the coffee's name")
+                    }
                 }
                 if !bean.archived {
-                    FreezeButton(isFrozen: bean.isFrozen) { confirmingFreeze = bean }
+                    HStack(spacing: 10) {
+                        FreezeButton(isFrozen: bean.isFrozen) { confirmingFreeze = bean }
+                        if !bean.isFrozen {
+                            BagActionButton(title: "Take a break", systemImage: "pause.circle") {
+                                breaking = .new(for: bean)
+                            }
+                            .accessibilityHint("Asks how much to drink before the rest of the bag waits in the queue")
+                        }
+                    }
                 }
                 BagHistory(history: model.history(forBean: beanID))
             }
@@ -296,6 +308,28 @@ private struct FreezeButton: View {
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .background(shape.fill(color.opacity(0.1)))
                 .overlay(shape.strokeBorder(color.opacity(0.5), lineWidth: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Outlined like the links, for an action on the bag.
+private struct BagActionButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.tileRadius)
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.callout.weight(.semibold))
+                .lineLimit(1)
+                .foregroundStyle(Theme.text)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(shape.fill(Theme.card))
+                .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

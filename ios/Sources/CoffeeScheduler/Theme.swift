@@ -61,10 +61,12 @@ extension View {
     }
 }
 
-/// The top of a tab's screen: a small gold line over the title.
-struct ScreenHeader: View {
+/// The top of a tab's screen: a small gold line over the title, and any
+/// buttons beside the title, below the gold line so it never has to wrap.
+struct ScreenHeader<Trailing: View>: View {
     let eyebrow: String
     let title: String
+    @ViewBuilder var trailing: Trailing
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -73,12 +75,23 @@ struct ScreenHeader: View {
                 .tracking(0.8)
                 .textCase(.uppercase)
                 .foregroundStyle(Theme.accent)
-            Text(title)
-                .font(.largeTitle.bold())
-                .foregroundStyle(Theme.text)
-                .accessibilityAddTraits(.isHeader)
+                .lineLimit(1)
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Theme.text)
+                    .accessibilityAddTraits(.isHeader)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                trailing
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension ScreenHeader where Trailing == EmptyView {
+    init(eyebrow: String, title: String) {
+        self.init(eyebrow: eyebrow, title: title) { EmptyView() }
     }
 }
 

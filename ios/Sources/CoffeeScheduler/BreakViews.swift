@@ -49,12 +49,13 @@ struct RestCard: View {
 
 /// A rest's square: its number when the queue is ordered by hand, a pause
 /// sign otherwise, dashed in its roaster's colour.
-private struct RestTile: View {
+struct RestTile: View {
     let order: Int?
     let color: Color
+    var size: CGFloat = 36
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12)
+        let shape = RoundedRectangle(cornerRadius: size / 3)
         ZStack {
             shape.strokeBorder(color, style: Theme.dash)
             if let order {
@@ -63,7 +64,7 @@ private struct RestTile: View {
                 Image(systemName: "pause.fill").font(.caption.weight(.bold)).foregroundStyle(color)
             }
         }
-        .frame(width: 36, height: 36)
+        .frame(width: size, height: size)
     }
 }
 

@@ -43,7 +43,7 @@ struct BeanSettingsForm: View {
                         .numberEntry(.numberPad)
                     }
                 } footer: {
-                    Text("Leave empty to use the roaster's default, or the default in Settings.")
+                    SectionFooter(text: "Leave empty to use the roaster's default, or the default in Settings.")
                 }
 
                 if bean.roastDate == nil {
@@ -53,34 +53,11 @@ struct BeanSettingsForm: View {
                             DatePicker("Roast date", selection: $roastDate, displayedComponents: .date)
                         }
                     } footer: {
-                        Text("BeanConqueror didn't include one. Without it the bag has no ready date and isn't scheduled.")
+                        SectionFooter(text: "BeanConqueror didn't include one. Without it the bag has no ready date and isn't scheduled.")
                     }
                 }
 
-                if bean.isFrozen {
-                    Section {
-                        Toggle("Planned thaw", isOn: $hasPlannedThaw)
-                        if hasPlannedThaw {
-                            DatePicker("Thaw on", selection: $plannedThaw, displayedComponents: .date)
-                        }
-                    } footer: {
-                        Text("The bag comes out of the freezer on this day and is scheduled from then. Without a date it stays out of the schedule.")
-                    }
-                } else {
-                    Section {
-                        LabeledContent("Freeze after") {
-                            HStack(spacing: 4) {
-                                TextField("Grams", value: $freezeAfterGrams, format: .number, prompt: Text("e.g. 125"))
-                                    .numberEntry()
-                                Text("g used").foregroundStyle(.secondary)
-                            }
-                        }
-                    } footer: {
-                        Text(
-                            "Freeze the rest of the bag automatically once this much has been brewed. The bag is \(Format.grams(bean.weightGrams)) g."
-                        )
-                    }
-                }
+                freezeSection
 
                 if let error {
                     Section {
@@ -120,5 +97,41 @@ struct BeanSettingsForm: View {
     private func save() {
         error = model.updateBeanSettings(id: bean.id, settings)
         if error == nil { dismiss() }
+    }
+}
+
+extension BeanSettingsForm {
+    /// A frozen bag's thaw date, or how much of the bag to drink before it's frozen.
+    @ViewBuilder
+    private var freezeSection: some View {
+        if bean.isFrozen {
+            Section {
+                Toggle("Planned thaw", isOn: $hasPlannedThaw)
+                if hasPlannedThaw {
+                    DatePicker("Thaw on", selection: $plannedThaw, displayedComponents: .date)
+                }
+            } footer: {
+                SectionFooter(
+                    text: """
+                        The bag comes out of the freezer on this day and is scheduled from then. \
+                        Without a date it stays out of the schedule.
+                        """)
+            }
+        } else {
+            Section {
+                LabeledContent("Freeze after") {
+                    HStack(spacing: 4) {
+                        TextField("Grams", value: $freezeAfterGrams, format: .number, prompt: Text("e.g. 125"))
+                            .numberEntry()
+                        Text("g used").foregroundStyle(.secondary)
+                    }
+                }
+            } footer: {
+                SectionFooter(
+                    text:
+                        "Freeze the rest of the bag automatically once this much has been brewed. The bag is \(Format.grams(bean.weightGrams)) g."
+                )
+            }
+        }
     }
 }

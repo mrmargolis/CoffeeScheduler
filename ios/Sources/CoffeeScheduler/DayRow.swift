@@ -113,11 +113,12 @@ struct DayRow: View {
         .buttonStyle(.plain)
     }
 
-    /// Under the bag's name: its roaster, then an early start or the age at
-    /// the bag's first or last cup.
+    /// Under the bag's name: its roaster, then on its first cup an early
+    /// start, or the age at the bag's first or last cup.
     private func note(_ consumption: Consumption) -> (text: String, isEarly: Bool) {
         var parts = consumption.roaster.isEmpty ? [] : [consumption.roaster]
-        if let early = consumption.daysEarly, early > 0 {
+        let isFirstCup = (runs[consumption.beanID]?.start ?? day.date) == day.date
+        if let early = consumption.daysEarly, early > 0, isFirstCup {
             parts.append("\(Format.days(early)) early")
             return (parts.joined(separator: " · "), true)
         }
