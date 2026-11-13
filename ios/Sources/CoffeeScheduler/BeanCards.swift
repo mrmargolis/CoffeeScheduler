@@ -79,15 +79,40 @@ struct QueueCard: View {
         return "unopened"
     }
 
+    /// Days an unopened bag's first cup comes before even the shorter of its
+    /// own and its roaster's rest is over.
+    private var daysEarly: Int? {
+        guard !isOpened, !part.isRest, let start else { return nil }
+        return bean.daysEarly(startingOn: start)
+    }
+
     /// Age at first and last cup says more than the roast date; a bag that
-    /// isn't scheduled has only the roast date.
+    /// isn't scheduled has only the roast date. In gold, with an hourglass,
+    /// for a bag due to start before it's rested.
     @ViewBuilder
     private var age: some View {
         if let run, let ages = bean.ageRange(start: run.start, finish: run.end, today: model.today) {
-            Text("Age \(Format.ages(ages))")
-                .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Theme.gapText : Theme.text2)
+            if let daysEarly {
+                Label("Age \(Format.ages(ages))", systemImage: "hourglass")
+                    .labelStyle(EarlyLabelStyle())
+                    .foregroundStyle(Theme.accent)
+                    .accessibilityLabel("Age \(Format.ages(ages)), starting \(Format.days(daysEarly)) before its rest is over")
+            } else {
+                Text("Age \(Format.ages(ages))")
+                    .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Theme.gapText : Theme.text2)
+            }
         } else if let roast = bean.roastDate {
             Text("Roasted \(Format.shortDay(roast))").foregroundStyle(Theme.text2)
+        }
+    }
+}
+
+/// A small icon tight against its text.
+private struct EarlyLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.icon.font(.caption2.weight(.semibold))
+            configuration.title
         }
     }
 }

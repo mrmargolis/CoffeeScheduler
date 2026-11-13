@@ -112,6 +112,11 @@ public final class CoffeeStore {
               CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)
             ) as effective_rest_days,
             COALESCE(
+              (SELECT rd.rest_days FROM roaster_defaults rd
+                WHERE \(roasterKey("rd.roaster")) = \(roasterKey("b.roaster")) LIMIT 1),
+              CAST((SELECT value FROM settings WHERE key = 'default_rest_days') AS INTEGER)
+            ) as roaster_rest_days,
+            COALESCE(
               (SELECT SUM(br.ground_coffee_grams) FROM brews br WHERE br.bean_id = b.id), 0
             ) as total_brewed_grams
           FROM beans b
@@ -211,6 +216,7 @@ public final class CoffeeStore {
             url: row.string("url"),
             displayOrder: row.int("display_order"),
             effectiveRestDays: row.int("effective_rest_days") ?? 0,
+            roasterRestDays: row.int("roaster_rest_days"),
             totalBrewedGrams: row.double("total_brewed_grams") ?? 0,
             frozenDays: frozen[id] ?? 0,
             frozenDaysToDate: frozenToDate[id] ?? 0

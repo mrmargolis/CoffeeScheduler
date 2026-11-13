@@ -27,6 +27,9 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var displayOrder: Int?
     // Computed
     public var effectiveRestDays: Int
+    /// The rest the bag gets from its roaster, or the global default: what
+    /// it would have without its own.
+    public var roasterRestDays: Int?
     public var totalBrewedGrams: Double
     /// Days frozen, with an active freeze projected to its planned thaw:
     /// what the ready date and the schedule use.
@@ -51,6 +54,19 @@ public struct Bean: Identifiable, Hashable, Sendable {
 
     public var readyDate: String? {
         roastDate.map { DateUtils.addDays($0, effectiveRestDays + frozenDays) }
+    }
+
+    /// The least rest the bag should have: its own or its roaster's,
+    /// whichever is shorter.
+    public var minimumRestDays: Int { min(effectiveRestDays, roasterRestDays ?? effectiveRestDays) }
+
+    /// How many days a first cup on `start` comes before even the shorter
+    /// of the bag's and its roaster's rest is over; nil when it doesn't, or
+    /// without a roast date.
+    public func daysEarly(startingOn start: String) -> Int? {
+        guard let roastDate else { return nil }
+        let early = DateUtils.daysBetween(start, DateUtils.addDays(roastDate, minimumRestDays + frozenDays))
+        return early > 0 ? early : nil
     }
 }
 
