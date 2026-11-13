@@ -1,23 +1,31 @@
 import CoffeeCore
 import SwiftUI
 
-/// A bag in the queue: its place, what it is, whether it's ready, how much
-/// is left and how old it will be when it's drunk.
+/// A bag in the queue, at the place of the part it's in: its place, what it
+/// is, whether it's ready or on a break, how much is left and how old it
+/// will be when it's drunk.
 struct QueueCard: View {
     @Environment(AppModel.self) private var model
-    let bean: Bean
-    /// The bag's first day in the schedule, if it's scheduled.
-    let start: String?
+    let part: QueuePart<Bean>
 
+    private var bean: Bean { part.bean }
+    /// The part's run through the schedule, if it's scheduled.
+    private var run: BagRun? { model.partRuns[part.id] }
+    private var start: String? { run?.start }
     private var isOpened: Bool { bean.remainingGrams < bean.weightGrams }
-    /// Opened and in the schedule by today; a bag due to start today isn't yet.
-    private var isOnGrinder: Bool { isOpened && (start.map { $0 <= model.today } ?? false) }
+    /// Drunk to a break, and not yet back.
+    private var isOnBreak: Bool { part.isRest && !part.isStarted }
+    /// Opened and in the schedule by today; a bag due to start today isn't
+    /// yet, and one on a break isn't until it's taken up again.
+    private var isOnGrinder: Bool {
+        isOpened && !isOnBreak && (part.isRest || (start.map { $0 <= model.today } ?? false))
+    }
 
     var body: some View {
         let color = model.rail(bean.roaster)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                QueueTile(order: bean.displayOrder, color: color, isSolid: isOnGrinder)
+                QueueTile(order: part.displayOrder, color: color, isSolid: isOnGrinder)
                 BagTitle(name: bean.name, subtitle: Self.subtitle(bean))
                 Spacer(minLength: 8)
                 badge
@@ -44,8 +52,8 @@ struct QueueCard: View {
 
     @ViewBuilder
     private var badge: some View {
-        if let pause = bean.breakOn(model.today) {
-            Badge(text: "Back \(Format.shortDay(pause.resumeDate))", color: Theme.text2, background: Theme.raised)
+        if isOnBreak {
+            Badge(text: start.map { "Back \(Format.shortDay($0))" } ?? "On a break", color: Theme.text2, background: Theme.raised)
         } else if isOnGrinder {
             Badge(text: "On the grinder", color: Theme.accent, background: Theme.accent.opacity(0.18))
         } else if let ready = bean.readyDate {
@@ -59,19 +67,21 @@ struct QueueCard: View {
         }
     }
 
-    /// After the grams left: "of 250 left", or for a full bag what's planned.
+    /// After the grams left: "of 250 left", or for a full bag what's
+    /// planned; and the break it's heading for.
     private var amountNote: String {
-        if isOpened { return "of \(Format.grams(bean.weightGrams)) left" }
+        let breakNote = part.until.map { " · break at \(Format.grams($0.afterGrams)) g" } ?? ""
+        if isOpened { return "of \(Format.grams(bean.weightGrams)) left" + breakNote }
         if let grams = bean.freezeAfterGrams { return "· freeze after \(Format.grams(grams)) g" }
-        if let start { return "unopened · starts \(Format.shortDay(start))" }
-        return "unopened"
+        if let start { return "unopened · starts \(Format.shortDay(start))" + breakNote }
+        return "unopened" + breakNote
     }
 
     /// Age at first and last cup says more than the roast date; a bag that
     /// isn't scheduled has only the roast date.
     @ViewBuilder
     private var age: some View {
-        if let ages = model.ageRanges[bean.id] {
+        if let run, let ages = bean.ageRange(start: run.start, finish: run.end, today: model.today) {
             Text("Age \(Format.ages(ages))")
                 .foregroundStyle(ages.finish > BeanDetail.oldFinishAge ? Theme.gapText : Theme.text2)
         } else if let roast = bean.roastDate {
@@ -123,7 +133,7 @@ struct FrozenCard: View {
 
 /// The square at the head of a queue card: the bag's number when the queue
 /// has been ordered by hand, in its roaster's colour.
-private struct QueueTile: View {
+struct QueueTile: View {
     let order: Int?
     let color: Color
     /// Filled for the bag being drunk, tinted and outlined for the rest.

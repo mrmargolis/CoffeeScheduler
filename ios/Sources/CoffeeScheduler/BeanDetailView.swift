@@ -52,7 +52,7 @@ struct BeanDetailView: View {
                 if let track = detail.ageTrack, let roast = bean.roastDate, let ready = bean.readyDate {
                     AgeCard(detail: detail, track: track, roast: roast, ready: ready, color: color)
                 }
-                BagFacts(bean: bean, today: model.today, restSource: restSource(bean))
+                BagFacts(bean: bean, today: model.today, restSource: restSource(bean), partRuns: model.partRuns)
                 // The page saved in BeanConqueror, then a search for one
                 if let page = bean.pageURL {
                     LinkButton(
@@ -180,6 +180,8 @@ private struct BagFacts: View {
     let bean: Bean
     let today: String
     let restSource: String
+    /// When the rest after each break is taken up: see `AppModel.partRuns`.
+    let partRuns: [String: BagRun]
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible())], spacing: 10) {
@@ -193,13 +195,7 @@ private struct BagFacts: View {
             } else {
                 FactTile(label: "Ready", value: "Unknown", note: "No roast date", isWarning: true)
             }
-            if !bean.isFrozen, let pause = bean.breakOn(today) {
-                FactTile(label: "On a break", value: "Back \(Format.shortDay(pause.resumeDate))", note: Self.age(bean, on: pause.resumeDate))
-            } else if !bean.isFrozen, let pause = bean.nextBreak(after: today) {
-                FactTile(
-                    label: "Break after", value: "\(Format.grams(pause.afterGrams)) g",
-                    note: "back \(Format.shortDay(pause.resumeDate))")
-            }
+            if !bean.isFrozen { breakTile(Scheduler.currentPart(of: bean)) }
             if !bean.isFrozen, let grams = bean.freezeAfterGrams {
                 FactTile(label: "Freeze after", value: "\(Format.grams(grams)) g", note: "brewed, then frozen")
             }
@@ -211,6 +207,23 @@ private struct BagFacts: View {
 }
 
 extension BagFacts {
+    /// The break the bag is on, or the next it's heading for: when it's back
+    /// follows from where the rest sits in the queue.
+    @ViewBuilder
+    private func breakTile(_ part: QueuePart<Bean>) -> some View {
+        if part.isRest && !part.isStarted {
+            let back = partRuns[part.id]?.start
+            FactTile(
+                label: "On a break", value: back.map { "Back \(Format.shortDay($0))" } ?? "Not scheduled",
+                note: back.map { Self.age(bean, on: $0) } ?? "after the bags above it")
+        } else if let next = part.until {
+            let back = partRuns[QueuePart<Bean>.key(breakID: next.id)]?.start
+            FactTile(
+                label: "Break after", value: "\(Format.grams(next.afterGrams)) g",
+                note: back.map { "back \(Format.shortDay($0)) \(Self.age(bean, on: $0))" } ?? "back after the bags above it")
+        }
+    }
+
     /// "at day 72": the bag's age when it's back.
     static func age(_ bean: Bean, on date: String) -> String {
         effectiveAge(roastDate: bean.roastDate, asOf: date, frozenDays: bean.frozenDays).map { "at day \($0)" } ?? "no roast date"

@@ -9,6 +9,11 @@ final class AppModel {
     private(set) var schedule: [ScheduleDay] = []
     private(set) var activeBeans: [Bean] = []
     private(set) var archivedBeans: [Bean] = []
+    /// The bags in the queue as the schedule drinks them, a row per part:
+    /// each bag from the part it's in, then the rest after each break.
+    private(set) var queue: [QueuePart<Bean>] = []
+    /// When the rest of a bag after each break is taken up, by its part's ID.
+    private(set) var partRuns: [String: BagRun] = [:]
     /// Skip ranges from today on.
     private(set) var skipRanges: [SkipRange] = []
     private(set) var roasterDefaults: [RoasterDefault] = []
@@ -134,12 +139,14 @@ final class AppModel {
         roasters = try store.roasters()
         activeBeans = try store.beans(archived: false, today: today)
         archivedBeans = try store.beans(archived: true, today: today)
+        queue = Scheduler.queue(activeBeans.filter { !$0.isFrozen })
         skipRanges = try store.skipRanges(from: today)
         // Two months back, four forward.
         let start = DateUtils.firstOfMonth(DateUtils.addMonths(today, -2))
         schedule = try store.schedule(start: start, end: DateUtils.addMonths(today, 4), today: today)
         consumptionOverrides = try store.consumptionOverrides(from: start)
         roasterColors = Scheduler.roasterColors(schedule)
+        partRuns = Scheduler.partRuns(schedule)
         ageRanges = Scheduler.ageRanges(schedule, beans: activeBeans + archivedBeans, today: today)
         runway = activeBeans.isEmpty ? nil : Scheduler.runway(schedule, restDays: settings.defaultRestDays, today: today)
         lastImportDate = try store.lastImportDate()
@@ -249,7 +256,7 @@ final class AppModel {
         }
     }
 
-    /// Return one bag, or with nil the whole queue, to automatic order.
+    /// Return one bag or rest, or with nil the whole queue, to automatic order.
     func clearQueueOrder(id: String? = nil) {
         perform("Couldn't reorder the queue") {
             if let id {
@@ -320,6 +327,30 @@ final class AppModel {
         } catch {
             Log.store.error("\(failure, privacy: .public): \(String(describing: error), privacy: .public)")
             message = Message(title: failure, body: error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - Breaks
+
+extension AppModel {
+    /// Break a bag once `afterGrams` are used, or move a break it has.
+    func saveBreak(beanID: String, id: Int?, afterGrams: Double) {
+        perform("Couldn't save the break") {
+            if let id {
+                try store?.updateBreak(id: id, afterGrams: afterGrams)
+            } else {
+                try store?.addBreak(beanID: beanID, afterGrams: afterGrams)
+            }
+            try save()
+        }
+    }
+
+    /// End a break, so the bag is drunk straight on.
+    func endBreak(id: Int) {
+        perform("Couldn't end the break") {
+            try store?.deleteBreak(id: id)
+            try save()
         }
     }
 }

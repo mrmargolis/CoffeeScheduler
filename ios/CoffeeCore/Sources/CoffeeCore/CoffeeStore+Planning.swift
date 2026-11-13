@@ -5,17 +5,14 @@ extension CoffeeStore {
     // MARK: - Queue order
 
     /// Set the manual queue order to `ids`, numbered 1...n, as dragging a bag
-    /// in the queue does. Any other bag that still has a manual
-    /// position keeps its relative order after them, so no two bags share
+    /// in the queue does. An ID is a bag's, or the rest after a break
+    /// (`QueuePart.key(breakID:)`). Any other bag or rest that still has a
+    /// manual position keeps its relative order after them, so no two share
     /// a number.
     public func reorderQueue(_ ids: [String]) throws {
         try db.transaction {
-            let others = try db.query("SELECT id FROM beans WHERE display_order IS NOT NULL ORDER BY display_order")
-                .compactMap { $0.string("id") }
-                .filter { !ids.contains($0) }
-            for (i, id) in (ids + others).enumerated() {
-                try db.run("UPDATE beans SET display_order = ? WHERE id = ?", [.int(Int64(i + 1)), .text(id)])
-            }
+            let others = try manuallyOrdered().filter { !ids.contains($0) }
+            try number(ids + others)
         }
     }
 
@@ -29,17 +26,21 @@ extension CoffeeStore {
     }
 
     /// Drop a bag's manual position so it's queued automatically again
-    /// (after the manually ordered bags, in progress first, then by ready date).
+    /// (after the manually ordered bags, in progress first, then by ready
+    /// date), or a rest's, so it follows the bag after the part before it.
     public func clearQueuePosition(id: String) throws {
         try db.transaction {
-            try db.run("UPDATE beans SET display_order = NULL WHERE id = ?", [.text(id)])
+            try setDisplayOrder(nil, for: id)
             try resequenceDisplayOrder()
         }
     }
 
     /// Drop every manual position, returning the whole queue to automatic order.
     public func clearQueueOrder() throws {
-        try db.run("UPDATE beans SET display_order = NULL")
+        try db.transaction {
+            try db.run("UPDATE beans SET display_order = NULL")
+            try db.run("UPDATE breaks SET display_order = NULL")
+        }
     }
 
     // MARK: - Skip days
@@ -192,12 +193,34 @@ extension CoffeeStore {
         try db.run("DELETE FROM consumption_overrides WHERE id = ?", [.int(Int64(id))])
     }
 
-    /// Renumber manually ordered beans 1, 2, 3, ... with no gaps.
+    /// Renumber manually ordered bags and rests 1, 2, 3, ... with no gaps.
     func resequenceDisplayOrder() throws {
-        let ids = try db.query("SELECT id FROM beans WHERE display_order IS NOT NULL ORDER BY display_order")
-            .compactMap { $0.string("id") }
-        for (i, id) in ids.enumerated() {
-            try db.run("UPDATE beans SET display_order = ? WHERE id = ?", [.int(Int64(i + 1)), .text(id)])
+        try number(manuallyOrdered())
+    }
+
+    /// Bags and rests with a manual position, in its order.
+    private func manuallyOrdered() throws -> [String] {
+        try db.query(
+            """
+            SELECT id AS key, display_order FROM beans WHERE display_order IS NOT NULL
+            UNION ALL
+            SELECT 'break:' || id AS key, display_order FROM breaks WHERE display_order IS NOT NULL
+            ORDER BY display_order
+            """
+        )
+        .compactMap { $0.string("key") }
+    }
+
+    private func number(_ ids: [String]) throws {
+        for (i, id) in ids.enumerated() { try setDisplayOrder(i + 1, for: id) }
+    }
+
+    private func setDisplayOrder(_ order: Int?, for id: String) throws {
+        let value = order.map { SQLValue.int(Int64($0)) } ?? .null
+        if let breakID = QueuePart<Bean>.breakID(in: id) {
+            try db.run("UPDATE breaks SET display_order = ? WHERE id = ?", [value, .int(Int64(breakID))])
+        } else {
+            try db.run("UPDATE beans SET display_order = ? WHERE id = ?", [value, .text(id)])
         }
     }
 }

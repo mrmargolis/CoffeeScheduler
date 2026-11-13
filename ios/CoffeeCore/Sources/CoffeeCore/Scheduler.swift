@@ -41,7 +41,7 @@ public enum Scheduler {
         public var displayOrder: Int?
         /// Total days spent frozen (computed from freeze_events).
         public var frozenDays: Int
-        /// Planned rests from the bag: see `BagBreak`.
+        /// Breaks in the bag, earliest in it first: see `BagBreak`.
         public var breaks: [BagBreak]
 
         public init(
@@ -161,16 +161,6 @@ public enum Scheduler {
         }
     }
 
-    /// Grams that must stay in the bag because it is due to be frozen.
-    private static func freezeFloor(_ bean: Bean) -> Double {
-        bean.freezeAfterGrams.map { bean.weightGrams - $0 } ?? 0
-    }
-
-    /// Grams that must stay in the bag on `date`, kept for after a break.
-    private static func breakFloor(_ bean: Bean, on date: String) -> Double {
-        BagBreak.floor(bean.breaks, weightGrams: bean.weightGrams, on: date)
-    }
-
     public static func computeSchedule(
         startDate: String,
         endDate: String,
@@ -235,22 +225,27 @@ public enum Scheduler {
 extension Scheduler {
     /// The queue and what is left in each bag, as days are projected in order.
     private struct Projection {
-        /// Non-frozen (or frozen with a planned thaw) beans with coffee left.
-        let queue: [Bean]
+        /// Non-frozen (or frozen with a planned thaw) beans with coffee left,
+        /// a part each, and the rest after each break at its place.
+        let queue: [QueuePart<Bean>]
         let beans: [String: Bean]
         let dailyGrams: Double
         let overrides: [String: DayOverride]
         var remaining: [String: Double] = [:]
+        /// The rests of bags taken up again after their breaks.
+        var started: Set<String> = []
 
         init(beans: [Bean], dailyGrams: Double, overrides: [String: DayOverride]) {
-            queue = sortQueue(
+            queue = Scheduler.queue(
                 beans.filter {
                     (!$0.isFrozen || $0.plannedThawDate != nil) && $0.remainingGrams > minDoseGrams
                 })
             self.beans = Dictionary(beans.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             self.dailyGrams = dailyGrams
             self.overrides = overrides
-            for bean in queue { remaining[bean.id] = bean.remainingGrams }
+            for part in queue { remaining[part.bean.id] = part.bean.remainingGrams }
+            // Back from a break already: it counts as ready like any bag
+            started = Set(queue.filter { $0.isRest && $0.isStarted }.map(\.id))
         }
 
         /// A future day (or today with no brews): project consumption.
@@ -271,11 +266,11 @@ extension Scheduler {
             let readyCount = readyCount(on: date, doseSize: doseSize)
 
             // Consume from the queue in order.
-            for bean in queue {
+            for part in queue {
                 if gramsNeeded <= 0 { break }
                 // Don't start a new bean just to fill a gap smaller than a minimum dose
                 if !consumptions.isEmpty && gramsNeeded <= minDoseGrams { break }
-                guard let taken = take(from: bean, on: date, upTo: gramsNeeded, doseSize: doseSize)
+                guard let taken = take(from: part, on: date, upTo: gramsNeeded, doseSize: doseSize)
                 else { continue }
                 consumptions.append(taken)
                 gramsNeeded -= taken.grams
@@ -292,18 +287,27 @@ extension Scheduler {
             )
         }
 
-        /// How many beans are ready on this date.
+        /// How many beans are ready on this date. A bag on a break isn't,
+        /// until it's taken up again.
         private func readyCount(on date: String, doseSize: Double) -> Int {
-            queue.count { bean in
-                let rem = remaining[bean.id] ?? 0
-                guard let ready = readyDate(bean), ready <= date, rem > minDoseGrams else { return false }
-                // Skip bean if projected consumption has reached its freeze-after or break target
-                let breakFloor = breakFloor(bean, on: date)
-                if breakFloor > freezeFloor(bean) {
-                    return !BagBreak.isReached(aboveGrams: rem - breakFloor, doseSize: doseSize)
+            Set(
+                queue.filter { part in
+                    guard let ready = readyDate(part.bean), ready <= date, !part.isRest || started.contains(part.id)
+                    else { return false }
+                    return available(part, doseSize: doseSize) != nil
                 }
-                return rem - freezeFloor(bean) > minDoseGrams
-            }
+                .map(\.bean.id)
+            ).count
+        }
+
+        /// Grams `part` can give: down to its break or freeze-after, and
+        /// before a break only while a whole dose is left. Nil for none.
+        private func available(_ part: QueuePart<Bean>, doseSize: Double) -> Double? {
+            let rem = remaining[part.bean.id] ?? 0
+            let available = rem - part.floorGrams
+            guard rem > minDoseGrams, available > minDoseGrams, !part.isDone(remaining: rem, doseSize: doseSize)
+            else { return nil }
+            return available
         }
 
         /// What `bean` gives toward the `needed` grams on `date`, or nil when
@@ -311,21 +315,16 @@ extension Scheduler {
         /// hasn't finished resting is still used rather than passed over, and
         /// the consumption records how many days early it started.
         private mutating func take(
-            from bean: Bean, on date: String, upTo needed: Double, doseSize: Double
+            from part: QueuePart<Bean>, on date: String, upTo needed: Double, doseSize: Double
         ) -> Consumption? {
+            let bean = part.bean
             // No roast date means no ready date to be early against, and the
             // bag would otherwise block the queue forever.
             guard let ready = readyDate(bean), !isInFreezer(bean, on: date) else { return nil }
 
-            // Cap available grams to respect the freeze-after and break targets
+            // Cap available grams to respect the break and freeze-after targets
+            guard let available = available(part, doseSize: doseSize) else { return nil }
             let rem = remaining[bean.id] ?? 0
-            let frozenFloor = freezeFloor(bean)
-            let floor = max(frozenFloor, breakFloor(bean, on: date))
-            let available = rem - floor
-            guard rem > minDoseGrams, available > minDoseGrams else { return nil }
-            // Short of a whole dose before a break, the bag is on it
-            if floor > frozenFloor, BagBreak.isReached(aboveGrams: available, doseSize: doseSize) { return nil }
-
             var consume = min(needed, available)
 
             // If this bean can't fill the day, round down to whole doses.
@@ -333,17 +332,18 @@ extension Scheduler {
             // it stays in the bag for after.
             if consume < needed {
                 let doses = (consume / doseSize).rounded(.down)
-                remaining[bean.id] = floor > frozenFloor ? rem - doses * doseSize : floor
+                remaining[bean.id] = part.keepsRest ? rem - doses * doseSize : part.floorGrams
                 if doses == 0 { return nil }
                 consume = doses * doseSize
             } else {
                 remaining[bean.id] = rem - consume
             }
+            if part.isRest { started.insert(part.id) }
 
             let daysEarly = ready > date ? DateUtils.daysBetween(date, ready) : 0
             return Consumption(
                 beanID: bean.id, beanName: bean.name, roaster: bean.roaster,
-                grams: consume, daysEarly: daysEarly > 0 ? daysEarly : nil
+                grams: consume, daysEarly: daysEarly > 0 ? daysEarly : nil, partID: part.isRest ? part.id : nil
             )
         }
     }
@@ -355,8 +355,9 @@ extension Scheduler {
         for c in consumptions {
             if let i = merged.firstIndex(where: { $0.beanID == c.beanID }) {
                 merged[i].grams += c.grams
-                // Pre-logged entries carry no earliness; keep the projected half's
+                // Pre-logged entries carry no earliness or part; keep the projected half's
                 if merged[i].daysEarly == nil { merged[i].daysEarly = c.daysEarly }
+                if merged[i].partID == nil { merged[i].partID = c.partID }
             } else {
                 merged.append(c)
             }
