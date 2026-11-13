@@ -1,10 +1,10 @@
 import CoffeeCore
 import SwiftUI
 
-/// Edit a bag's rest days, roast date, planned thaw and freeze-after grams.
-/// The roast
-/// date is offered only when BeanConqueror didn't supply one, the planned thaw
-/// only for a frozen bag, and freeze-after only for one that isn't frozen.
+/// Edit a bag's rest days, roast date, planned thaw, freeze-after grams and
+/// breaks. The roast date is offered only when BeanConqueror didn't supply
+/// one, the planned thaw only for a frozen bag, and freeze-after and breaks
+/// only for one that isn't frozen.
 struct BeanSettingsForm: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -17,7 +17,9 @@ struct BeanSettingsForm: View {
     @State private var hasPlannedThaw: Bool
     @State private var plannedThaw: Date
     @State private var freezeAfterGrams: Double?
+    @State private var breaks: [EditableBreak]
     @State private var error: String?
+    private let today: String
 
     init(bean: Bean, today: String) {
         self.bean = bean
@@ -27,6 +29,8 @@ struct BeanSettingsForm: View {
         _hasPlannedThaw = State(initialValue: bean.plannedThawDate != nil)
         _plannedThaw = State(initialValue: Format.date(bean.plannedThawDate ?? DateUtils.addDays(today, 7)))
         _freezeAfterGrams = State(initialValue: bean.freezeAfterGrams)
+        _breaks = State(initialValue: bean.breaks.map(EditableBreak.init))
+        self.today = today
     }
 
     var body: some View {
@@ -80,6 +84,7 @@ struct BeanSettingsForm: View {
                             "Freeze the rest of the bag automatically once this much has been brewed. The bag is \(Format.grams(bean.weightGrams)) g."
                         )
                     }
+                    BagBreaksSection(bean: bean, today: today, breaks: $breaks)
                 }
 
                 if let error {
@@ -113,11 +118,16 @@ struct BeanSettingsForm: View {
             restDays: restDays,
             roastDate: bean.roastDate ?? (setsRoastDate ? Format.iso(roastDate) : nil),
             plannedThawDate: bean.isFrozen ? (hasPlannedThaw ? Format.iso(plannedThaw) : nil) : bean.plannedThawDate,
-            freezeAfterGrams: bean.isFrozen ? bean.freezeAfterGrams : freezeAfterGrams
+            freezeAfterGrams: bean.isFrozen ? bean.freezeAfterGrams : freezeAfterGrams,
+            breaks: bean.isFrozen ? bean.breaks : breaks.compactMap(\.saved)
         )
     }
 
     private func save() {
+        guard bean.isFrozen || breaks.allSatisfy({ $0.afterGrams != nil }) else {
+            error = "Give each break the grams to drink before it, or remove it."
+            return
+        }
         error = model.updateBeanSettings(id: bean.id, settings)
         if error == nil { dismiss() }
     }

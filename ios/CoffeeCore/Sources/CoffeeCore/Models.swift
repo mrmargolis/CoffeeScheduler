@@ -19,6 +19,8 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var isFrozen: Bool
     public var plannedThawDate: String?
     public var freezeAfterGrams: Double?
+    /// Planned rests from the bag, earliest first: see `BagBreak`.
+    public var breaks: [BagBreak] = []
     public var notes: String?
     public var displayOrder: Int?
     // Computed
@@ -155,12 +157,18 @@ public struct BeanSettings: Equatable, Sendable {
     public var plannedThawDate: String?
     /// Freeze the bag once this many grams are used; auto-freeze acts on it.
     public var freezeAfterGrams: Double?
+    /// Planned rests from the bag; saving replaces the ones it had.
+    public var breaks: [BagBreak]
 
-    public init(restDays: Int? = nil, roastDate: String? = nil, plannedThawDate: String? = nil, freezeAfterGrams: Double? = nil) {
+    public init(
+        restDays: Int? = nil, roastDate: String? = nil, plannedThawDate: String? = nil, freezeAfterGrams: Double? = nil,
+        breaks: [BagBreak] = []
+    ) {
         self.restDays = restDays
         self.roastDate = roastDate
         self.plannedThawDate = plannedThawDate
         self.freezeAfterGrams = freezeAfterGrams
+        self.breaks = breaks
     }
 
     /// The bag's current settings.
@@ -169,7 +177,8 @@ public struct BeanSettings: Equatable, Sendable {
             restDays: bean.restDays,
             roastDate: bean.roastDate,
             plannedThawDate: bean.plannedThawDate,
-            freezeAfterGrams: bean.freezeAfterGrams
+            freezeAfterGrams: bean.freezeAfterGrams,
+            breaks: bean.breaks
         )
     }
 
@@ -181,6 +190,12 @@ public struct BeanSettings: Equatable, Sendable {
         if let grams = freezeAfterGrams, grams < 0 || grams > weightGrams {
             throw BeanSettingsError.freezeAfterOutOfRange(weightGrams: weightGrams)
         }
+        for pause in breaks {
+            if DateUtils.dayNumber(pause.resumeDate) == nil { throw BeanSettingsError.invalidDate(pause.resumeDate) }
+            if pause.afterGrams <= 0 || pause.afterGrams >= weightGrams {
+                throw BeanSettingsError.breakOutOfRange(weightGrams: weightGrams)
+            }
+        }
     }
 }
 
@@ -189,6 +204,7 @@ public enum BeanSettingsError: LocalizedError, Equatable {
     case negativeRestDays
     case invalidDate(String)
     case freezeAfterOutOfRange(weightGrams: Double)
+    case breakOutOfRange(weightGrams: Double)
 
     public var errorDescription: String? {
         switch self {
@@ -196,6 +212,7 @@ public enum BeanSettingsError: LocalizedError, Equatable {
         case .negativeRestDays: "Rest days can't be negative."
         case .invalidDate(let date): "\(date) isn't a valid date."
         case .freezeAfterOutOfRange(let weight): "Freeze-after must be between 0 and the bag's \(Int(weight)) g."
+        case .breakOutOfRange(let weight): "A break has to leave some of the bag's \(Int(weight)) g on each side of it."
         }
     }
 }

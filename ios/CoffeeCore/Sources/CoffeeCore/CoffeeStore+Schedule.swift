@@ -20,6 +20,7 @@ extension CoffeeStore {
     /// All beans (including archived) so past brews can resolve names.
     private func schedulerBeans(today: String) throws -> [Scheduler.Bean] {
         let frozen = try frozenDays(today: today)
+        let breaks = try breaksByBean()
         var beans = try db.query("\(Self.beanSelect) \(Self.beanOrder)").map { row -> Scheduler.Bean in
             let id = row.string("id") ?? ""
             let weight = row.double("weight_grams") ?? 0
@@ -35,7 +36,8 @@ extension CoffeeStore {
                 plannedThawDate: row.string("planned_thaw_date").flatMap { $0.isEmpty ? nil : $0 },
                 freezeAfterGrams: row.double("freeze_after_grams"),
                 displayOrder: row.int("display_order"),
-                frozenDays: frozen[id] ?? 0
+                frozenDays: frozen[id] ?? 0,
+                breaks: breaks[id] ?? []
             )
         }
 

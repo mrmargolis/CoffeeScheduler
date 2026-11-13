@@ -41,12 +41,14 @@ public enum Scheduler {
         public var displayOrder: Int?
         /// Total days spent frozen (computed from freeze_events).
         public var frozenDays: Int
+        /// Planned rests from the bag: see `BagBreak`.
+        public var breaks: [BagBreak]
 
         public init(
             id: String, name: String, roaster: String, roastDate: String?,
             weightGrams: Double, remainingGrams: Double, effectiveRestDays: Int,
             isFrozen: Bool = false, plannedThawDate: String? = nil,
-            freezeAfterGrams: Double? = nil, displayOrder: Int? = nil, frozenDays: Int = 0
+            freezeAfterGrams: Double? = nil, displayOrder: Int? = nil, frozenDays: Int = 0, breaks: [BagBreak] = []
         ) {
             self.id = id
             self.name = name
@@ -60,6 +62,7 @@ public enum Scheduler {
             self.freezeAfterGrams = freezeAfterGrams
             self.displayOrder = displayOrder
             self.frozenDays = frozenDays
+            self.breaks = breaks
         }
     }
 
@@ -161,6 +164,11 @@ public enum Scheduler {
     /// Grams that must stay in the bag because it is due to be frozen.
     private static func freezeFloor(_ bean: Bean) -> Double {
         bean.freezeAfterGrams.map { bean.weightGrams - $0 } ?? 0
+    }
+
+    /// Grams that must stay in the bag on `date`, kept for after a break.
+    private static func breakFloor(_ bean: Bean, on date: String) -> Double {
+        BagBreak.floor(bean.breaks, weightGrams: bean.weightGrams, on: date)
     }
 
     public static func computeSchedule(
@@ -289,8 +297,8 @@ extension Scheduler {
             queue.count { bean in
                 let rem = remaining[bean.id] ?? 0
                 guard let ready = readyDate(bean), ready <= date, rem > minDoseGrams else { return false }
-                // Skip bean if projected consumption has reached its freeze-after target
-                return rem - freezeFloor(bean) > minDoseGrams
+                // Skip bean if projected consumption has reached its freeze-after or break target
+                return rem - max(freezeFloor(bean), breakFloor(bean, on: date)) > minDoseGrams
             }
         }
 
@@ -305,19 +313,21 @@ extension Scheduler {
             // bag would otherwise block the queue forever.
             guard let ready = readyDate(bean), !isInFreezer(bean, on: date) else { return nil }
 
-            // Cap available grams to respect the freeze-after target
+            // Cap available grams to respect the freeze-after and break targets
             let rem = remaining[bean.id] ?? 0
-            let floor = freezeFloor(bean)
+            let frozenFloor = freezeFloor(bean)
+            let floor = max(frozenFloor, breakFloor(bean, on: date))
             let available = rem - floor
             guard rem > minDoseGrams, available > minDoseGrams else { return nil }
 
             var consume = min(needed, available)
 
             // If this bean can't fill the day, round down to whole doses.
-            // The sub-dose remainder is wasted (or frozen).
+            // The sub-dose remainder is wasted (or frozen); before a break
+            // it stays in the bag for after.
             if consume < needed {
                 let doses = (consume / doseSize).rounded(.down)
-                remaining[bean.id] = floor
+                remaining[bean.id] = floor > frozenFloor ? rem - doses * doseSize : floor
                 if doses == 0 { return nil }
                 consume = doses * doseSize
             } else {
