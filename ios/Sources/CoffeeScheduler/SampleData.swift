@@ -42,6 +42,7 @@ import Foundation
             var frozen = false
             var thaw: String?
             var freezeAfter: Double?
+            var url: String?
         }
 
         private static let bags = [
@@ -52,7 +53,7 @@ import Foundation
             Bag(
                 id: "guji", name: "Guji Hambela", roaster: "Square Mile", roast: "2026-09-02",
                 country: "Ethiopia", region: "Guji", variety: "Heirloom", processing: "Natural",
-                flavour: "Blueberry, jasmine, cocoa nib"),
+                flavour: "Blueberry, jasmine, cocoa nib", url: "www.squaremilecoffee.com/products/guji-hambela"),
             Bag(
                 id: "huila", name: "La Esperanza", roaster: "Tim Wendelboe", roast: "2026-09-08",
                 country: "Colombia", region: "Huila", variety: "Caturra", processing: "Washed",
@@ -71,13 +72,14 @@ import Foundation
             try db.run(
                 """
                 INSERT INTO beans (id, name, roaster, roast_date, weight_grams, country, region, variety,
-                  processing, flavour_profile, archived, is_frozen, planned_thaw_date, freeze_after_grams)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  processing, flavour_profile, archived, is_frozen, planned_thaw_date, freeze_after_grams, url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     .text(bag.id), .text(bag.name), .text(bag.roaster), .text(bag.roast), .double(bag.grams),
                     .text(bag.country), .text(bag.region), .text(bag.variety), .text(bag.processing), .text(bag.flavour),
                     SQLValue(bag.archived), SQLValue(bag.frozen), SQLValue(bag.thaw), SQLValue(bag.freezeAfter),
+                    SQLValue(bag.url),
                 ])
         }
 

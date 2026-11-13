@@ -208,6 +208,7 @@ public final class CoffeeStore {
             freezeAfterGrams: row.double("freeze_after_grams"),
             breaks: breaks[id] ?? [],
             notes: row.string("notes"),
+            url: row.string("url"),
             displayOrder: row.int("display_order"),
             effectiveRestDays: row.int("effective_rest_days") ?? 0,
             totalBrewedGrams: row.double("total_brewed_grams") ?? 0,
