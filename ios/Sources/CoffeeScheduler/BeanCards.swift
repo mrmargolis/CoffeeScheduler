@@ -44,7 +44,9 @@ struct QueueCard: View {
 
     @ViewBuilder
     private var badge: some View {
-        if isOnGrinder {
+        if let pause = bean.breakOn(model.today) {
+            Badge(text: "Back \(Format.shortDay(pause.resumeDate))", color: Theme.text2, background: Theme.raised)
+        } else if isOnGrinder {
             Badge(text: "On the grinder", color: Theme.accent, background: Theme.accent.opacity(0.18))
         } else if let ready = bean.readyDate {
             if ready <= model.today {

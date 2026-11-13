@@ -193,6 +193,13 @@ private struct BagFacts: View {
             } else {
                 FactTile(label: "Ready", value: "Unknown", note: "No roast date", isWarning: true)
             }
+            if !bean.isFrozen, let pause = bean.breakOn(today) {
+                FactTile(label: "On a break", value: "Back \(Format.shortDay(pause.resumeDate))", note: Self.age(bean, on: pause.resumeDate))
+            } else if !bean.isFrozen, let pause = bean.nextBreak(after: today) {
+                FactTile(
+                    label: "Break after", value: "\(Format.grams(pause.afterGrams)) g",
+                    note: "back \(Format.shortDay(pause.resumeDate))")
+            }
             if !bean.isFrozen, let grams = bean.freezeAfterGrams {
                 FactTile(label: "Freeze after", value: "\(Format.grams(grams)) g", note: "brewed, then frozen")
             }
@@ -200,6 +207,13 @@ private struct BagFacts: View {
                 FactTile(label: "Planned thaw", value: Format.shortDay(thaw), note: "Back in the schedule")
             }
         }
+    }
+}
+
+extension BagFacts {
+    /// "at day 72": the bag's age when it's back.
+    static func age(_ bean: Bean, on date: String) -> String {
+        effectiveAge(roastDate: bean.roastDate, asOf: date, frozenDays: bean.frozenDays).map { "at day \($0)" } ?? "no roast date"
     }
 }
 

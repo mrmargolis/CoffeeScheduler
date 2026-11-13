@@ -67,7 +67,17 @@ enum Schema {
           dose_size_grams REAL NOT NULL
         );
 
+        -- Planned rests from a bag, without freezing it (BagBreak). An older
+        -- build doesn't know them and schedules the bag straight through.
+        CREATE TABLE IF NOT EXISTS bag_breaks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bean_id TEXT NOT NULL REFERENCES beans(id),
+          after_grams REAL NOT NULL,
+          resume_date TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
+        CREATE INDEX IF NOT EXISTS idx_bag_breaks_bean_id ON bag_breaks(bean_id);
         CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
         """
 

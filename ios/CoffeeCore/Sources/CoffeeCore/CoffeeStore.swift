@@ -131,8 +131,9 @@ public final class CoffeeStore {
     public func beans(archived: Bool, today: String = DateUtils.today()) throws -> [Bean] {
         let frozen = try frozenDays(today: today)
         let frozenToDate = try frozenDays(today: today, projectToPlannedThaw: false)
+        let breaks = try breaksByBean()
         let beans = try db.query("\(Self.beanSelect) WHERE b.archived = ? \(Self.beanOrder)", [SQLValue(archived)])
-            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate) }
+            .map { Self.bean(from: $0, frozen: frozen, frozenToDate: frozenToDate, breaks: breaks) }
         return Scheduler.sortQueue(beans)
     }
 
@@ -141,8 +142,20 @@ public final class CoffeeStore {
         return Self.bean(
             from: row,
             frozen: try frozenDays(today: today),
-            frozenToDate: try frozenDays(today: today, projectToPlannedThaw: false)
+            frozenToDate: try frozenDays(today: today, projectToPlannedThaw: false),
+            breaks: try breaksByBean()
         )
+    }
+
+    /// Each bag's breaks, earliest in the bag first.
+    func breaksByBean() throws -> [String: [BagBreak]] {
+        var breaks: [String: [BagBreak]] = [:]
+        for row in try db.query("SELECT bean_id, after_grams, resume_date FROM bag_breaks ORDER BY after_grams, id") {
+            guard let beanID = row.string("bean_id"), let grams = row.double("after_grams"), let date = row.string("resume_date")
+            else { continue }
+            breaks[beanID, default: []].append(BagBreak(afterGrams: grams, resumeDate: date))
+        }
+        return breaks
     }
 
     /// The bag's latest brews, newest first.
@@ -172,7 +185,9 @@ public final class CoffeeStore {
         }
     }
 
-    private static func bean(from row: SQLRow, frozen: [String: Int], frozenToDate: [String: Int]) -> Bean {
+    private static func bean(
+        from row: SQLRow, frozen: [String: Int], frozenToDate: [String: Int], breaks: [String: [BagBreak]]
+    ) -> Bean {
         let id = row.string("id") ?? ""
         return Bean(
             id: id,
@@ -191,6 +206,7 @@ public final class CoffeeStore {
             isFrozen: row.bool("is_frozen"),
             plannedThawDate: row.string("planned_thaw_date"),
             freezeAfterGrams: row.double("freeze_after_grams"),
+            breaks: breaks[id] ?? [],
             notes: row.string("notes"),
             url: row.string("url"),
             displayOrder: row.int("display_order"),
@@ -210,14 +226,22 @@ public final class CoffeeStore {
         else { throw BeanSettingsError.notFound }
         try settings.validate(weightGrams: weight)
 
-        try db.run(
-            """
-            UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
-            WHERE id = ?
-            """,
-            [
-                SQLValue(settings.restDays), SQLValue(settings.roastDate),
-                SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
-            ])
+        try db.transaction {
+            try db.run(
+                """
+                UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
+                WHERE id = ?
+                """,
+                [
+                    SQLValue(settings.restDays), SQLValue(settings.roastDate),
+                    SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
+                ])
+            try db.run("DELETE FROM bag_breaks WHERE bean_id = ?", [.text(id)])
+            for pause in settings.breaks.sorted(by: { $0.afterGrams < $1.afterGrams }) {
+                try db.run(
+                    "INSERT INTO bag_breaks (bean_id, after_grams, resume_date) VALUES (?, ?, ?)",
+                    [.text(id), .double(pause.afterGrams), .text(pause.resumeDate)])
+            }
+        }
     }
 }
