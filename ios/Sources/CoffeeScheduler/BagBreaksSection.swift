@@ -2,6 +2,8 @@ import CoffeeCore
 import SwiftUI
 
 /// A break as the Edit screen holds it: the grams may be cleared while typing.
+/// Its date is read and written as `Format.date` and `Format.iso` do (noon
+/// UTC, read in UTC), through `DateUtils`, which isn't on the main actor.
 struct EditableBreak: Identifiable {
     let id = UUID()
     var afterGrams: Double?
@@ -13,12 +15,14 @@ struct EditableBreak: Identifiable {
     }
 
     init(_ pause: BagBreak) {
-        self.init(afterGrams: pause.afterGrams, resumeDate: Format.date(pause.resumeDate))
+        self.init(afterGrams: pause.afterGrams, resumeDate: DateUtils.noonUTC(pause.resumeDate))
     }
+
+    private static let utc = TimeZone(identifier: "UTC")!
 
     /// Nil until it has an amount.
     var saved: BagBreak? {
-        afterGrams.map { BagBreak(afterGrams: $0, resumeDate: Format.iso(resumeDate)) }
+        afterGrams.map { BagBreak(afterGrams: $0, resumeDate: DateUtils.isoString(resumeDate, timeZone: Self.utc)) }
     }
 }
 

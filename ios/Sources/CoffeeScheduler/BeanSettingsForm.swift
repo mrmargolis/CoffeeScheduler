@@ -119,7 +119,7 @@ struct BeanSettingsForm: View {
             roastDate: bean.roastDate ?? (setsRoastDate ? Format.iso(roastDate) : nil),
             plannedThawDate: bean.isFrozen ? (hasPlannedThaw ? Format.iso(plannedThaw) : nil) : bean.plannedThawDate,
             freezeAfterGrams: bean.isFrozen ? bean.freezeAfterGrams : freezeAfterGrams,
-            breaks: bean.isFrozen ? bean.breaks : breaks.compactMap(\.saved)
+            breaks: bean.isFrozen ? bean.breaks : breaks.compactMap { $0.saved }
         )
     }
 
