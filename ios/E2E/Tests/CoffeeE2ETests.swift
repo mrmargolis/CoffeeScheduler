@@ -204,10 +204,10 @@ final class CoffeeE2ETests: XCTestCase {
 
     func testTakeABreakFromABagInTheList() {
         openTab("Beans")
-        let kenya = element(containing: "Gichathaini AA")
-        waitFor(kenya)
+        let huila = element(containing: "La Esperanza")
+        waitFor(huila)
 
-        kenya.swipeLeft()
+        huila.swipeLeft()
         let takeBreak = app.buttons["Break"]
         waitFor(takeBreak)
         takeBreak.tap()

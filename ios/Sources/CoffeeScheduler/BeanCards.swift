@@ -70,11 +70,13 @@ struct QueueCard: View {
     /// After the grams left: "of 250 left", or for a full bag what's
     /// planned; and the break it's heading for.
     private var amountNote: String {
-        let breakNote = part.until.map { " · break at \(Format.grams($0.afterGrams)) g" } ?? ""
-        if isOpened { return "of \(Format.grams(bean.weightGrams)) left" + breakNote }
+        let breakNote = part.until.map { " · break at \(Format.grams($0.afterGrams)) g" }
+        if isOpened { return "of \(Format.grams(bean.weightGrams)) left" + (breakNote ?? "") }
         if let grams = bean.freezeAfterGrams { return "· freeze after \(Format.grams(grams)) g" }
-        if let start { return "unopened · starts \(Format.shortDay(start))" + breakNote }
-        return "unopened" + breakNote
+        // The break says more than the start, which would push it out of the line
+        if let breakNote { return "unopened" + breakNote }
+        if let start { return "unopened · starts \(Format.shortDay(start))" }
+        return "unopened"
     }
 
     /// Age at first and last cup says more than the roast date; a bag that
