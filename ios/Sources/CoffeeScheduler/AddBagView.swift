@@ -11,6 +11,10 @@ struct AddBagView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var intake: BagIntake
     @State private var showingCamera = false
+    /// Photos taken since the camera opened: it stays open for the next.
+    @State private var shots = 0
+    /// Photos waiting to be read, oldest first: each is read in turn.
+    @State private var unread: [UIImage] = []
     @State private var choosingPhoto = false
     /// The photo picker asked for over the camera, which it's shown on.
     @State private var choosingOverCamera = false
@@ -72,7 +76,10 @@ struct AddBagView: View {
 
     private var actions: BagDockActions {
         BagDockActions(
-            takePhoto: { showingCamera = true },
+            takePhoto: {
+                shots = 0
+                showingCamera = true
+            },
             choosePhoto: { choosingPhoto = true },
             search: { browsing = Browse(url: $0.url(for: intake.draft)) },
             add: addToBeanConqueror)
@@ -104,22 +111,49 @@ struct AddBagView: View {
     }
 
     /// The camera, over the form so it keeps its place, with a button for a
-    /// photo already taken.
+    /// photo already taken. It stays open after a photo, for the back of the
+    /// bag, until Done or Cancel; each photo is read while the next is taken.
     private var camera: some View {
         LabelCamera { image in
-            showingCamera = false
-            if let image { startReading(image) }
+            guard let image else {
+                showingCamera = false
+                return
+            }
+            shots += 1
+            startReading(image)
         }
+        // A fresh camera for the next photo, rather than the last one's review
+        .id(shots)
         .ignoresSafeArea()
-        .overlay(alignment: .top) {
-            Button("Choose from Photos", systemImage: "photo.on.rectangle") { choosingOverCamera = true }
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(.top, 56)
-        }
+        .overlay(alignment: .top) { cameraBar }
         .sheet(isPresented: $choosingOverCamera) { picker }
+    }
+
+    private var cameraBar: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Button("Choose from Photos", systemImage: "photo.on.rectangle") { choosingOverCamera = true }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                if shots > 0 {
+                    Button("Done") { showingCamera = false }
+                        .foregroundStyle(Theme.ground)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(Theme.accent, in: Capsule())
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            if shots > 0 {
+                Text(shots == 1 ? "Got it. Now the back, or Done." : "\(shots) photos. Another, or Done.")
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+        }
+        .padding(.top, 56)
     }
 
     private var picker: some View {
@@ -137,11 +171,21 @@ struct AddBagView: View {
         .ignoresSafeArea()
     }
 
+    /// Reads the photo, or queues it behind one being read: the front and
+    /// back fill the bag in turn, as if taken one at a time.
     private func startReading(_ image: UIImage) {
+        unread.append(image)
+        guard reading == nil else { return }
+        // Set at once, so a photo taken before the task starts joins this queue
         intake.status = .reading
         reading = BagReading(photo: image)
         Task {
-            await read(image)
+            while !unread.isEmpty {
+                let next = unread.removeFirst()
+                intake.status = .reading
+                reading = BagReading(photo: next)
+                await read(next)
+            }
             reading = nil
         }
     }
