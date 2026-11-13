@@ -79,6 +79,11 @@ final class ScreenshotTests: XCTestCase {
         try reorderedStore.reorderQueue(["kenya", "guji", "huila"])
         let reordered = AppModel(store: reorderedStore, today: SampleData.today, folderName: "Coffee")
 
+        // The same data with a break in La Esperanza, its rest after the next bag
+        let breakStore = try SampleData.store()
+        try breakStore.addBreak(beanID: "huila", afterGrams: 100)
+        let withBreak = AppModel(store: breakStore, today: SampleData.today, folderName: "Coffee")
+
         // Screens are captured without the tab bar: inside a TabView the
         // list screens render blank in this offscreen capture, though they
         // show fine in the app.
@@ -100,6 +105,8 @@ final class ScreenshotTests: XCTestCase {
             ("15-add-bag-photos", AnyView(AddBagView(intake: AddBagSamples.photos(), showsOrigin: false)), model),
             ("16-add-bag-page", AnyView(AddBagView(intake: AddBagSamples.photosAndPage())), model),
             ("18-add-bag-pick-text", AnyView(AddBagSamples.picker()), model),
+            ("19-beans-break", AnyView(BeansView()), withBreak),
+            ("20-detail-break", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), withBreak),
         ]
 
         for (name, view, model) in screens {

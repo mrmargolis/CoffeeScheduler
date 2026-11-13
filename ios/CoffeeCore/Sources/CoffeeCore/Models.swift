@@ -19,7 +19,7 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var isFrozen: Bool
     public var plannedThawDate: String?
     public var freezeAfterGrams: Double?
-    /// Planned rests from the bag, earliest first: see `BagBreak`.
+    /// Breaks in the bag, earliest in it first: see `BagBreak`.
     public var breaks: [BagBreak] = []
     public var notes: String?
     /// The bag's page, as typed into BeanConqueror: see `pageURL`.
@@ -61,13 +61,19 @@ public struct Consumption: Hashable, Sendable {
     public var grams: Double
     /// > 0 when this bag was started before its ready date.
     public var daysEarly: Int?
+    /// The rest of the bag after a break this is from, as `QueuePart.id`;
+    /// nil before the bag's first break, and for brews already made.
+    public var partID: String?
 
-    public init(beanID: String, beanName: String, roaster: String, grams: Double, daysEarly: Int? = nil) {
+    public init(
+        beanID: String, beanName: String, roaster: String, grams: Double, daysEarly: Int? = nil, partID: String? = nil
+    ) {
         self.beanID = beanID
         self.beanName = beanName
         self.roaster = roaster
         self.grams = grams
         self.daysEarly = daysEarly
+        self.partID = partID
     }
 }
 
@@ -172,18 +178,12 @@ public struct BeanSettings: Equatable, Sendable {
     public var plannedThawDate: String?
     /// Freeze the bag once this many grams are used; auto-freeze acts on it.
     public var freezeAfterGrams: Double?
-    /// Planned rests from the bag; saving replaces the ones it had.
-    public var breaks: [BagBreak]
 
-    public init(
-        restDays: Int? = nil, roastDate: String? = nil, plannedThawDate: String? = nil, freezeAfterGrams: Double? = nil,
-        breaks: [BagBreak] = []
-    ) {
+    public init(restDays: Int? = nil, roastDate: String? = nil, plannedThawDate: String? = nil, freezeAfterGrams: Double? = nil) {
         self.restDays = restDays
         self.roastDate = roastDate
         self.plannedThawDate = plannedThawDate
         self.freezeAfterGrams = freezeAfterGrams
-        self.breaks = breaks
     }
 
     /// The bag's current settings.
@@ -192,8 +192,7 @@ public struct BeanSettings: Equatable, Sendable {
             restDays: bean.restDays,
             roastDate: bean.roastDate,
             plannedThawDate: bean.plannedThawDate,
-            freezeAfterGrams: bean.freezeAfterGrams,
-            breaks: bean.breaks
+            freezeAfterGrams: bean.freezeAfterGrams
         )
     }
 
@@ -205,12 +204,6 @@ public struct BeanSettings: Equatable, Sendable {
         if let grams = freezeAfterGrams, grams < 0 || grams > weightGrams {
             throw BeanSettingsError.freezeAfterOutOfRange(weightGrams: weightGrams)
         }
-        for pause in breaks {
-            if DateUtils.dayNumber(pause.resumeDate) == nil { throw BeanSettingsError.invalidDate(pause.resumeDate) }
-            if pause.afterGrams <= 0 || pause.afterGrams >= weightGrams {
-                throw BeanSettingsError.breakOutOfRange(weightGrams: weightGrams)
-            }
-        }
     }
 }
 
@@ -219,7 +212,6 @@ public enum BeanSettingsError: LocalizedError, Equatable {
     case negativeRestDays
     case invalidDate(String)
     case freezeAfterOutOfRange(weightGrams: Double)
-    case breakOutOfRange(weightGrams: Double)
 
     public var errorDescription: String? {
         switch self {
@@ -227,7 +219,6 @@ public enum BeanSettingsError: LocalizedError, Equatable {
         case .negativeRestDays: "Rest days can't be negative."
         case .invalidDate(let date): "\(date) isn't a valid date."
         case .freezeAfterOutOfRange(let weight): "Freeze-after must be between 0 and the bag's \(Int(weight)) g."
-        case .breakOutOfRange(let weight): "A break has to leave some of the bag's \(Int(weight)) g on each side of it."
         }
     }
 }

@@ -202,6 +202,25 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(element(containing: "No thaw date"))
     }
 
+    func testTakeABreakFromABagInTheList() {
+        openTab("Beans")
+        let huila = element(containing: "La Esperanza")
+        waitFor(huila)
+
+        huila.swipeLeft()
+        let takeBreak = app.buttons["Break"]
+        waitFor(takeBreak)
+        takeBreak.tap()
+        // A full bag starts out at halfway
+        let save = app.alerts.buttons["Save"]
+        waitFor(save)
+        save.tap()
+
+        // The rest of the bag gets its own card, and the bag heads for the break
+        waitFor(element(containing: "Rest after 125 g"))
+        waitFor(element(containing: "break at 125 g"))
+    }
+
     func testThawABagFromItsDetailScreen() {
         openTab("Beans")
         let gesha = element(containing: "Janson Gesha")

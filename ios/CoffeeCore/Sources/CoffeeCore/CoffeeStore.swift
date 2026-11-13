@@ -150,10 +150,10 @@ public final class CoffeeStore {
     /// Each bag's breaks, earliest in the bag first.
     func breaksByBean() throws -> [String: [BagBreak]] {
         var breaks: [String: [BagBreak]] = [:]
-        for row in try db.query("SELECT bean_id, after_grams, resume_date FROM bag_breaks ORDER BY after_grams, id") {
-            guard let beanID = row.string("bean_id"), let grams = row.double("after_grams"), let date = row.string("resume_date")
+        for row in try db.query("SELECT * FROM breaks ORDER BY after_grams, id") {
+            guard let id = row.int("id"), let beanID = row.string("bean_id"), let grams = row.double("after_grams")
             else { continue }
-            breaks[beanID, default: []].append(BagBreak(afterGrams: grams, resumeDate: date))
+            breaks[beanID, default: []].append(BagBreak(id: id, afterGrams: grams, displayOrder: row.int("display_order")))
         }
         return breaks
     }
@@ -226,22 +226,14 @@ public final class CoffeeStore {
         else { throw BeanSettingsError.notFound }
         try settings.validate(weightGrams: weight)
 
-        try db.transaction {
-            try db.run(
-                """
-                UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
-                WHERE id = ?
-                """,
-                [
-                    SQLValue(settings.restDays), SQLValue(settings.roastDate),
-                    SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
-                ])
-            try db.run("DELETE FROM bag_breaks WHERE bean_id = ?", [.text(id)])
-            for pause in settings.breaks.sorted(by: { $0.afterGrams < $1.afterGrams }) {
-                try db.run(
-                    "INSERT INTO bag_breaks (bean_id, after_grams, resume_date) VALUES (?, ?, ?)",
-                    [.text(id), .double(pause.afterGrams), .text(pause.resumeDate)])
-            }
-        }
+        try db.run(
+            """
+            UPDATE beans SET rest_days = ?, roast_date = ?, planned_thaw_date = ?, freeze_after_grams = ?
+            WHERE id = ?
+            """,
+            [
+                SQLValue(settings.restDays), SQLValue(settings.roastDate),
+                SQLValue(settings.plannedThawDate), SQLValue(settings.freezeAfterGrams), .text(id),
+            ])
     }
 }

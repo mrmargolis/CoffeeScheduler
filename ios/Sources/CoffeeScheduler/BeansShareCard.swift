@@ -48,14 +48,13 @@ private struct BeansPicture: View {
     var body: some View {
         let queue = model.activeBeans.filter { !$0.isFrozen }
         let frozen = model.activeBeans.filter(\.isFrozen)
-        let starts = Scheduler.startDates(model.schedule)
         let summary = BacklogSummary(beans: model.activeBeans, lastCoffeeDay: model.runway?.lastCoffeeDay, today: model.today)
         VStack(alignment: .leading, spacing: 10) {
             ScreenHeader(eyebrow: "Coffee backlog · \(Format.mediumDay(model.today))", title: "Beans")
                 .padding(.bottom, 6)
             BacklogFigures(summary: summary)
                 .padding(.bottom, 6)
-            ForEach(queue.prefix(BeansSnapshot.shownQueue)) { QueueCard(bean: $0, start: starts[$0.id]) }
+            ForEach(queue.prefix(BeansSnapshot.shownQueue)) { QueueCard(part: Scheduler.currentPart(of: $0)) }
             more(queue.count - BeansSnapshot.shownQueue, of: "in the queue")
             if !frozen.isEmpty {
                 SectionLabel(title: "Frozen").padding(.horizontal, 4).padding(.top, 6)

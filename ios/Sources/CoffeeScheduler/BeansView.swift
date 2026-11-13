@@ -2,14 +2,17 @@ import CoffeeCore
 import SwiftUI
 
 /// The bean queue in the order the scheduler will use it, plus frozen bags,
-/// a card per bag. Finished bags aren't listed; BeanConqueror is the place to
-/// look back. Reorder drags bags into a manual order; swipe a bag to freeze or thaw it, or back to automatic order.
+/// a card per bag, and one for the rest of a bag after each break. Finished
+/// bags aren't listed; BeanConqueror is the place to look back. Reorder drags
+/// bags and rests into a manual order; swipe a bag to freeze or thaw it,
+/// take a break from it, or put it back in automatic order.
 struct BeansView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmingFreeze: Bean?
     @State private var path: [BeanRoute] = []
     @State private var editMode: EditMode
     @State private var addingBag = false
+    @State private var breaking: BreakDraft?
 
     init(reordering: Bool = false) {
         _editMode = State(initialValue: reordering ? .active : .inactive)
@@ -28,7 +31,7 @@ struct BeansView: View {
                         if !model.activeBeans.isEmpty { ShareBeansLink().padding(.vertical, -12) }
                     }
                     .padding(.horizontal, 4)
-                    queueRows(queue)
+                    queueRows(model.queue)
                     footer(isEmpty: queue.isEmpty)
                     if !frozen.isEmpty {
                         SectionLabel(title: "Frozen").padding(.horizontal, 4)
@@ -51,6 +54,7 @@ struct BeansView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: BeanRoute.self) { BeanDetailView(beanID: $0.id) }
             .freezeConfirmation(for: $confirmingFreeze)
+            .breakDialog($breaking)
             .fullScreenCover(isPresented: $addingBag) { AddBagView() }
         }
     }
@@ -61,7 +65,7 @@ struct BeansView: View {
         let isReordering = editMode == .active
         return HStack(alignment: .bottom, spacing: 8) {
             ScreenHeader(eyebrow: counts.joined(separator: " · "), title: "Beans")
-            if isReordering && queue.contains(where: { $0.displayOrder != nil }) {
+            if isReordering && model.queue.contains(where: { $0.displayOrder != nil }) {
                 PillButton(title: "Automatic") { model.clearQueueOrder() }
                     .accessibilityLabel("Use automatic order")
             }
@@ -69,7 +73,7 @@ struct BeansView: View {
                 PillButton(title: "Add a bag") { addingBag = true }
                     .accessibilityHint("Fills in a bag from photos of it, its page or by hand, to add to BeanConqueror")
             }
-            if queue.count > 1 {
+            if model.queue.count > 1 {
                 PillButton(title: isReordering ? "Done" : "Reorder") {
                     withAnimation { editMode = isReordering ? .inactive : .active }
                 }
@@ -79,28 +83,54 @@ struct BeansView: View {
         .padding(.bottom, 9)
     }
 
-    private func queueRows(_ queue: [Bean]) -> some View {
-        let starts = Scheduler.startDates(model.schedule)
-        return ForEach(queue) { bean in
-            open(bean) { QueueCard(bean: bean, start: starts[bean.id]) }
-                .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
-                .swipeActions(edge: .leading) {
-                    if bean.displayOrder != nil {
-                        Button {
-                            model.clearQueueOrder(id: bean.id)
-                        } label: {
-                            Label("Auto order", systemImage: "arrow.uturn.backward")
-                        }
-                        .tint(.gray)
+    /// A card for each bag at the place of the part it's in, and one for
+    /// the rest of it after each break.
+    private func queueRows(_ queue: [QueuePart<Bean>]) -> some View {
+        let shown = Dictionary(queue.map { ($0.bean.id, $0.id) }) { first, _ in first }
+        return ForEach(queue) { part in
+            let isBag = shown[part.bean.id] == part.id
+            open(part.bean) {
+                if isBag { QueueCard(part: part) } else { RestCard(part: part) }
+            }
+            .swipeActions { swipeActions(part, isBag: isBag) }
+            .swipeActions(edge: .leading) {
+                if part.displayOrder != nil {
+                    Button {
+                        model.clearQueueOrder(id: part.id)
+                    } label: {
+                        Label("Auto order", systemImage: "arrow.uturn.backward")
                     }
+                    .tint(.gray)
                 }
+            }
         }
         .onMove { from, to in
             var ids = queue.map(\.id)
             let moved = from.map { ids[$0] }
             ids.move(fromOffsets: from, toOffset: to)
-            // The lowest of the moved bags, so every one of them keeps its place
+            // A rest dragged above its bag goes just below it
+            ids = Scheduler.keepingPartsInOrder(ids, parts: queue)
+            // The lowest of the moved rows, so every one of them keeps its place
             if let last = ids.last(where: moved.contains) { model.moveInQueue(ids, moved: last) }
+        }
+    }
+
+    /// A bag's card freezes it or takes a break, and on a break, ends it; a
+    /// rest's moves or ends its break.
+    @ViewBuilder
+    private func swipeActions(_ part: QueuePart<Bean>, isBag: Bool) -> some View {
+        if isBag {
+            FreezeSwipeButton(bean: part.bean, confirming: $confirmingFreeze)
+            Button("Break", systemImage: "pause.circle") { breaking = .new(for: part.bean) }
+                .tint(.indigo)
+        }
+        if let pause = part.after, !isBag || !part.isStarted {
+            Button(isBag ? "Back now" : "End break", systemImage: "play.circle") { model.endBreak(id: pause.id) }
+                .tint(Theme.accent)
+        }
+        if !isBag, let draft = BreakDraft.moving(part) {
+            Button("Change", systemImage: "slider.horizontal.3") { breaking = draft }
+                .tint(.gray)
         }
     }
 
@@ -110,7 +140,8 @@ struct BeansView: View {
                 ? "No bags in the queue. Import a BeanConqueror export from Settings."
                 : """
                 Numbered bags are in the order you set; the rest follow, in-progress first, then by ready date. \
-                Swipe a bag left to freeze it, or right to hand it back to automatic order.
+                Swipe a bag left to freeze it or take a break, or right to hand it back to automatic order. \
+                A break leaves the rest of the bag as a dashed card: drag it to choose when you come back to it.
                 """
         )
         .font(.caption)

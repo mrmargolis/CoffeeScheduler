@@ -67,17 +67,19 @@ enum Schema {
           dose_size_grams REAL NOT NULL
         );
 
-        -- Planned rests from a bag, without freezing it (BagBreak). An older
-        -- build doesn't know them and schedules the bag straight through.
-        CREATE TABLE IF NOT EXISTS bag_breaks (
+        -- Breaks in a bag, without freezing it (BagBreak): the bag is drunk
+        -- to after_grams, and the rest waits at its own place in the queue,
+        -- numbered with beans.display_order. An older build doesn't know them
+        -- and schedules the bag straight through.
+        CREATE TABLE IF NOT EXISTS breaks (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           bean_id TEXT NOT NULL REFERENCES beans(id),
           after_grams REAL NOT NULL,
-          resume_date TEXT NOT NULL
+          display_order INTEGER
         );
 
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
-        CREATE INDEX IF NOT EXISTS idx_bag_breaks_bean_id ON bag_breaks(bean_id);
+        CREATE INDEX IF NOT EXISTS idx_breaks_bean_id ON breaks(bean_id);
         CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
         """
 
@@ -107,8 +109,25 @@ enum Schema {
         if try !db.query("PRAGMA table_info(beans)").contains(where: { $0.string("name") == "url" }) {
             try db.execute("ALTER TABLE beans ADD COLUMN url TEXT")
         }
+        try moveDatedBreaks(db)
         if found != version {
             try db.execute("PRAGMA user_version = \(version)")
+        }
+    }
+}
+
+extension Schema {
+    /// Breaks from the build that gave each one a day to come back on, which
+    /// an older build may still make: kept at their grams, and queued after
+    /// the next bag, as a new break is.
+    fileprivate static func moveDatedBreaks(_ db: SQLiteDatabase) throws {
+        guard try !db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bag_breaks'").isEmpty else { return }
+        try db.transaction {
+            try db.execute(
+                """
+                INSERT INTO breaks (bean_id, after_grams) SELECT bean_id, after_grams FROM bag_breaks ORDER BY after_grams, id;
+                DROP TABLE bag_breaks;
+                """)
         }
     }
 }
