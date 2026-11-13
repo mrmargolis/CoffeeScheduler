@@ -50,6 +50,22 @@ import Testing
         #expect(days(of: "other", in: result).first == 0)
     }
 
+    @Test func passesTheBagByWithLessThanADoseBeforeTheBreak() {
+        // 13 g above the break: not a whole dose, so the bag rests and isn't counted ready
+        let result = schedule(
+            "2026-01-01", "2026-01-12", beans: bags(remaining: 113, breaks: [BagBreak(afterGrams: 150, resumeDate: "2026-01-11")]))
+        #expect(days(of: "gwo", in: result).first == 10)
+        #expect(!result[0].isSurplus)
+    }
+
+    @Test func takesNoPartDoseBeforeTheBreakOnASmallDay() {
+        // A 13 g day: the 13 g above the break would cover it, but isn't a dose
+        let result = schedule(
+            "2026-01-01", "2026-01-01", beans: bags(remaining: 113, breaks: [BagBreak(afterGrams: 150, resumeDate: "2026-01-11")]),
+            overrides: ["2026-01-01": Scheduler.DayOverride(dailyGrams: 13, doseSize: 15)])
+        #expect(result[0].consumptions.map(\.beanID) == ["other"])
+    }
+
     @Test func ignoresABreakThatsOver() {
         let result = schedule(
             "2026-01-01", "2026-01-05", beans: bags(remaining: 150, breaks: [BagBreak(afterGrams: 150, resumeDate: "2026-01-01")]))
@@ -95,6 +111,9 @@ import Testing
         #expect(bean(used: 100, breaks: [pause]).nextBreak(after: "2026-11-13") == pause)
         // Within a dose of the amount counts as there: the schedule won't take less
         #expect(bean(used: 140, breaks: [pause]).breakOn("2026-11-13") == pause)
+        #expect(bean(used: 137, breaks: [pause]).breakOn("2026-11-13") == pause)
+        #expect(bean(used: 137, breaks: [pause]).nextBreak(after: "2026-11-13") == nil)
+        #expect(bean(used: 135, breaks: [pause]).breakOn("2026-11-13") == nil)
         #expect(bean(used: 160, breaks: [pause]).breakOn("2026-11-13") == pause)
         #expect(bean(used: 160, breaks: [pause]).nextBreak(after: "2026-11-13") == nil)
         // Over on its back-on day
