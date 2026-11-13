@@ -141,7 +141,8 @@ struct BeansView: View {
                 : """
                 Numbered bags are in the order you set; the rest follow, in-progress first, then by ready date. \
                 Swipe a bag left to freeze it or take a break, or right to hand it back to automatic order. \
-                A break leaves the rest of the bag as a dashed card: drag it to choose when you come back to it.
+                A break leaves the rest of the bag as a dashed card: drag it to choose when you come back to it. \
+                A gold hourglass marks a bag due to start before the shorter of its own and its roaster's rest.
                 """
         )
         .font(.caption)
