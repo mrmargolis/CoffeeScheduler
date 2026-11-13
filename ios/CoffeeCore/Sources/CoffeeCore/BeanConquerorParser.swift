@@ -18,7 +18,7 @@ public enum BeanConquerorParser {
         public var archived: Bool
         public var isFrozen: Bool
         /// The bag's page as typed into BeanConqueror; nil when blank.
-        public var url: String? = nil
+        public var url: String?
     }
 
     public struct RawBrew: Equatable, Sendable {

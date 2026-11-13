@@ -21,7 +21,7 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var freezeAfterGrams: Double?
     public var notes: String?
     /// The bag's page, as typed into BeanConqueror: see `pageURL`.
-    public var url: String? = nil
+    public var url: String?
     public var displayOrder: Int?
     // Computed
     public var effectiveRestDays: Int
