@@ -20,6 +20,8 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var plannedThawDate: String?
     public var freezeAfterGrams: Double?
     public var notes: String?
+    /// The bag's page, as typed into BeanConqueror: see `pageURL`.
+    public var url: String? = nil
     public var displayOrder: Int?
     // Computed
     public var effectiveRestDays: Int
@@ -31,6 +33,19 @@ public struct Bean: Identifiable, Hashable, Sendable {
     public var frozenDaysToDate: Int
 
     public var remainingGrams: Double { weightGrams - totalBrewedGrams }
+
+    /// The bag's page as a link to open, with "https://" put in front of
+    /// one typed without it; nil for none, or for anything but a web page.
+    public var pageURL: URL? {
+        guard let typed = url?.trimmingCharacters(in: .whitespacesAndNewlines), !typed.isEmpty, !typed.contains(" ") else {
+            return nil
+        }
+        let address = typed.contains("://") ? typed : "https://" + typed
+        guard let link = URL(string: address), ["http", "https"].contains(link.scheme?.lowercased()),
+            let host = link.host(), host.contains(".")
+        else { return nil }
+        return link
+    }
 
     public var readyDate: String? {
         roastDate.map { DateUtils.addDays($0, effectiveRestDays + frozenDays) }

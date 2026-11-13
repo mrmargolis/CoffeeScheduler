@@ -53,8 +53,16 @@ struct BeanDetailView: View {
                     AgeCard(detail: detail, track: track, roast: roast, ready: ready, color: color)
                 }
                 BagFacts(bean: bean, today: model.today, restSource: restSource(bean))
+                // The page saved in BeanConqueror, then a search for one
+                if let page = bean.pageURL {
+                    LinkButton(
+                        title: "Open \(Self.siteName(page))", systemImage: "safari", url: page, color: Theme.accent,
+                        hint: "Opens the coffee's page saved in BeanConqueror")
+                }
                 if let url = BagLabel.googleURL(for: BagLabel.Reading(roaster: bean.roaster, coffee: bean.name)) {
-                    GoogleButton(url: url)
+                    LinkButton(
+                        title: "Search Google", systemImage: "magnifyingglass", url: url, color: Theme.text,
+                        hint: "Searches Google for the roaster and the coffee's name")
                 }
                 if !bean.archived {
                     FreezeButton(isFrozen: bean.isFrozen) { confirmingFreeze = bean }
@@ -66,6 +74,12 @@ struct BeanDetailView: View {
         }
         .background(Theme.ground)
         .foregroundStyle(Theme.text)
+    }
+
+    /// "onyxcoffeelab.com" for a page there, without its "www.".
+    static func siteName(_ url: URL) -> String {
+        let host = url.host() ?? "the page"
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     /// Where the bag's rest days come from.
@@ -213,24 +227,30 @@ private struct FactTile: View {
     }
 }
 
-/// A Google search for the roaster and the bag's name, to find the
-/// coffee's page without typing them. Opens in Safari.
-private struct GoogleButton: View {
+/// A web page to open in Safari: the coffee's own page, or a search for it.
+private struct LinkButton: View {
+    let title: String
+    let systemImage: String
     let url: URL
+    let color: Color
+    let hint: String
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.tileRadius)
         Link(destination: url) {
-            Label("Search Google", systemImage: "magnifyingglass")
+            Label(title, systemImage: systemImage)
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(color)
+                .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .background(shape.fill(Theme.card))
                 .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Searches Google for the roaster and the coffee's name")
+        .accessibilityHint(hint)
     }
 }
 

@@ -192,6 +192,7 @@ public final class CoffeeStore {
             plannedThawDate: row.string("planned_thaw_date"),
             freezeAfterGrams: row.double("freeze_after_grams"),
             notes: row.string("notes"),
+            url: row.string("url"),
             displayOrder: row.int("display_order"),
             effectiveRestDays: row.int("effective_rest_days") ?? 0,
             totalBrewedGrams: row.double("total_brewed_grams") ?? 0,
