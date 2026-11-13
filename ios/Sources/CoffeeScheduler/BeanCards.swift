@@ -13,20 +13,15 @@ struct QueueCard: View {
     private var run: BagRun? { model.partRuns[part.id] }
     private var start: String? { run?.start }
     private var isOpened: Bool { bean.remainingGrams < bean.weightGrams }
-    /// Drunk to a break, and not yet back.
-    private var isOnBreak: Bool { part.isRest && !part.isStarted }
-    /// Opened and in the schedule by today; a bag due to start today isn't
-    /// yet, and one on a break isn't until it's taken up again.
-    private var isOnGrinder: Bool {
-        isOpened && !isOnBreak && (part.isRest || (start.map { $0 <= model.today } ?? false))
-    }
+    private var isOnBreak: Bool { part.isOnBreak }
+    private var isOnGrinder: Bool { model.isOnGrinder(part) }
 
     var body: some View {
         let color = model.rail(bean.roaster)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 QueueTile(order: part.displayOrder, color: color, isSolid: isOnGrinder)
-                BagTitle(name: bean.name, subtitle: Self.subtitle(bean))
+                BagTitle(name: bean.name, subtitle: bean.roaster)
                 Spacer(minLength: 8)
                 badge
             }
@@ -42,12 +37,6 @@ struct QueueCard: View {
             .lineLimit(1)
         }
         .cardBackground(Theme.card)
-    }
-
-    /// Roaster, then country and processing: "Square Mile · Ethiopia, natural".
-    static func subtitle(_ bean: Bean) -> String {
-        let origin = [bean.country, bean.processing].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
-        return [bean.roaster, origin].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -67,16 +56,19 @@ struct QueueCard: View {
         }
     }
 
-    /// After the grams left: "of 250 left", or for a full bag what's
-    /// planned; and the break it's heading for.
+    /// After the grams left: "of 250 left", or for a full bag "· unopened";
+    /// then the one plan that matters most: the break it's heading for, when
+    /// it's frozen, or for a full bag when it starts.
     private var amountNote: String {
-        let breakNote = part.until.map { " · break at \(Format.grams($0.afterGrams)) g" }
-        if isOpened { return "of \(Format.grams(bean.weightGrams)) left" + (breakNote ?? "") }
-        if let grams = bean.freezeAfterGrams { return "· freeze after \(Format.grams(grams)) g" }
-        // The break says more than the start, which would push it out of the line
-        if let breakNote { return "unopened" + breakNote }
-        if let start { return "unopened · starts \(Format.shortDay(start))" }
-        return "unopened"
+        var notes = [isOpened ? "of \(Format.grams(bean.weightGrams)) left" : "· unopened"]
+        if let pause = part.until {
+            notes.append("break at \(Format.grams(pause.afterGrams)) g")
+        } else if let grams = bean.freezeAfterGrams, bean.weightGrams - bean.remainingGrams < grams {
+            notes.append("freeze after \(Format.grams(grams)) g")
+        } else if !isOpened, let start {
+            notes.append("starts \(Format.shortDay(start))")
+        }
+        return notes.joined(separator: " · ")
     }
 
     /// Days an unopened bag's first cup comes before even the shorter of its
@@ -165,9 +157,10 @@ struct QueueTile: View {
     let color: Color
     /// Filled for the bag being drunk, tinted and outlined for the rest.
     let isSolid: Bool
+    var size: CGFloat = 36
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12)
+        let shape = RoundedRectangle(cornerRadius: size / 3)
         ZStack {
             shape.fill(color.opacity(isSolid ? 1 : 0.2))
             if !isSolid { shape.strokeBorder(color, lineWidth: 1) }
@@ -181,7 +174,7 @@ struct QueueTile: View {
                 Circle().fill(isSolid ? Theme.ground : color).frame(width: 8, height: 8)
             }
         }
-        .frame(width: 36, height: 36)
+        .frame(width: size, height: size)
     }
 }
 

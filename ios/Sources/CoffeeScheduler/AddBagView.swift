@@ -87,7 +87,14 @@ struct AddBagView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Clear") { ask(.clear) }.disabled(intake.status == .reading || intake.isEmpty)
+            let isDisabled = intake.status == .reading || intake.isEmpty
+            // Coloured by hand: a disabled bar button draws black on the dark bar
+            Button {
+                ask(.clear)
+            } label: {
+                Text("Clear").foregroundStyle(isDisabled ? Theme.dim : Theme.accent)
+            }
+            .disabled(isDisabled)
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Done") { ask(.close) }

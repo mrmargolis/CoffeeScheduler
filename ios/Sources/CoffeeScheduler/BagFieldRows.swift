@@ -19,6 +19,27 @@ extension BagField {
         }
     }
 
+    /// A field's row: a little tighter than a form's own, so the whole bag
+    /// fits above the dock.
+    static let rowInsets = EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20)
+
+    /// What goes in the field, shown while it's empty.
+    var hint: String {
+        switch self {
+        case .coffee: "Name on the bag"
+        case .roaster: "Who roasted it"
+        case .roastDate: "Add date"
+        case .weight: "Grams"
+        case .notes: "Flavours"
+        case .country: "Where it's from"
+        case .region: "Area or town"
+        case .producer: "Farm or co-op"
+        case .variety: "Gesha, Bourbon…"
+        case .process: "Washed, natural…"
+        case .url: "Coffee's page"
+        }
+    }
+
     /// The fields Next and Previous step through: all but the roast date,
     /// which is a picker.
     static let typed: [BagField] = allCases.filter { $0 != .roastDate }
@@ -103,7 +124,7 @@ struct BagTextRow<Accessory: View>: View {
             BagFieldName(field: field, intake: intake)
             Spacer(minLength: 8)
             SourceIcon(source: intake.fieldSources[field])
-            TextField(field.title, text: text, prompt: Text("Empty").foregroundStyle(Theme.text3), axis: .vertical)
+            TextField(field.title, text: text, prompt: Text(field.hint).foregroundStyle(Theme.dim), axis: .vertical)
                 .multilineTextAlignment(.trailing)
                 .foregroundStyle(Theme.text2)
                 .lineLimit(1...3)
@@ -115,7 +136,8 @@ struct BagTextRow<Accessory: View>: View {
                 accessory
             }
         }
-        .frame(minHeight: 48)
+        .frame(minHeight: 44)
+        .listRowInsets(BagField.rowInsets)
         .id(field)
     }
 
@@ -136,8 +158,8 @@ struct BagDateWeightRows: View {
     var focus: FocusState<BagField?>.Binding
 
     var body: some View {
-        date.frame(minHeight: 48).id(BagField.roastDate)
-        weight.frame(minHeight: 48).id(BagField.weight)
+        date.frame(minHeight: 44).listRowInsets(BagField.rowInsets).id(BagField.roastDate)
+        weight.frame(minHeight: 44).listRowInsets(BagField.rowInsets).id(BagField.weight)
     }
 
     private var date: some View {
@@ -159,7 +181,7 @@ struct BagDateWeightRows: View {
         HStack(spacing: 4) {
             BagFieldName(field: .weight, intake: intake)
             Spacer(minLength: 4)
-            TextField("Weight", text: grams, prompt: Text("Empty").foregroundStyle(Theme.text3))
+            TextField("Weight", text: grams, prompt: Text(BagField.weight.hint).foregroundStyle(Theme.dim))
                 .numberEntry(.numberPad)
                 .foregroundStyle(Theme.text2)
                 .focused(focus, equals: .weight)

@@ -13,6 +13,7 @@ struct BeansView: View {
     @State private var editMode: EditMode
     @State private var addingBag = false
     @State private var breaking: BreakDraft?
+    @State private var showingHelp = false
 
     init(reordering: Bool = false) {
         _editMode = State(initialValue: reordering ? .active : .inactive)
@@ -31,13 +32,22 @@ struct BeansView: View {
                         if !model.activeBeans.isEmpty { ShareBeansLink().padding(.vertical, -12) }
                     }
                     .padding(.horizontal, 4)
+                    if isReordering { note("Drag to set the order the schedule drinks them in. A dashed row is the rest of a bag after its break.") }
                     queueRows(model.queue)
-                    footer(isEmpty: queue.isEmpty)
+                    if queue.isEmpty {
+                        note("No bags in the queue. Import a BeanConqueror export from Settings.")
+                    } else if !isReordering {
+                        QueueHelp(isExpanded: $showingHelp)
+                    }
                     if !frozen.isEmpty {
-                        SectionLabel(title: "Frozen").padding(.horizontal, 4)
-                        ForEach(frozen) { bean in
-                            open(bean) { FrozenCard(bean: bean) }
-                                .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                        SectionLabel(title: "Frozen").padding(.horizontal, 4).padding(.top, 6)
+                        if isReordering {
+                            note("Frozen bags join the queue when they thaw.")
+                        } else {
+                            ForEach(frozen) { bean in
+                                open(bean) { FrozenCard(bean: bean) }
+                                    .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                            }
                         }
                     }
                 }
@@ -59,22 +69,22 @@ struct BeansView: View {
         }
     }
 
+    private var isReordering: Bool { editMode == .active }
+
     private func header(queue: [Bean], frozen: [Bean]) -> some View {
         var counts = ["\(queue.count) in the queue"]
         if !frozen.isEmpty { counts.append("\(frozen.count) frozen") }
-        let isReordering = editMode == .active
-        return HStack(alignment: .bottom, spacing: 8) {
-            ScreenHeader(eyebrow: counts.joined(separator: " · "), title: "Beans")
+        return ScreenHeader(eyebrow: counts.joined(separator: " · "), title: "Beans") {
             if isReordering && model.queue.contains(where: { $0.displayOrder != nil }) {
-                PillButton(title: "Automatic") { model.clearQueueOrder() }
-                    .accessibilityLabel("Use automatic order")
+                PillButton(title: "Reset order") { model.clearQueueOrder() }
+                    .accessibilityHint("Puts the queue back in automatic order")
             }
             if !isReordering {
                 PillButton(title: "Add a bag") { addingBag = true }
                     .accessibilityHint("Fills in a bag from photos of it, its page or by hand, to add to BeanConqueror")
             }
             if model.queue.count > 1 {
-                PillButton(title: isReordering ? "Done" : "Reorder") {
+                PillButton(title: isReordering ? "Done" : "Reorder", isProminent: isReordering) {
                     withAnimation { editMode = isReordering ? .inactive : .active }
                 }
             }
@@ -90,7 +100,13 @@ struct BeansView: View {
         return ForEach(queue) { part in
             let isBag = shown[part.bean.id] == part.id
             open(part.bean) {
-                if isBag { QueueCard(part: part) } else { RestCard(part: part) }
+                if isReordering {
+                    ReorderRow(part: part, isBag: isBag)
+                } else if isBag {
+                    QueueCard(part: part)
+                } else {
+                    RestCard(part: part)
+                }
             }
             .swipeActions { swipeActions(part, isBag: isBag) }
             .swipeActions(edge: .leading) {
@@ -134,20 +150,11 @@ struct BeansView: View {
         }
     }
 
-    private func footer(isEmpty: Bool) -> some View {
-        Text(
-            isEmpty
-                ? "No bags in the queue. Import a BeanConqueror export from Settings."
-                : """
-                Numbered bags are in the order you set; the rest follow, in-progress first, then by ready date. \
-                Swipe a bag left to freeze it or take a break, or right to hand it back to automatic order. \
-                A break leaves the rest of the bag as a dashed card: drag it to choose when you come back to it. \
-                A gold hourglass marks a bag due to start before the shorter of its own and its roaster's rest.
-                """
-        )
-        .font(.caption)
-        .foregroundStyle(Theme.text3)
-        .padding(.horizontal, 4)
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(Theme.text3)
+            .padding(.horizontal, 4)
     }
 
     /// A card that opens its bag. A button rather than a NavigationLink,
@@ -163,18 +170,21 @@ struct BeansView: View {
 }
 
 /// A rounded text button on the ground, beside a screen's title.
+/// Filled in gold while it ends a mode, like Done.
 private struct PillButton: View {
     let title: String
+    var isProminent = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.accent)
+                .font(.subheadline.weight(isProminent ? .bold : .semibold))
+                .foregroundStyle(isProminent ? Theme.ground : Theme.accent)
                 .padding(.horizontal, 16)
                 .frame(height: 44)
-                .background(Theme.card, in: Capsule())
+                .background(isProminent ? Theme.accent : Theme.card, in: Capsule())
+                .fixedSize()
         }
         .buttonStyle(.plain)
     }
