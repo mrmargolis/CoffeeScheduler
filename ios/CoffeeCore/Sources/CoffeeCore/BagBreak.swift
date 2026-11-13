@@ -27,6 +27,12 @@ public struct BagBreak: Hashable, Sendable {
     static func floor(_ breaks: [BagBreak], weightGrams: Double, on date: String) -> Double {
         current(breaks, on: date).map { max(0, weightGrams - $0.afterGrams) } ?? 0
     }
+
+    /// Whether a bag with `aboveGrams` left before its break is on it. The
+    /// schedule takes whole doses up to a break, so less than one is none.
+    static func isReached(aboveGrams: Double, doseSize: Double) -> Bool {
+        aboveGrams <= Scheduler.minDoseGrams || aboveGrams < doseSize
+    }
 }
 
 extension Bean {
@@ -35,7 +41,7 @@ extension Bean {
     public func breakOn(_ date: String) -> BagBreak? {
         guard let current = BagBreak.current(breaks, on: date) else { return nil }
         let floor = BagBreak.floor(breaks, weightGrams: weightGrams, on: date)
-        return remainingGrams - floor <= Scheduler.minDoseGrams ? current : nil
+        return BagBreak.isReached(aboveGrams: remainingGrams - floor, doseSize: Scheduler.doseSizeGrams) ? current : nil
     }
 
     /// The break the bag is heading for on `date`, not yet reached.

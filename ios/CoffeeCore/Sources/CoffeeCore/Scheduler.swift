@@ -268,7 +268,7 @@ extension Scheduler {
                 gramsNeeded -= c.grams
             }
 
-            let readyCount = readyCount(on: date)
+            let readyCount = readyCount(on: date, doseSize: doseSize)
 
             // Consume from the queue in order.
             for bean in queue {
@@ -293,12 +293,16 @@ extension Scheduler {
         }
 
         /// How many beans are ready on this date.
-        private func readyCount(on date: String) -> Int {
+        private func readyCount(on date: String, doseSize: Double) -> Int {
             queue.count { bean in
                 let rem = remaining[bean.id] ?? 0
                 guard let ready = readyDate(bean), ready <= date, rem > minDoseGrams else { return false }
                 // Skip bean if projected consumption has reached its freeze-after or break target
-                return rem - max(freezeFloor(bean), breakFloor(bean, on: date)) > minDoseGrams
+                let breakFloor = breakFloor(bean, on: date)
+                if breakFloor > freezeFloor(bean) {
+                    return !BagBreak.isReached(aboveGrams: rem - breakFloor, doseSize: doseSize)
+                }
+                return rem - freezeFloor(bean) > minDoseGrams
             }
         }
 
@@ -319,6 +323,8 @@ extension Scheduler {
             let floor = max(frozenFloor, breakFloor(bean, on: date))
             let available = rem - floor
             guard rem > minDoseGrams, available > minDoseGrams else { return nil }
+            // Short of a whole dose before a break, the bag is on it
+            if floor > frozenFloor, BagBreak.isReached(aboveGrams: available, doseSize: doseSize) { return nil }
 
             var consume = min(needed, available)
 
