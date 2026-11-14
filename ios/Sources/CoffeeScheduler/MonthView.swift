@@ -29,7 +29,7 @@ struct MonthView: View {
             }
             .font(.caption2.weight(.semibold))
             .foregroundStyle(Theme.text3)
-            .padding(.vertical, 10)
+            .padding(.vertical, 6)
 
             ForEach(weeks, id: \.self) { monday in
                 Theme.weekLine.frame(height: 1)
@@ -64,10 +64,13 @@ struct MonthView: View {
         Button {
             month = DateUtils.addMonths(month, months)
         } label: {
+            // A smaller circle, but still a 44 pt target
             Image(systemName: icon)
-                .font(.body.weight(.semibold))
-                .frame(width: 44, height: 44)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 34, height: 34)
                 .background(Theme.raised, in: Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -89,10 +92,11 @@ private struct WeekRow: View {
     let openBean: (String) -> Void
     let openDay: (String) -> Void
 
-    private static let dateHeight: CGFloat = 32
-    private static let barHeight: CGFloat = 22
-    private static let laneHeight: CGFloat = 26
-    private static let overrideHeight: CGFloat = 14
+    // Close to the large widget's grid, so a month fits with room for the key below
+    private static let dateHeight: CGFloat = 24
+    private static let barHeight: CGFloat = 17
+    private static let laneHeight: CGFloat = 19
+    private static let overrideHeight: CGFloat = 12
 
     var body: some View {
         let lanes = max(1, (segments.map(\.lane).max() ?? -1) + 1)
@@ -155,7 +159,7 @@ private struct WeekRow: View {
             Spacer(minLength: 0)
             if let label = overrideLabel(date) {
                 Text(label)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.accent)
                     .frame(height: Self.overrideHeight)
@@ -174,12 +178,12 @@ private struct WeekRow: View {
 
     @ViewBuilder
     private func dateLabel(_ date: String, isSkip: Bool) -> some View {
-        let number = Text(Format.dayNumber(date)).font(.system(size: 14)).monospacedDigit()
+        let number = Text(Format.dayNumber(date)).font(.system(size: 13)).monospacedDigit()
         if date == model.today {
             number
                 .fontWeight(.bold)
                 .foregroundStyle(Theme.ground)
-                .frame(width: 26, height: 26)
+                .frame(width: 22, height: 22)
                 .background(Theme.accent, in: Circle())
         } else if DateUtils.firstOfMonth(date) != month {
             number.foregroundStyle(Theme.dim)
@@ -216,8 +220,8 @@ private struct MonthBar: View {
     }
 
     private var face: some View {
-        let lead: CGFloat = segment.isStart ? 7 : 0
-        let trail: CGFloat = segment.isEnd ? 7 : 0
+        let lead: CGFloat = segment.isStart ? 5 : 0
+        let trail: CGFloat = segment.isEnd ? 5 : 0
         let shape = UnevenRoundedRectangle(
             topLeadingRadius: lead, bottomLeadingRadius: lead, bottomTrailingRadius: trail, topTrailingRadius: trail
         )
@@ -226,7 +230,7 @@ private struct MonthBar: View {
         let isShort = segment.startColumn == segment.endColumn && segment.event.beanID != nil
         let title = isShort ? Self.initials(segment.event.title) : segment.event.title
         return Text(showsTitle ? title : "")
-            .font(.system(size: 11, weight: isShort ? .bold : .semibold))
+            .font(.system(size: 10, weight: isShort ? .bold : .semibold))
             .lineLimit(1)
             .foregroundStyle(look.text)
             .padding(.horizontal, isShort ? 2 : 6)
