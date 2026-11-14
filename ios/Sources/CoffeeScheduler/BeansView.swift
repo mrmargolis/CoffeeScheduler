@@ -15,47 +15,56 @@ struct BeansView: View {
     @State private var breaking: BreakDraft?
     @State private var showingHelp = false
 
-    init(reordering: Bool = false) {
+    /// Taps on the Beans tab while it's showing: see `scrollsToTop`.
+    let retaps: Int
+
+    init(reordering: Bool = false, retaps: Int = 0) {
         _editMode = State(initialValue: reordering ? .active : .inactive)
+        self.retaps = retaps
     }
 
     var body: some View {
         let queue = model.activeBeans.filter { !$0.isFrozen }
         let frozen = model.activeBeans.filter(\.isFrozen)
         NavigationStack(path: $path) {
-            List {
-                Group {
-                    header(queue: queue, frozen: frozen)
-                    HStack(spacing: 0) {
-                        SectionLabel(title: "Queue")
-                        // A picture of the queue and freezer to post
-                        if !model.activeBeans.isEmpty { ShareBeansLink().padding(.vertical, -12) }
-                    }
-                    .padding(.horizontal, 4)
-                    if isReordering { note("Drag to set the order the schedule drinks them in. A dashed row is the rest of a bag after its break.") }
-                    queueRows(model.queue)
-                    if queue.isEmpty {
-                        note("No bags in the queue. Import a BeanConqueror export from Settings.")
-                    } else if !isReordering {
-                        QueueHelp(isExpanded: $showingHelp)
-                    }
-                    if !frozen.isEmpty {
-                        SectionLabel(title: "Frozen").padding(.horizontal, 4).padding(.top, 6)
+            ScrollViewReader { proxy in
+                List {
+                    Group {
+                        header(queue: queue, frozen: frozen).id(ScrollTop.id)
+                        HStack(spacing: 0) {
+                            SectionLabel(title: "Queue")
+                            // A picture of the queue and freezer to post
+                            if !model.activeBeans.isEmpty { ShareBeansLink().padding(.vertical, -12) }
+                        }
+                        .padding(.horizontal, 4)
                         if isReordering {
-                            note("Frozen bags join the queue when they thaw.")
-                        } else {
-                            ForEach(frozen) { bean in
-                                open(bean) { FrozenCard(bean: bean) }
-                                    .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                            note("Drag to set the order the schedule drinks them in. A dashed row is the rest of a bag after its break.")
+                        }
+                        queueRows(model.queue)
+                        if queue.isEmpty {
+                            note("No bags in the queue. Import a BeanConqueror export from Settings.")
+                        } else if !isReordering {
+                            QueueHelp(isExpanded: $showingHelp)
+                        }
+                        if !frozen.isEmpty {
+                            SectionLabel(title: "Frozen").padding(.horizontal, 4).padding(.top, 6)
+                            if isReordering {
+                                note("Frozen bags join the queue when they thaw.")
+                            } else {
+                                ForEach(frozen) { bean in
+                                    open(bean) { FrozenCard(bean: bean) }
+                                        .swipeActions { FreezeSwipeButton(bean: bean, confirming: $confirmingFreeze) }
+                                }
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 5, leading: 20, bottom: 5, trailing: 20))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
-                .listRowInsets(EdgeInsets(top: 5, leading: 20, bottom: 5, trailing: 20))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .listStyle(.plain)
+                .scrollsToTop(on: retaps, path: $path, proxy: proxy)
             }
-            .listStyle(.plain)
             .environment(\.editMode, $editMode)
             .themedList()
             .statusBarCover()

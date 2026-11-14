@@ -14,42 +14,49 @@ struct ScheduleView: View {
     @State private var layout: Layout
     /// First of the month the grid shows; nil for the current month.
     @State private var month: String?
+    /// Taps on the Schedule tab while it's showing: see `scrollsToTop`.
+    let retaps: Int
 
-    init(layout: Layout = .month) {
+    init(layout: Layout = .month, retaps: Int = 0) {
         _layout = State(initialValue: layout)
+        self.retaps = retaps
     }
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                Section {
-                    ScreenHeader(eyebrow: Format.longDay(model.today), title: "Schedule")
-                        // Top inset: the section's rounded corner would clip the first line
-                        .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 14, trailing: 0))
-                    if !model.schedule.isEmpty {
-                        LayoutSwitch(layout: $layout)
-                            .listRowInsets(EdgeInsets())
-                    }
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-                if !model.hasFolder {
+            ScrollViewReader { proxy in
+                List {
                     Section {
-                        FolderPrompt { pickingFolder = true }
+                        ScreenHeader(eyebrow: Format.longDay(model.today), title: "Schedule")
+                            .id(ScrollTop.id)
+                            // Top inset: the section's rounded corner would clip the first line
+                            .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 14, trailing: 0))
+                        if !model.schedule.isEmpty {
+                            LayoutSwitch(layout: $layout)
+                                .listRowInsets(EdgeInsets())
+                        }
                     }
-                    .listRowBackground(Theme.card)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                    if !model.hasFolder {
+                        Section {
+                            FolderPrompt { pickingFolder = true }
+                        }
+                        .listRowBackground(Theme.card)
+                    }
+                    if layout == .month && !model.schedule.isEmpty {
+                        monthSections
+                    } else {
+                        WeekList(
+                            openBean: { path.append(BeanRoute(id: $0)) },
+                            openDay: { dayOptions = DayRoute(date: $0) }
+                        )
+                    }
                 }
-                if layout == .month && !model.schedule.isEmpty {
-                    monthSections
-                } else {
-                    WeekList(
-                        openBean: { path.append(BeanRoute(id: $0)) },
-                        openDay: { dayOptions = DayRoute(date: $0) }
-                    )
-                }
+                .listSectionSpacing(16)
+                .scrollsToTop(on: retaps, path: $path, proxy: proxy)
             }
-            .listSectionSpacing(16)
             .contentMargins(.top, 0, for: .scrollContent)
             .themedList()
             .statusBarCover()
