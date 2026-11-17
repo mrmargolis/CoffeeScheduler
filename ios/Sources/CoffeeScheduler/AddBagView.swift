@@ -13,8 +13,8 @@ struct AddBagView: View {
     @State private var showingCamera = false
     /// Photos taken since the camera opened: it stays open for the next.
     @State private var shots = 0
-    /// Photos waiting to be read, oldest first: each is read in turn.
-    @State private var unread: [UIImage] = []
+    /// Photos waiting to be read, and the one being read.
+    @State private var queue = LabelQueue()
     @State private var choosingPhoto = false
     /// The photo picker asked for over the camera, which it's shown on.
     @State private var choosingOverCamera = false
@@ -23,8 +23,6 @@ struct AddBagView: View {
     /// The coffee sent to BeanConqueror, to clear the form for the next bag
     /// on coming back.
     @State private var sent: String?
-    /// The photo being read, for the card over the form.
-    @State private var reading: BagReading?
 
     private struct Browse: Identifiable {
         let url: URL
@@ -51,9 +49,9 @@ struct AddBagView: View {
                 .toolbar { toolbar }
         }
         .overlay {
-            if let reading { BagReadingCard(reading: reading) }
+            if let reading = queue.reading { BagReadingCard(reading: reading) }
         }
-        .animation(.easeInOut(duration: 0.2), value: reading == nil)
+        .animation(.easeInOut(duration: 0.2), value: queue.reading == nil)
         .fullScreenCover(isPresented: $showingCamera) { camera }
         .sheet(isPresented: $choosingPhoto) { picker }
         .sheet(item: $browsing) { browse in
@@ -181,36 +179,29 @@ struct AddBagView: View {
     /// Reads the photo, or queues it behind one being read: the front and
     /// back fill the bag in turn, as if taken one at a time.
     private func startReading(_ image: UIImage) {
-        unread.append(image)
-        guard reading == nil else { return }
-        // Set at once, so a photo taken before the task starts joins this queue
         intake.status = .reading
-        reading = BagReading(photo: image)
-        Task {
-            while !unread.isEmpty {
-                let next = unread.removeFirst()
-                intake.status = .reading
-                reading = BagReading(photo: next)
-                await read(next)
-            }
-            reading = nil
+        let (intake, queue, roasters) = (intake, queue, model.roasters)
+        queue.add(image) { next in
+            intake.status = .reading
+            await Self.read(next, into: intake, queue: queue, roasters: roasters)
         }
     }
 
-    private func read(_ image: UIImage) async {
+    private static func read(_ image: UIImage, into intake: BagIntake, queue: LabelQueue, roasters: [String]) async {
+        let name = intake.name(for: .photo(image, lines: []))
         do {
-            let lines = try await LabelReader.lines(in: image, customWords: model.roasters)
+            let lines = try await LabelReader.lines(in: image, customWords: roasters)
             guard !lines.isEmpty else {
-                intake.status = .failed("No text found. Take the photo closer to the label.")
+                intake.status = .failed("No text found on \(name). Take it closer to the label.")
                 return
             }
-            reading?.step = "Picking out the coffee and roaster…"
+            queue.step("Picking out the coffee and roaster…")
             var found = BagLabel.details(in: lines, today: DateUtils.today())
-            let reading = await LabelReader.reading(of: lines, knownRoasters: model.roasters).tidied
-            found.take(reading, knownRoasters: model.roasters)
-            intake.fill(found, from: .photo(Self.upright(image), lines: lines))
+            let reading = await LabelReader.reading(of: lines, knownRoasters: roasters).tidied
+            found.take(reading, knownRoasters: roasters)
+            intake.fill(found, from: .photo(upright(image), lines: lines))
         } catch {
-            intake.status = .failed("Couldn't read the photo: \(error.localizedDescription)")
+            intake.status = .failed("Couldn't read \(name): \(error.localizedDescription)")
         }
     }
 

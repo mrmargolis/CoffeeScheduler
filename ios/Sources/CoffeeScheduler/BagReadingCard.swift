@@ -42,3 +42,37 @@ struct BagReadingCard: View {
         .transition(.opacity)
     }
 }
+
+/// Photos waiting to be read, read one at a time in the order they were
+/// taken. A class, not view state, so a photo taken while another is read
+/// joins the same list the reading loop is working through.
+@MainActor
+@Observable
+final class LabelQueue {
+    /// The photo being read, for the card over the form.
+    private(set) var reading: BagReading?
+    private var waiting: [UIImage] = []
+    private var running = false
+
+    /// Queues `image`, and starts reading if nothing is.
+    func add(_ image: UIImage, read: @escaping @MainActor (UIImage) async -> Void) {
+        waiting.append(image)
+        guard !running else { return }
+        running = true
+        reading = BagReading(photo: image)
+        Task {
+            while !waiting.isEmpty {
+                let next = waiting.removeFirst()
+                reading = BagReading(photo: next)
+                await read(next)
+            }
+            reading = nil
+            running = false
+        }
+    }
+
+    /// What the card says it's doing now.
+    func step(_ text: String) {
+        reading?.step = text
+    }
+}
