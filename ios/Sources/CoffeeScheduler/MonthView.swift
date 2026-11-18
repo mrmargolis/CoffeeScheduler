@@ -226,24 +226,17 @@ private struct MonthBar: View {
             topLeadingRadius: lead, bottomLeadingRadius: lead, bottomTrailingRadius: trail, topTrailingRadius: trail
         )
         let look = self.look
-        // A bag's name can't fit in one day's cell, but its initials can
-        let isShort = segment.startColumn == segment.endColumn && segment.event.beanID != nil
-        let title = isShort ? Self.initials(segment.event.title) : segment.event.title
-        return Text(showsTitle ? title : "")
-            .font(.system(size: 10, weight: isShort ? .bold : .semibold))
+        // One day's cell fits only the start of a name, as on the widget: less inset leaves it more letters
+        let isShort = segment.startColumn == segment.endColumn
+        return Text(showsTitle ? segment.event.title : "")
+            .font(.system(size: 10, weight: .semibold))
             .lineLimit(1)
             .foregroundStyle(look.text)
-            .padding(.horizontal, isShort ? 2 : 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isShort ? .center : .leading)
+            .padding(.horizontal, isShort ? 3 : 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(shape.fill(look.fill))
             .overlay(shape.strokeBorder(look.stroke, style: look.isDashed ? Theme.dash : StrokeStyle(lineWidth: 1)))
             .contentShape(Rectangle())
-    }
-
-    /// "GH" for Guji Hambela: the first letters of its first two words.
-    static func initials(_ name: String) -> String {
-        let words = name.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-        return String(words.prefix(2).compactMap(\.first)).uppercased()
     }
 
     private struct Look {
