@@ -103,6 +103,28 @@ private func propose(
         #expect(reading.flavours.count == 6)
     }
 
+    @Test func aTagTheNotesDontNameIsDropped() {
+        let notes = "50/150/240 at 6g/s\nJiggle\n\nToo delicate. Low acidity and sweetness."
+        #expect(NotesPrompt.reading(fromAnswer: "character: muddy\nflavours: none", notes: notes) == NotesReading())
+    }
+
+    @Test func aTagTheNotesNameIsKept() {
+        let notes = "Some bitterness alongside a sweet tropical thing but mostly bitter/dark. Kinda murky. Drop temp."
+        let reading = NotesPrompt.reading(fromAnswer: "character: bitter, muddy, sharp", notes: notes)
+        #expect(reading.character == [.bitter, .muddy])
+    }
+
+    @Test func aWordInsideAnotherWordIsntEvidence() {
+        // "ash" is in "washed", not at a word's start
+        #expect(NotesPrompt.reading(fromAnswer: "character: bitter", notes: "A washed coffee.").character.isEmpty)
+    }
+
+    @Test func flavoursMustBeInTheNotes() {
+        let notes = "Pink flowers and florals. Cherry juice but no honey."
+        let reading = NotesPrompt.reading(fromAnswer: "flavours: pink flowers, floral, cherry, chocolate", notes: notes)
+        #expect(reading.flavours == ["pink flowers", "floral", "cherry"])
+    }
+
     @Test func thePromptCarriesTheNotes() {
         #expect(NotesPrompt.prompt(for: "50/150/240\nSour. Try finer.").hasSuffix("Notes:\n50/150/240\nSour. Try finer."))
     }

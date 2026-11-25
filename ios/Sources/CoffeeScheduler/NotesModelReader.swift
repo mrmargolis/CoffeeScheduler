@@ -29,7 +29,7 @@ struct NotesModelReader: NotesReader {
     }
 
     func read(_ notes: String) async -> NotesReading? {
-        await answer(for: notes).map(NotesPrompt.reading(fromAnswer:))
+        await answer(for: notes).map { NotesPrompt.reading(fromAnswer: $0, notes: notes) }
     }
 
     /// The model's answer as it gave it, for the check in Settings.

@@ -36,7 +36,8 @@ public enum NotesPrompt {
         and what someone else said.
         3. How this cup tasted.
 
-        Character: tag only problems this cup had, from this list.
+        Character: tag only problems the notes name for this cup, from this list. Most cups have none: \
+        answer none unless the notes use one of these words or a close one.
         - sharp: acidity that was sour, harsh, sharp or biting. More acidity, or bright, juicy or tart acidity, is not sharp.
         - muddy: murky, muddled or blurry flavours, or a silty or dirty cup.
         - bitter: bitter, ashy, burnt or harsh roast.
@@ -52,9 +53,44 @@ public enum NotesPrompt {
         character: <tags from the list, separated by commas, or none>
         flavours: <flavours separated by commas, or none>
 
+        Examples:
+        Notes: "50/150/240 at 6g/s. Too delicate. Low acidity and sweetness. Go finer."
+        character: none
+        flavours: none
+
+        Notes: "1:00 bloom. Sour and a little muddy. Peach, but not much honey. Try hotter."
+        character: sharp, muddy
+        flavours: peach
+
+        Notes: "Bright and juicy. Cherry and passion fruit with a butterscotch finish. No bitterness."
+        character: none
+        flavours: cherry, passion fruit, butterscotch
+
         Notes:
         \(notes)
         """
+    }
+
+    /// The model's answer, kept only where the notes back it: a character
+    /// tag needs one of its words in the notes (CharacterTag.evidence), and a
+    /// flavour its own words. The on-device model tags problems the notes
+    /// never mention; this lets it leave a tag out ("no bitterness") but not
+    /// make one up.
+    public static func reading(fromAnswer answer: String, notes: String) -> NotesReading {
+        let words = Self.words(notes)
+        var reading = reading(fromAnswer: answer)
+        reading.character = reading.character.filter { tag in
+            tag.evidence.contains { stem in words.contains { $0.hasPrefix(stem) } }
+        }
+        reading.flavours = reading.flavours.filter { flavour in
+            Self.words(flavour).allSatisfy { word in words.contains { $0.hasPrefix(word) || word.hasPrefix($0) && $0.count >= 4 } }
+        }
+        return reading
+    }
+
+    /// Lowercased words: letters only.
+    static func words(_ text: String) -> [String] {
+        text.lowercased().split { !$0.isLetter }.map(String.init)
     }
 
     /// The model's answer read leniently: lines in any order and case,
@@ -117,5 +153,18 @@ extension CupEvaluation {
     /// Make a proposed character tag the drinker's own.
     public mutating func accept(_ tag: CharacterTag) {
         if character[tag] != nil { character[tag] = .user }
+    }
+}
+
+extension CharacterTag {
+    /// Word beginnings that name it in notes: a tag the model proposes is
+    /// kept only when the notes have one.
+    public var evidence: [String] {
+        switch self {
+        case .sharp: ["sharp", "sour", "harsh", "biting", "acerbic", "puckering"]
+        case .muddy: ["mud", "murk", "muddl", "silt", "dirt", "unclear", "blurr", "cloudy"]
+        case .bitter: ["bitter", "ash", "burnt", "burned", "acrid", "harsh", "roasty"]
+        case .heavy: ["heavy", "thick", "clog", "sludg", "syrupy"]
+        }
     }
 }

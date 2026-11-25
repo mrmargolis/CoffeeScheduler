@@ -21,7 +21,7 @@ struct NotesReaderCheckView: View {
         var answer: String?
         var isRead = false
 
-        var reading: NotesReading? { answer.map(NotesPrompt.reading(fromAnswer:)) }
+        var reading: NotesReading? { answer.map { NotesPrompt.reading(fromAnswer: $0, notes: notes) } }
     }
 
     var body: some View {
