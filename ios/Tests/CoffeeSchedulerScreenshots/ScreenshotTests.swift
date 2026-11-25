@@ -126,6 +126,7 @@ final class ScreenshotTests: XCTestCase {
             ("26-dial-in-advice", AnyView(advice(model)), model),
             ("27-dial-in-dialed-in", AnyView(dialIn(dialed)), dialed),
             ("28-evaluation-brew-link", AnyView(brewLink(model)), model),
+            ("30-evaluate-cup-proposed-tags", AnyView(proposedTags(rated)), model),
         ])
     }
 
@@ -167,6 +168,14 @@ final class ScreenshotTests: XCTestCase {
         .padding(20)
         .frame(maxWidth: .infinity)
         .background(Theme.ground)
+    }
+
+    /// The tags with a character tag the notes reader proposed.
+    private func proposedTags(_ rated: CupEvaluation) -> some View {
+        var cup = rated
+        cup.character = [.sharp: .user, .bitter: .model]
+        cup.notes = "50/150/240 at 6g/s. A little sharp, some bitterness on the finish. Blueberry. Try coarser."
+        return NavigationStack { CupEvaluationForm(evaluation: cup, isNew: true, editsTags: true) }
     }
 
     /// The sample data with a third Guji cup marked dialed in.

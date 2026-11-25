@@ -39,11 +39,20 @@ struct FoldedCard<Fields: View>: View {
 }
 
 /// Character tags, flavours and notes: optional, folded away until wanted.
+/// With a notes reader, the notes are read a moment after typing stops, and
+/// what it finds is proposed: marked until kept, and one tap to remove.
 struct TagsEditor: View {
     @Binding var evaluation: CupEvaluation
     let usedFlavours: [String]
     @Binding var isExpanded: Bool
+    var reader: (any NotesReader)?
     @State private var newFlavour = ""
+    @State private var proposedFlavours: [String] = []
+    /// Proposals removed, and tags turned off, not to propose again.
+    @State private var rejected: Set<CharacterTag> = []
+    @State private var rejectedFlavours: Set<String> = []
+    /// The notes as last read, or as they were when the sheet opened.
+    @State private var readNotes: String??
 
     var body: some View {
         FoldedCard(title: "Tags & notes", summary: summary, isExpanded: $isExpanded) {
@@ -55,9 +64,35 @@ struct TagsEditor: View {
                     .font(.subheadline)
                     .padding(10)
                     .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12))
+                if hasProposals {
+                    Label("Suggested from your notes: tap to keep, × to remove.", systemImage: "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(Theme.text2)
+                }
             }
             .padding(.bottom, 8)
         }
+        .task(id: evaluation.notes) { await read() }
+    }
+
+    private var hasProposals: Bool {
+        !proposedFlavours.isEmpty || evaluation.character.values.contains(.model)
+    }
+
+    /// Read the notes once typing has paused, if they changed since the
+    /// sheet opened or they were last read.
+    private func read() async {
+        guard let reader else { return }
+        guard let last = readNotes else {
+            readNotes = .some(evaluation.notes)
+            return
+        }
+        guard last != evaluation.notes, let notes = evaluation.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty
+        else { return }
+        try? await Task.sleep(for: .seconds(1.5))
+        guard !Task.isCancelled, let reading = await reader.read(notes), !Task.isCancelled else { return }
+        readNotes = .some(evaluation.notes)
+        proposedFlavours = evaluation.takeProposals(reading, rejected: rejected, rejectedFlavours: rejectedFlavours)
     }
 
     private var summary: String {
@@ -70,8 +105,20 @@ struct TagsEditor: View {
     private var characterChips: some View {
         HStack(spacing: 8) {
             ForEach(CharacterTag.allCases, id: \.self) { tag in
-                let on = evaluation.character[tag] != nil
-                Chip(text: tag.name, isOn: on) { evaluation.character[tag] = on ? nil : .user }
+                if evaluation.character[tag] == .model {
+                    ProposedChip(text: tag.name) {
+                        evaluation.accept(tag)
+                    } remove: {
+                        evaluation.character[tag] = nil
+                        rejected.insert(tag)
+                    }
+                } else {
+                    let on = evaluation.character[tag] != nil
+                    Chip(text: tag.name, isOn: on) {
+                        evaluation.character[tag] = on ? nil : .user
+                        if on { rejected.insert(tag) }
+                    }
+                }
             }
         }
     }
@@ -80,7 +127,18 @@ struct TagsEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             FlowLayout(spacing: 6) {
                 ForEach(evaluation.flavours, id: \.self) { flavour in
-                    Chip(text: flavour, isOn: true, removes: true) { evaluation.flavours.removeAll { $0 == flavour } }
+                    Chip(text: flavour, isOn: true, removes: true) {
+                        evaluation.flavours.removeAll { $0 == flavour }
+                        rejectedFlavours.insert(flavour.lowercased())
+                    }
+                }
+                ForEach(proposedFlavours, id: \.self) { flavour in
+                    ProposedChip(text: flavour) {
+                        add(flavour)
+                    } remove: {
+                        proposedFlavours.removeAll { $0 == flavour }
+                        rejectedFlavours.insert(flavour.lowercased())
+                    }
                 }
                 ForEach(suggestions, id: \.self) { flavour in
                     Chip(text: flavour, isOn: false) { add(flavour) }
@@ -108,8 +166,41 @@ struct TagsEditor: View {
     private func add(_ flavour: String) {
         let trimmed = flavour.trimmingCharacters(in: .whitespacesAndNewlines)
         newFlavour = ""
+        proposedFlavours.removeAll { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
         guard !trimmed.isEmpty, !evaluation.flavours.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
         evaluation.flavours.append(trimmed)
+    }
+}
+
+/// A tag the notes reader proposed: outlined and marked, so it reads as not
+/// yet the drinker's. Tapping it keeps it; the × removes it.
+struct ProposedChip: View {
+    let text: String
+    let keep: () -> Void
+    let remove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: keep) {
+                Label(text, systemImage: "sparkles")
+                    .padding(.leading, 12)
+                    .padding(.trailing, 6)
+                    .frame(minHeight: 36)
+            }
+            .accessibilityLabel("Suggested: \(text)")
+            .accessibilityHint("Keeps this tag")
+            Button(action: remove) {
+                Image(systemName: "xmark").font(.caption2.weight(.bold))
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 36)
+            }
+            .accessibilityLabel("Remove \(text)")
+        }
+        .buttonStyle(.plain)
+        .font(.footnote.weight(.semibold))
+        .lineLimit(1)
+        .foregroundStyle(Theme.accent)
+        .overlay(Capsule().strokeBorder(Theme.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
     }
 }
 

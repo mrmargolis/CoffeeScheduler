@@ -130,6 +130,18 @@ private func links(_ store: CoffeeStore) throws -> [String: String] {
         #expect(try links(store) == ["e1": "b2"])
     }
 
+    @Test func recentNotesAreTheNewestBrewsWithNotesFromAnyBag() throws {
+        var noted = brew("b2", at: 10)
+        noted["note"] = "Sour. Try finer."
+        var other = brew("o1", at: 20, bean: "uuid-2")
+        other["note"] = "Peach"
+        var blank = brew("b3", at: 30)
+        blank["note"] = "  "
+        try importing([brew("b1", at: 0), noted, other, blank], into: store)
+        #expect(try store.recentBrewNotes(limit: 5).map(\.id) == ["o1", "b2"])
+        #expect(try store.recentBrewNotes(limit: 1).map(\.notes) == ["Peach"])
+    }
+
     @Test func brewsNearACupNewestFirst() throws {
         try importing([brew("b1", at: -13 * 60), brew("b2", at: 0), brew("b3", at: 20)], into: store)
         #expect(try store.brews(near: cup("e1", at: 10)).map(\.id) == ["b3", "b2"])

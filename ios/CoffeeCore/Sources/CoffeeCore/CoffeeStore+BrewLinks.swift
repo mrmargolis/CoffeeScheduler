@@ -31,6 +31,18 @@ extension CoffeeStore {
             .reversed()
     }
 
+    /// The newest imported brews with notes, across every bag: real notes
+    /// to check the notes reader against.
+    public func recentBrewNotes(limit: Int) throws -> [LoggedBrew] {
+        try db.query(
+            """
+            SELECT * FROM brews WHERE bc_uuid IS NOT NULL AND logged_at IS NOT NULL AND TRIM(COALESCE(notes, '')) != ''
+            ORDER BY logged_at DESC LIMIT ?
+            """,
+            [.int(Int64(limit))]
+        ).compactMap(Self.loggedBrew)
+    }
+
     /// After an import: a link by hand to a brew no longer in the export is
     /// cleared, then every link not made by hand is worked out again.
     func relinkAllEvaluations() throws {

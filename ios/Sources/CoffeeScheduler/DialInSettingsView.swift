@@ -40,6 +40,7 @@ struct DialInSettingsView: View {
             Group {
                 grindersSection
                 temperatureSection
+                notesReaderSection
             }
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)
@@ -69,6 +70,26 @@ struct DialInSettingsView: View {
                 text: """
                     A grind suggestion moves by the grinder's step. It starts as the change you make most often \
                     between brews of a bag. Outside the grinder's usual range, suggestions give a direction instead.
+                    """)
+        }
+    }
+
+    private var notesReaderSection: some View {
+        Section {
+            NavigationLink {
+                NotesReaderCheckView()
+            } label: {
+                SettingRow(title: "Check the notes reader", subtitle: NotesModelReader.isEnabled ? "On" : "Off until checked") {
+                    EmptyView()
+                }
+            }
+        } header: {
+            SectionLabel(title: "Notes reader").listRowInsets(Theme.labelInsets)
+        } footer: {
+            SectionFooter(
+                text: """
+                    Reads the notes on the evaluation sheet on this phone and suggests character tags and flavours. \
+                    It stays off until its suggestions on your own notes look right.
                     """)
         }
     }

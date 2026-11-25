@@ -81,7 +81,8 @@ struct CupEvaluationForm: View {
                 .tint(Theme.accent)
             RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
             if !isNew { BrewLinkCard(evaluation: $evaluation, brews: brews) }
-            TagsEditor(evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags)
+            TagsEditor(
+                evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags, reader: NotesModelReader.forSheet)
             if let error {
                 Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
             }

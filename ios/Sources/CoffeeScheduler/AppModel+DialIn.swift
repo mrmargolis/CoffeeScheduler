@@ -119,3 +119,10 @@ extension AppModel {
         (try? store?.brews(near: evaluation)) ?? []
     }
 }
+
+extension AppModel {
+    /// The newest imported brews with notes, to check the notes reader against.
+    func recentBrewNotes(limit: Int) -> [LoggedBrew] {
+        (try? store?.recentBrewNotes(limit: limit)) ?? []
+    }
+}
