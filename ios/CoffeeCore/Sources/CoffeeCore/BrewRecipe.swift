@@ -41,6 +41,21 @@ public struct BrewRecipe: Hashable, Sendable {
         return waterGrams / doseGrams
     }
 
+    /// The recipe with its text trimmed, and blank text as unknown.
+    public func trimmed() -> BrewRecipe {
+        func clean(_ text: String?) -> String? {
+            let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        var recipe = self
+        recipe.grinder = clean(grinder)
+        recipe.grindSetting = clean(grindSetting)
+        recipe.method = clean(method)
+        recipe.water = clean(water)
+        recipe.profile = clean(profile)
+        return recipe
+    }
+
     /// True when nothing about the brew was recorded.
     public var isEmpty: Bool {
         self == BrewRecipe()

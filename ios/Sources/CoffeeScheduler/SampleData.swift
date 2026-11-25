@@ -18,6 +18,8 @@ import Foundation
             try brews("brazil", from: "2026-10-02", to: "2026-10-06", rating: 3.5, into: db)
             try brews("guji", from: "2026-10-07", to: "2026-10-11", rating: 4.5, into: db)
 
+            for evaluation in evaluations { try store.saveEvaluation(evaluation) }
+
             try event("huila", "freeze", "2026-09-12", into: db)
             try event("huila", "thaw", "2026-09-19", into: db)
             try event("gesha", "freeze", "2026-08-16", into: db)
@@ -33,6 +35,26 @@ import Foundation
                 """)
             return store
         }
+
+        /// Two cups of the Guji evaluated a day apart, with a coarser grind
+        /// and less agitation on the second.
+        static let evaluations: [CupEvaluation] = {
+            let recipe = BrewRecipe(
+                grinder: "Femobook A4Z", grindSetting: "1.6", temperatureC: 93, doseGrams: 15, waterGrams: 240, method: "Hario Alpha")
+            var coarser = recipe
+            coarser.grindSetting = "1.7"
+            let day = { (date: String) in Double(DateUtils.dayNumber(date) ?? 0) * 86_400 + 25_200 }
+            return [
+                CupEvaluation(
+                    id: "sample-1", beanID: "guji", timestamp: day("2026-10-10"), date: "2026-10-10",
+                    recipe: CupRecipe(brew: recipe, agitation: .medium),
+                    ratings: [.acidity: -1, .sweetness: -1, .clarity: -1, .finish: -2], drawdown: .slow),
+                CupEvaluation(
+                    id: "sample-2", beanID: "guji", timestamp: day("2026-10-11"), date: "2026-10-11",
+                    recipe: CupRecipe(brew: coarser, agitation: .low),
+                    ratings: [.acidity: 0, .sweetness: -1, .clarity: 0, .body: 0, .finish: -1], drawdown: .normal, verdict: .better),
+            ]
+        }()
 
         private struct Bag {
             var id: String, name: String, roaster: String, roast: String

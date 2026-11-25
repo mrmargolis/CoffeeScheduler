@@ -1,0 +1,167 @@
+import CoffeeCore
+import SwiftUI
+
+/// Rate a cup: the verdict, the six attributes and the drawdown fit on one
+/// screen; the recipe, prefilled from the bag's latest evaluation or brew,
+/// is folded into one line and opened only to change it.
+struct CupEvaluationForm: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    let isNew: Bool
+    @State private var evaluation: CupEvaluation
+    @State private var editsRecipe = false
+    @State private var confirmingDelete = false
+    @State private var error: String?
+
+    init(evaluation: CupEvaluation, isNew: Bool, editsRecipe: Bool = false) {
+        self.isNew = isNew
+        _evaluation = State(initialValue: evaluation)
+        _editsRecipe = State(initialValue: editsRecipe)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                ChoiceRow(title: "Vs last cup", choices: Verdict.allCases, name: \.name, selection: $evaluation.verdict)
+                ratings
+                ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $evaluation.drawdown)
+                Toggle("Stalled or channelled", isOn: $evaluation.flowProblem)
+                    .font(.subheadline)
+                    .tint(Theme.accent)
+                RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
+                if let error {
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
+                }
+                if !isNew {
+                    Button("Delete evaluation", role: .destructive) { confirmingDelete = true }
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .selectsNumbersOnTap()
+        .background(Theme.ground)
+        .foregroundStyle(Theme.text)
+        .navigationTitle(isNew ? "Evaluate a cup" : "Edit evaluation")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save)
+            }
+        }
+        .confirmationDialog("Delete this evaluation?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive, action: delete)
+        }
+    }
+
+    private var ratings: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Too little")
+                Spacer()
+                Text("Ideal")
+                Spacer()
+                Text("Too much")
+            }
+            .font(.caption)
+            .foregroundStyle(Theme.text3)
+            .accessibilityHidden(true)
+            ForEach(SensoryAttribute.allCases, id: \.self) { attribute in
+                RatingRow(attribute: attribute, value: $evaluation.ratings[attribute])
+            }
+        }
+        .padding(14)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+    }
+
+    private func save() {
+        error = model.saveEvaluation(evaluation)
+        if error == nil { dismiss() }
+    }
+
+    private func delete() {
+        error = model.deleteEvaluation(id: evaluation.id)
+        if error == nil { dismiss() }
+    }
+}
+
+/// The cup's recipe: one summary line that opens into fields.
+private struct RecipeEditor: View {
+    @Binding var recipe: CupRecipe
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.snappy) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Recipe").font(.subheadline.weight(.semibold))
+                        Text(summary).font(.footnote).foregroundStyle(Theme.text2).lineLimit(2).multilineTextAlignment(.leading)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .foregroundStyle(Theme.text3)
+                }
+                .frame(minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(isExpanded ? "Hides the recipe fields" : "Shows the recipe fields to change")
+
+            if isExpanded { fields.padding(.top, 6) }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+    }
+
+    private var summary: String {
+        let parts = recipe.brew.summaryParts + [recipe.agitation.map { "\($0.name) agitation" }].compactMap { $0 }
+        return parts.isEmpty ? "Not recorded" : parts.joined(separator: " · ")
+    }
+
+    private var fields: some View {
+        VStack(spacing: 10) {
+            textField("Grinder", text: $recipe.brew.grinder)
+            textField("Grind", text: $recipe.brew.grindSetting)
+            numberField("Temperature °C", value: $recipe.brew.temperatureC)
+            numberField("Dose g", value: $recipe.brew.doseGrams)
+            numberField("Water g", value: $recipe.brew.waterGrams)
+            ChoiceRow(title: "Agitation", choices: Agitation.allCases, name: \.name, selection: $recipe.agitation)
+            textField("Method", text: $recipe.brew.method)
+            textField("Water recipe", text: $recipe.brew.water)
+            textField("Profile", text: $recipe.brew.profile)
+        }
+        .font(.subheadline)
+        .padding(.bottom, 8)
+    }
+
+    private func textField(_ title: String, text: Binding<String?>) -> some View {
+        LabeledContent(title) {
+            TextField(title, text: Binding(get: { text.wrappedValue ?? "" }, set: { text.wrappedValue = Self.clean($0) }))
+                .multilineTextAlignment(.trailing)
+        }
+        .frame(minHeight: 36)
+    }
+
+    private func numberField(_ title: String, value: Binding<Double?>) -> some View {
+        LabeledContent(title) {
+            TextField(title, value: value, format: .number).numberEntry()
+        }
+        .frame(minHeight: 36)
+    }
+
+    /// Blank is unknown. Spaces are kept while typing; the store trims them.
+    private static func clean(_ text: String) -> String? {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+    }
+}
