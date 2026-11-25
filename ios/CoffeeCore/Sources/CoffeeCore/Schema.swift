@@ -94,7 +94,37 @@ enum Schema {
           display_order INTEGER
         );
 
+        -- Feedback on a cup (CupEvaluation), from version 2. The recipe is as
+        -- typed when evaluating; ratings are -2...2 against the cup wanted,
+        -- NULL when not evaluated. evaluated_at is unix seconds, for order
+        -- and for matching to a brew; evaluated_on is its local day.
+        CREATE TABLE IF NOT EXISTS cup_evaluations (
+          id TEXT PRIMARY KEY,
+          bean_id TEXT NOT NULL REFERENCES beans(id),
+          evaluated_at REAL NOT NULL,
+          evaluated_on TEXT NOT NULL,
+          grinder TEXT,
+          grind_setting TEXT,
+          temperature_c REAL,
+          dose_grams REAL,
+          water_grams REAL,
+          method TEXT,
+          water TEXT,
+          profile TEXT,
+          agitation TEXT,
+          acidity INTEGER,
+          sweetness INTEGER,
+          intensity INTEGER,
+          clarity INTEGER,
+          body INTEGER,
+          finish INTEGER,
+          drawdown TEXT,
+          flow_problem INTEGER NOT NULL DEFAULT 0,
+          verdict TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
+        CREATE INDEX IF NOT EXISTS idx_cup_evaluations_bean_id ON cup_evaluations(bean_id);
         CREATE INDEX IF NOT EXISTS idx_breaks_bean_id ON breaks(bean_id);
         CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);
         """

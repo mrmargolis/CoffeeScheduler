@@ -42,7 +42,7 @@ final class AppModel {
 
     /// Nil for a sample-data model, which never touches iCloud Drive.
     @ObservationIgnored private let location: DatabaseLocation?
-    @ObservationIgnored private var store: CoffeeStore?
+    @ObservationIgnored private(set) var store: CoffeeStore?
     @ObservationIgnored private let fixedToday: String?
     @ObservationIgnored private let fixedFolderName: String?
     /// The iCloud Drive work asked for so far: see `enqueue`.
@@ -231,7 +231,7 @@ final class AppModel {
 
     /// Make a change from a form and save it. Returns an error message for
     /// the form to show, or nil once saved.
-    private func saveFromForm(_ change: (CoffeeStore) throws -> Void) -> String? {
+    func saveFromForm(_ change: (CoffeeStore) throws -> Void) -> String? {
         guard let store else { return "The database isn't open." }
         do {
             try change(store)

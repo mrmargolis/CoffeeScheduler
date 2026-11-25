@@ -84,6 +84,8 @@ final class ScreenshotTests: XCTestCase {
         try breakStore.addBreak(beanID: "huila", afterGrams: 100)
         let withBreak = AppModel(store: breakStore, today: SampleData.today, folderName: "Coffee")
 
+        let rated = ratedCup(model)
+
         // Screens are captured without the tab bar: inside a TabView the
         // list screens render blank in this offscreen capture, though they
         // show fine in the app.
@@ -107,6 +109,12 @@ final class ScreenshotTests: XCTestCase {
             ("18-add-bag-pick-text", AnyView(AddBagSamples.picker()), model),
             ("19-beans-break", AnyView(BeansView()), withBreak),
             ("20-detail-break", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), withBreak),
+            ("21-dial-in", AnyView(dialIn(model)), model),
+            ("22-evaluate-cup", AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true) }), model),
+            (
+                "23-evaluate-cup-recipe",
+                AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true, editsRecipe: true) }), model
+            ),
         ]
 
         for (name, view, model) in screens {
@@ -120,6 +128,26 @@ final class ScreenshotTests: XCTestCase {
             attachment.lifetime = .keepAlways
             add(attachment)
         }
+    }
+
+    /// A cup part rated, from the Guji's current recipe.
+    private func ratedCup(_ model: AppModel) -> CupEvaluation {
+        var rated = model.newEvaluation(forBean: "guji")
+        rated.ratings = [.acidity: 0, .sweetness: -1, .intensity: -1, .finish: -1]
+        rated.verdict = .same
+        rated.drawdown = .normal
+        return rated
+    }
+
+    /// The Guji's dial-in section on its own: on the bag's screen it's
+    /// below the fold.
+    private func dialIn(_ model: AppModel) -> some View {
+        ScrollView {
+            DialInSection(evaluations: model.evaluations(forBean: "guji"), start: {}, edit: { _ in })
+                .padding(20)
+        }
+        .background(Theme.ground)
+        .foregroundStyle(Theme.text)
     }
 
     private func render(_ view: some View, style: UIUserInterfaceStyle) -> UIImage {

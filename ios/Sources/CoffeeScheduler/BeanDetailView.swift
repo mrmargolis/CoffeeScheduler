@@ -15,6 +15,8 @@ struct BeanDetailView: View {
     @State private var editing = false
     @State private var confirmingFreeze: Bean?
     @State private var breaking: BreakDraft?
+    /// The cup being evaluated or edited, and whether it's new.
+    @State private var evaluating: EvaluationDraft?
 
     var body: some View {
         if let detail = model.detail(forBean: beanID) {
@@ -35,6 +37,11 @@ struct BeanDetailView: View {
                 .sheet(isPresented: $editing) {
                     NavigationStack {
                         BeanSettingsForm(bean: detail.bean, today: model.today)
+                    }
+                }
+                .sheet(item: $evaluating) { draft in
+                    NavigationStack {
+                        CupEvaluationForm(evaluation: draft.evaluation, isNew: draft.isNew)
                     }
                 }
                 .freezeConfirmation(for: $confirmingFreeze)
@@ -79,6 +86,10 @@ struct BeanDetailView: View {
                         }
                     }
                 }
+                DialInSection(
+                    evaluations: model.evaluations(forBean: beanID),
+                    start: { evaluating = EvaluationDraft(evaluation: model.newEvaluation(forBean: beanID), isNew: true) },
+                    edit: { evaluating = EvaluationDraft(evaluation: $0, isNew: false) })
                 BagHistory(history: model.history(forBean: beanID))
             }
             .padding(.horizontal, 20)
@@ -99,6 +110,13 @@ struct BeanDetailView: View {
         if bean.restDays != nil { return "Set on this bag" }
         return model.roasterDefaults.contains { $0.matches(bean.roaster) } ? "Roaster default" : "Default rest"
     }
+}
+
+/// A cup on its way into `CupEvaluationForm`.
+private struct EvaluationDraft: Identifiable {
+    let evaluation: CupEvaluation
+    let isNew: Bool
+    var id: String { evaluation.id }
 }
 
 /// Roaster, name, origin and flavour notes.
