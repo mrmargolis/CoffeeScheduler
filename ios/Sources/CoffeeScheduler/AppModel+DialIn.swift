@@ -39,3 +39,20 @@ extension AppModel {
         (try? store?.usedFlavours()) ?? []
     }
 }
+
+extension AppModel {
+    /// Every brew method from the imports, with whether it gets dial-in advice.
+    func dialInMethods() -> [DialInMethod] {
+        (try? store?.dialInMethods()) ?? []
+    }
+
+    /// Turn dial-in advice on or off for a method. Returns an error message, or nil once saved.
+    func setDialIn(method: String, on: Bool) -> String? {
+        saveFromForm { try $0.setDialIn(method: method, on: on) }
+    }
+
+    /// Whether the bag was brewed lately with a method that gets dial-in advice.
+    func bagUsesDialInMethod(_ id: String) -> Bool {
+        (try? store?.bagUsesDialInMethod(beanID: id)) ?? true
+    }
+}
