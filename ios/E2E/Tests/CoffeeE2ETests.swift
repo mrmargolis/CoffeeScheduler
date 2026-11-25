@@ -84,11 +84,15 @@ final class CoffeeE2ETests: XCTestCase {
         }
     }
 
-    /// Replace a text field's contents: double-tap selects the number already
-    /// there (a single tap can leave the cursor before it), then type over it.
+    /// Replace a text field's contents. Focusing a number field selects it
+    /// (selectsNumbersOnTap), but a moment later, so a double-tap's second
+    /// tap could undo the selection and leave the cursor inside the number:
+    /// "45" became "570". Tap once at the end, then delete what's there
+    /// whether or not it's selected, and type.
     private func replaceText(in field: XCUIElement, with text: String, file: StaticString = #filePath, line: UInt = #line) {
-        focus(field, file: file, line: line) { $0.doubleTap() }
-        field.typeText(text)
+        focus(field, file: file, line: line) { $0.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap() }
+        let current = (field.value as? String) ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count) + text)
     }
 
     /// Tap a text field until it has the keyboard. A tap can land while its

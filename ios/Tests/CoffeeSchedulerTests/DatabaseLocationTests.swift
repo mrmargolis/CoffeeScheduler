@@ -92,18 +92,28 @@ struct DatabaseLocationTests {
     }
 
     @Test func aChangeMadeDuringAPullIsKept() async throws {
+        // Each fetch says it has started, then waits for a release
+        let (fetching, started) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let location = DatabaseLocation(defaults: defaults, workingCopy: workingCopy) { url in
+            started.yield()
+            for await _ in released { break }
+            return try Data(contentsOf: url)
+        }
         try write("first", to: remote)
-        let location = location()
         try location.adopt(folder: folder)
+        release.yield()
         try await location.pullIfNewer {}
+        for await _ in fetching { break }
         try write("from another device", to: remote, secondsFromNow: 60)
 
-        // The pull runs as far as its fetch, which waits off the main actor;
-        // the change here lands before the fetched copy comes back
+        // The pull runs as far as its fetch, which waits until the change
+        // here has landed
         let pull = Task { try await location.pullIfNewer {} }
-        await Task.yield()
+        for await _ in fetching { break }
         try write("changed here", to: workingCopy)
         location.workingCopyChanged()
+        release.yield()
 
         #expect(try await pull.value == false)
         #expect(try text(at: workingCopy) == "changed here")
