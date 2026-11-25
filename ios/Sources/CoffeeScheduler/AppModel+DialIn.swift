@@ -77,3 +77,24 @@ extension AppModel {
         saveFromForm { try $0.setTemperatureStep(step) }
     }
 }
+
+extension AppModel {
+    /// Advice on a cup, from it and the bag's earlier cups, sized for the
+    /// grinder it was ground on.
+    func advice(for evaluation: CupEvaluation) -> DialInAdvice {
+        guard let store else { return DialInAdvisor.advise([evaluation], context: DialInContext()) }
+        do {
+            let earlier = try store.evaluations(beanID: evaluation.beanID)
+                .filter { $0.id != evaluation.id && $0.timestamp <= evaluation.timestamp }
+                .reversed()
+            let context = DialInContext(
+                grinder: try evaluation.recipe.brew.grinder.flatMap { try store.grinderSetting($0) },
+                temperatureStep: try store.temperatureStep(),
+                isDialInMethod: try store.isDialInMethod(evaluation.recipe.brew.method))
+            return DialInAdvisor.advise(earlier + [evaluation], context: context)
+        } catch {
+            Log.store.error("Couldn't advise on \(evaluation.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            return DialInAdvisor.advise([evaluation], context: DialInContext())
+        }
+    }
+}
