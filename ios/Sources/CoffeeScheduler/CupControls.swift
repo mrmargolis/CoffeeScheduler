@@ -96,7 +96,7 @@ struct ChoiceRow<Choice: Hashable>: View {
 }
 
 extension Verdict {
-    var name: String { rawValue.capitalized }
+    var name: String { self == .dialedIn ? "Dialed in" : rawValue.capitalized }
 }
 
 extension Drawdown {

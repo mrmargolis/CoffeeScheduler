@@ -3,8 +3,19 @@ import Foundation
 extension CoffeeStore {
     // MARK: - Cup evaluations
 
-    /// Save an evaluation, new or edited. Text is trimmed, and blank is unknown.
+    /// Save an evaluation, new or edited. Text is trimmed, and blank is
+    /// unknown. Marking the bag's newest cup dialed in closes its open
+    /// experiment as superseded: let the cup decide it first.
     public func saveEvaluation(_ evaluation: CupEvaluation) throws {
+        try writeEvaluation(evaluation)
+        if try dialedInCup(beanID: evaluation.beanID)?.id == evaluation.id {
+            try db.run(
+                "UPDATE dial_in_experiments SET status = 'superseded' WHERE bean_id = ? AND status = 'open'",
+                [.text(evaluation.beanID)])
+        }
+    }
+
+    private func writeEvaluation(_ evaluation: CupEvaluation) throws {
         let recipe = evaluation.recipe.brew.trimmed()
         let rating = { SQLValue(CupRating.clamped(evaluation.ratings[$0])) }
         try db.run(
@@ -26,6 +37,12 @@ extension CoffeeStore {
                 SQLValue(EvaluationTags.flavoursJSON(evaluation.flavours)),
                 SQLValue(EvaluationTags.clean(evaluation.notes)),
             ])
+    }
+
+    /// The recipe the bag is dialed in at: its newest cup's, when that cup
+    /// was marked dialed in. A later cup with another verdict resumes dialing.
+    public func dialedInCup(beanID: String) throws -> CupEvaluation? {
+        try evaluations(beanID: beanID).first.flatMap { $0.verdict == .dialedIn ? $0 : nil }
     }
 
     public func deleteEvaluation(id: String) throws {

@@ -65,7 +65,10 @@ struct CupEvaluationForm: View {
 
     private var fields: some View {
         VStack(alignment: .leading, spacing: 14) {
-            ChoiceRow(title: "Vs last cup", choices: Verdict.allCases, name: \.name, selection: $evaluation.verdict)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Compared with the last cup").font(.caption).foregroundStyle(Theme.text3)
+                ChoiceRow(title: "", choices: Verdict.allCases, name: \.name, selection: $evaluation.verdict)
+            }
             ratings
             ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $evaluation.drawdown)
             Toggle("Stalled or channelled", isOn: $evaluation.flowProblem)
@@ -105,12 +108,14 @@ struct CupEvaluationForm: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
     }
 
-    /// A new cup shows its advice; an edited one just closes.
+    /// A new cup decides the open experiment, then shows its advice; an
+    /// edited one just closes. Deciding comes first: saving a cup marked
+    /// dialed in closes whatever is still open.
     private func save() {
+        if isNew { decided = model.decideExperiment(with: evaluation) }
         error = model.saveEvaluation(evaluation)
         guard error == nil else { return }
         if isNew {
-            decided = model.decideExperiment(with: evaluation)
             stillOpen = model.experiments(forBean: evaluation.beanID).first { $0.status == .open }
             withAnimation(.snappy) { advice = model.advice(for: evaluation) }
         } else {

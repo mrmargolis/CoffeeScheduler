@@ -82,6 +82,8 @@ public struct DialInAdvice: Hashable, Sendable {
         case notADialInMethod
         /// Nothing was rated.
         case nothingRated
+        /// The cup was marked dialed in: keep the recipe.
+        case dialedIn
     }
 
     /// Short lines on what's off and why.

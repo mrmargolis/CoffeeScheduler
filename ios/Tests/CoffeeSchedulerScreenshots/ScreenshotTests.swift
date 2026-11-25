@@ -113,6 +113,7 @@ final class ScreenshotTests: XCTestCase {
     func testDialInScreenshots() throws {
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         let rated = ratedCup(model)
+        let dialed = try dialedIn()
         let form = { (recipe: Bool, tags: Bool) in
             AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true, editsRecipe: recipe, editsTags: tags) })
         }
@@ -123,6 +124,7 @@ final class ScreenshotTests: XCTestCase {
             ("24-evaluate-cup-tags", form(false, true), model),
             ("25-dial-in-settings", AnyView(NavigationStack { DialInSettingsView() }), model),
             ("26-dial-in-advice", AnyView(advice(model)), model),
+            ("27-dial-in-dialed-in", AnyView(dialIn(dialed)), dialed),
         ])
     }
 
@@ -153,6 +155,19 @@ final class ScreenshotTests: XCTestCase {
         return rated
     }
 
+    /// The sample data with a third Guji cup marked dialed in.
+    private func dialedIn() throws -> AppModel {
+        let store = try SampleData.store()
+        var cup = try XCTUnwrap(store.evaluations(beanID: "guji").first)
+        cup.id = "sample-3"
+        cup.timestamp += 86_400
+        cup.date = "2026-10-12"
+        cup.ratings = [.acidity: 0, .sweetness: 0, .clarity: 0, .body: 0, .finish: 0]
+        cup.verdict = .dialedIn
+        try store.saveEvaluation(cup)
+        return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
+    }
+
     /// What the advisor says about a cup with a slow drawdown and a short finish.
     private func advice(_ model: AppModel) -> some View {
         var cup = model.newEvaluation(forBean: "guji")
@@ -169,8 +184,11 @@ final class ScreenshotTests: XCTestCase {
     /// below the fold.
     private func dialIn(_ model: AppModel) -> some View {
         ScrollView {
-            DialInSection(evaluations: model.evaluations(forBean: "guji"), start: {}, edit: { _ in })
-                .padding(20)
+            DialInSection(
+                evaluations: model.evaluations(forBean: "guji"), experiments: model.experiments(forBean: "guji"),
+                dialedIn: model.dialedInCup(forBean: "guji"), start: {}, edit: { _ in }
+            )
+            .padding(20)
         }
         .background(Theme.ground)
         .foregroundStyle(Theme.text)
