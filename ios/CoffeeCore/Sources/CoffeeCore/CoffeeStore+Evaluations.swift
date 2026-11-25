@@ -12,8 +12,8 @@ extension CoffeeStore {
             INSERT OR REPLACE INTO cup_evaluations (
               id, bean_id, evaluated_at, evaluated_on, grinder, grind_setting, temperature_c, dose_grams, water_grams,
               method, water, profile, agitation, acidity, sweetness, intensity, clarity, body, finish,
-              drawdown, flow_problem, verdict)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              drawdown, flow_problem, verdict, character_tags, flavour_tags, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 .text(evaluation.id), .text(evaluation.beanID), .double(evaluation.timestamp), .text(evaluation.date),
@@ -22,6 +22,9 @@ extension CoffeeStore {
                 SQLValue(recipe.profile), SQLValue(evaluation.recipe.agitation?.rawValue),
                 rating(.acidity), rating(.sweetness), rating(.intensity), rating(.clarity), rating(.body), rating(.finish),
                 SQLValue(evaluation.drawdown?.rawValue), SQLValue(evaluation.flowProblem), SQLValue(evaluation.verdict?.rawValue),
+                SQLValue(EvaluationTags.characterJSON(evaluation.character)),
+                SQLValue(EvaluationTags.flavoursJSON(evaluation.flavours)),
+                SQLValue(EvaluationTags.clean(evaluation.notes)),
             ])
     }
 
@@ -54,6 +57,20 @@ extension CoffeeStore {
         return recipe
     }
 
+    /// Every flavour used on any evaluation, most used first, then A to Z.
+    /// Ones that differ only in case count as one, spelled as first used.
+    public func usedFlavours() throws -> [String] {
+        var counts: [String: (name: String, count: Int)] = [:]
+        for row in try db.query("SELECT flavour_tags FROM cup_evaluations ORDER BY evaluated_at") {
+            for flavour in EvaluationTags.flavours(fromJSON: row.string("flavour_tags")) {
+                counts[flavour.lowercased(), default: (flavour, 0)].count += 1
+            }
+        }
+        return counts.values
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .map(\.name)
+    }
+
     private static func evaluation(_ row: SQLRow) -> CupEvaluation? {
         guard let id = row.string("id"), let beanID = row.string("bean_id"), let timestamp = row.double("evaluated_at"),
             let date = row.string("evaluated_on")
@@ -72,6 +89,9 @@ extension CoffeeStore {
             ratings: ratings,
             drawdown: row.string("drawdown").flatMap(Drawdown.init(rawValue:)),
             flowProblem: row.int("flow_problem") == 1,
-            verdict: row.string("verdict").flatMap(Verdict.init(rawValue:)))
+            verdict: row.string("verdict").flatMap(Verdict.init(rawValue:)),
+            character: EvaluationTags.character(fromJSON: row.string("character_tags")),
+            flavours: EvaluationTags.flavours(fromJSON: row.string("flavour_tags")),
+            notes: row.string("notes"))
     }
 }

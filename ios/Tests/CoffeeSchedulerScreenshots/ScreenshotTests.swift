@@ -67,8 +67,6 @@ final class ScreenshotTests: XCTestCase {
     }
 
     func testScreenshots() throws {
-        let outDir = try outputDirectory()
-
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         XCTAssertNil(model.message, "Sample data failed to load: \(model.message?.body ?? "")")
         let kenya = try XCTUnwrap(model.detail(forBean: "kenya")?.bean)
@@ -83,8 +81,6 @@ final class ScreenshotTests: XCTestCase {
         let breakStore = try SampleData.store()
         try breakStore.addBreak(beanID: "huila", afterGrams: 100)
         let withBreak = AppModel(store: breakStore, today: SampleData.today, folderName: "Coffee")
-
-        let rated = ratedCup(model)
 
         // Screens are captured without the tab bar: inside a TabView the
         // list screens render blank in this offscreen capture, though they
@@ -109,14 +105,28 @@ final class ScreenshotTests: XCTestCase {
             ("18-add-bag-pick-text", AnyView(AddBagSamples.picker()), model),
             ("19-beans-break", AnyView(BeansView()), withBreak),
             ("20-detail-break", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), withBreak),
-            ("21-dial-in", AnyView(dialIn(model)), model),
-            ("22-evaluate-cup", AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true) }), model),
-            (
-                "23-evaluate-cup-recipe",
-                AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true, editsRecipe: true) }), model
-            ),
         ]
+        try capture(screens)
+    }
 
+    /// The Guji's dial-in history and the evaluation sheet, folded and open.
+    func testDialInScreenshots() throws {
+        let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
+        let rated = ratedCup(model)
+        let form = { (recipe: Bool, tags: Bool) in
+            AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true, editsRecipe: recipe, editsTags: tags) })
+        }
+        try capture([
+            ("21-dial-in", AnyView(dialIn(model)), model),
+            ("22-evaluate-cup", form(false, false), model),
+            ("23-evaluate-cup-recipe", form(true, false), model),
+            ("24-evaluate-cup-tags", form(false, true), model),
+        ])
+    }
+
+    /// Render each screen and write it to the output directory.
+    private func capture(_ screens: [(String, AnyView, AppModel)]) throws {
+        let outDir = try outputDirectory()
         for (name, view, model) in screens {
             // The app is dark only, so the screens are too
             let image = render(view.environment(model).coffeeTheme(), style: .dark)
@@ -136,6 +146,8 @@ final class ScreenshotTests: XCTestCase {
         rated.ratings = [.acidity: 0, .sweetness: -1, .intensity: -1, .finish: -1]
         rated.verdict = .same
         rated.drawdown = .normal
+        rated.character = [.sharp: .user]
+        rated.flavours = ["Blueberry"]
         return rated
     }
 

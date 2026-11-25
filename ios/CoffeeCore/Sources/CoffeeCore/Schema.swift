@@ -120,7 +120,11 @@ enum Schema {
           finish INTEGER,
           drawdown TEXT,
           flow_problem INTEGER NOT NULL DEFAULT 0,
-          verdict TEXT
+          verdict TEXT,
+          -- JSON: {"sharp": "user"} by who tagged it, and ["stone fruit"]
+          character_tags TEXT,
+          flavour_tags TEXT,
+          notes TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
