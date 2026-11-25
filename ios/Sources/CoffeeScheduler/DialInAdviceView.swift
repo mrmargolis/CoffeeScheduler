@@ -49,6 +49,8 @@ struct DialInAdviceView: View {
             message("No advice for this method", "Dial-in advice is for the methods turned on in Settings › Dial-in.")
         case .nothingRated:
             message("Nothing rated", "Rate a few attributes for a suggestion.")
+        case .dialedIn:
+            message("Dialed in", "Keep this recipe. It's at the top of the bag's dial-in until a cup says otherwise.")
         }
     }
 

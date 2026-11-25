@@ -9,6 +9,7 @@ public enum DialInAdvisor {
         let cup = RatedCup(evaluation: latest)
         var diagnosis = Self.offTarget(latest) + Self.flow(latest)
         guard context.isDialInMethod else { return DialInAdvice(diagnosis: diagnosis, next: .notADialInMethod) }
+        if latest.verdict == .dialedIn { return DialInAdvice(diagnosis: diagnosis, next: .dialedIn) }
         if latest.ratings.isEmpty && latest.character.isEmpty && !latest.flowProblem && latest.drawdown == nil {
             return DialInAdvice(diagnosis: [], next: .nothingRated)
         }

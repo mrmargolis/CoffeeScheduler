@@ -7,6 +7,8 @@ import SwiftUI
 struct DialInSection: View {
     let evaluations: [CupEvaluation]
     var experiments: [SavedExperiment] = []
+    /// The newest cup, when it was marked dialed in.
+    var dialedIn: CupEvaluation?
     /// False when the bag was brewed lately only with methods turned off
     /// for dial-in in Settings.
     var isAvailable = true
@@ -19,7 +21,9 @@ struct DialInSection: View {
             SectionLabel(title: "Dial-in", detail: evaluations.isEmpty ? nil : cupCount)
                 .padding(.horizontal, 4)
                 .padding(.top, 2)
-            if let open = experiments.first(where: { $0.status == .open }) {
+            if let dialedIn {
+                DialedInCard(cup: dialedIn)
+            } else if let open = experiments.first(where: { $0.status == .open }) {
                 OpenExperimentCard(experiment: open) { dismissExperiment(open) }
             }
             if isAvailable {
@@ -60,6 +64,28 @@ struct DialInSection: View {
 
     private var cupCount: String {
         "\(evaluations.count) \(evaluations.count == 1 ? "cup" : "cups")"
+    }
+}
+
+/// The recipe the bag is dialed in at, to repeat.
+private struct DialedInCard: View {
+    let cup: CupEvaluation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Dialed in").font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundStyle(Palette.onTarget)
+            Text(summary).font(.headline)
+            Text("Since \(Format.shortDay(cup.date)). Evaluate a cup with another verdict to start dialing again.")
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
+        }
+        .cardBackground(Theme.card)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var summary: String {
+        let parts = cup.recipe.brew.summaryParts + [cup.recipe.agitation.map { "\($0.name.lowercased()) agitation" }].compactMap { $0 }
+        return parts.isEmpty ? "Recipe not recorded" : parts.joined(separator: " · ")
     }
 }
 
@@ -153,7 +179,7 @@ private struct EvaluationRow: View {
 
     private func verdictColor(_ verdict: Verdict) -> Color {
         switch verdict {
-        case .better: Theme.ready
+        case .better, .dialedIn: Theme.ready
         case .same: Theme.text2
         case .worse: Theme.gapText
         }

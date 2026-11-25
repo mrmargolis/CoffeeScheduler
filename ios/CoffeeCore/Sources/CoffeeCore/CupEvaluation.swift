@@ -60,9 +60,11 @@ public enum TagSource: String, Sendable {
     case user, model
 }
 
-/// How a cup compares with the last evaluated cup of the same bag.
+/// How a cup compares with the last evaluated cup of the same bag, or that
+/// the bag is dialed in: the recipe is right, so stop suggesting changes.
 public enum Verdict: String, CaseIterable, Sendable {
     case better, same, worse
+    case dialedIn = "dialed_in"
 }
 
 /// A cup's recipe as entered with an evaluation: what BeanConqueror records,

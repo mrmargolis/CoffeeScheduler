@@ -100,3 +100,10 @@ extension AppModel {
         }
     }
 }
+
+extension AppModel {
+    /// The bag's newest cup, when it was marked dialed in.
+    func dialedInCup(forBean id: String) -> CupEvaluation? {
+        try? store?.dialedInCup(beanID: id)
+    }
+}
