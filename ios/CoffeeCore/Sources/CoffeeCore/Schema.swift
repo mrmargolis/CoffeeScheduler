@@ -37,7 +37,23 @@ enum Schema {
           ground_coffee_grams REAL NOT NULL DEFAULT 0,
           creation_date TEXT NOT NULL,
           bean_age_days INTEGER,
-          rating REAL
+          rating REAL,
+          -- The rest are from version 2. bc_uuid is BeanConqueror's ID for
+          -- the brew, which survives the wholesale replace on each import
+          -- (the row id doesn't). logged_at is the brew's time in unix
+          -- seconds, for ordering and matching cups within a day; dates
+          -- are still the YYYY-MM-DD creation_date.
+          bc_uuid TEXT,
+          logged_at REAL,
+          grinder TEXT,
+          grind_setting TEXT,
+          temperature_c REAL,
+          water_grams REAL,
+          brew_seconds INTEGER,
+          method TEXT,
+          water TEXT,
+          profile TEXT,
+          notes TEXT
         );
 
         CREATE TABLE IF NOT EXISTS roaster_defaults (
@@ -87,7 +103,18 @@ enum Schema {
     /// `user_version`. Raise it with any change an older build would get
     /// wrong, and add the migration below: the file is shared between
     /// devices, which may not all run the same build.
-    static let version = 1
+    ///
+    /// 2 adds each brew's recipe and BeanConqueror ID. An older build's
+    /// import would rewrite the brews without them, and lose what links an
+    /// evaluation to its brew, so it must not open the file. Only one device
+    /// writes the database today, so the lockout costs nothing.
+    static let version = 2
+
+    /// The brew columns version 2 adds, for a file made before it.
+    static let brewRecipeColumns = [
+        "bc_uuid TEXT", "logged_at REAL", "grinder TEXT", "grind_setting TEXT", "temperature_c REAL", "water_grams REAL",
+        "brew_seconds INTEGER", "method TEXT", "water TEXT", "profile TEXT", "notes TEXT",
+    ]
 
     static func initialize(_ db: SQLiteDatabase) throws {
         // A file from the web app, or one not made yet, is at 0
@@ -110,6 +137,7 @@ enum Schema {
             try db.execute("ALTER TABLE beans ADD COLUMN url TEXT")
         }
         try moveDatedBreaks(db)
+        if found < 2 { try addBrewRecipeColumns(db) }
         if found != version {
             try db.execute("PRAGMA user_version = \(version)")
         }
@@ -117,6 +145,13 @@ enum Schema {
 }
 
 extension Schema {
+    fileprivate static func addBrewRecipeColumns(_ db: SQLiteDatabase) throws {
+        let columns = try Set(db.query("PRAGMA table_info(brews)").compactMap { $0.string("name") })
+        for column in brewRecipeColumns where !columns.contains(String(column.prefix { $0 != " " })) {
+            try db.execute("ALTER TABLE brews ADD COLUMN \(column)")
+        }
+    }
+
     /// Breaks from the build that gave each one a day to come back on, which
     /// an older build may still make: kept at their grams, and queued after
     /// the next bag, as a new break is.

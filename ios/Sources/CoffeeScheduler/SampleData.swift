@@ -83,15 +83,24 @@ import Foundation
                 ])
         }
 
-        /// Three 15 g brews a day across the given dates, with a rating on the first.
+        /// Three 15 g brews a day across the given dates, each with a recipe,
+        /// and a rating on the first.
         private static func brews(
             _ beanID: String, from start: String, to end: String, rating: Double, into db: SQLiteDatabase
         ) throws {
             for (i, date) in DateUtils.dateRange(start, end).enumerated() {
                 for cup in 0..<3 {
                     try db.run(
-                        "INSERT INTO brews (bean_id, ground_coffee_grams, creation_date, rating) VALUES (?, 15, ?, ?)",
-                        [.text(beanID), .text(date), cup == 0 ? .double(rating - Double(i % 2) * 0.5) : .null]
+                        """
+                        INSERT INTO brews (bean_id, ground_coffee_grams, creation_date, rating, logged_at,
+                          grinder, grind_setting, temperature_c, water_grams, brew_seconds, method)
+                        VALUES (?, 15, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        [
+                            .text(beanID), .text(date), cup == 0 ? .double(rating - Double(i % 2) * 0.5) : .null,
+                            .double(Double(DateUtils.dayNumber(date) ?? 0) * 86_400 + 25_200 + Double(cup) * 1_800),
+                            "Femobook A4Z", .text(i % 2 == 0 ? "1.6" : "1.7"), 93, 240, 208, "Hario Alpha",
+                        ]
                     )
                 }
             }

@@ -91,11 +91,23 @@ private struct AgeBar: View {
     }
 }
 
-/// The latest brews and the freezer history, each only when there is any.
+/// The last brew's recipe, the latest brews and the freezer history, each
+/// only when there is any.
 struct BagHistory: View {
     let history: AppModel.BeanHistory
 
     var body: some View {
+        if let recipe = history.lastRecipe {
+            section("Last brew") {
+                Text(recipe.summaryParts.joined(separator: " · "))
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    .padding(.vertical, 8)
+                    .accessibilityLabel("Last brew: \(recipe.summaryParts.joined(separator: ", "))")
+            }
+        }
+
         if !history.recentBrews.isEmpty {
             section("Recent brews") {
                 ForEach(Array(history.recentBrews.enumerated()), id: \.offset) { index, brew in
