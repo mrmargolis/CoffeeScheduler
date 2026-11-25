@@ -6,8 +6,6 @@ struct PlannedMove {
     var from: String?
     var to: String?
     var toValue: Double?
-
-    static let directionOnly = PlannedMove()
 }
 
 extension DialInMove {
@@ -34,12 +32,11 @@ extension DialInMove {
     private func planGrind(_ brew: BrewRecipe, grinder: GrinderSetting?) -> PlannedMove {
         guard let value = brew.grindValue, let grinder, grinder.name == brew.grinder, let step = grinder.effectiveStep,
             !grinder.history.isUnusual(value)
-        else { return .directionOnly }
-        // Finer (up) is a lower number on a grinder where higher is coarser
-        let sign: Double = (direction == .down) == grinder.higherIsCoarser ? 1 : -1
+        else { return PlannedMove() }
+        let sign = Double(numberDirection(grinder: grinder))
         let places = max(GrinderHistory.decimalPlaces(step), GrinderHistory.decimalPlaces(value))
         let next = GrinderHistory.round(value + sign * step, places: places)
-        guard next > 0 else { return .directionOnly }
+        guard next > 0 else { return PlannedMove() }
         let name = brew.grinder.map { "\($0) " } ?? ""
         return PlannedMove(from: "\(name)\(Self.grindNumber(value))", to: Self.grindNumber(next), toValue: next)
     }
@@ -69,6 +66,17 @@ extension DialInMove {
         let nextIndex = index + (direction == .up ? 1 : -1)
         guard levels.indices.contains(nextIndex) else { return nil }
         return PlannedMove(from: current.rawValue, to: levels[nextIndex].rawValue, toValue: Double(nextIndex))
+    }
+
+    /// Which way the variable's number goes: grind finer is a lower number
+    /// where higher is coarser (the default when the grinder isn't known);
+    /// a shorter ratio is less water per gram.
+    func numberDirection(grinder: GrinderSetting?) -> Int {
+        switch variable {
+        case .grind: (direction == .down) == (grinder?.higherIsCoarser ?? true) ? 1 : -1
+        case .ratio: direction == .up ? -1 : 1
+        case .temperature, .agitation: direction == .up ? 1 : -1
+        }
     }
 
     static func number(_ value: Double) -> String { BrewRecipe.number(value) }

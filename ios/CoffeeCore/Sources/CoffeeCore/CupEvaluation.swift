@@ -2,7 +2,7 @@ import Foundation
 
 /// A sensory attribute of a cup, rated against the cup the drinker wants
 /// rather than as a score.
-public enum SensoryAttribute: String, CaseIterable, Sendable {
+public enum SensoryAttribute: String, CaseIterable, Sendable, Codable, CodingKeyRepresentable {
     case acidity, sweetness, intensity, clarity, body, finish
 
     public var name: String {
@@ -44,13 +44,13 @@ public enum Drawdown: String, CaseIterable, Sendable {
     case slow, normal, fast
 }
 
-public enum Agitation: String, CaseIterable, Sendable {
+public enum Agitation: String, CaseIterable, Sendable, Codable {
     case low, medium, high
 }
 
 /// What's wrong with a cup's character, as opposed to how much of an
 /// attribute it has: acidity can be on target and still sharp.
-public enum CharacterTag: String, CaseIterable, Sendable {
+public enum CharacterTag: String, CaseIterable, Sendable, Codable {
     case sharp, muddy, bitter, heavy
 }
 
@@ -67,7 +67,7 @@ public enum Verdict: String, CaseIterable, Sendable {
 
 /// A cup's recipe as entered with an evaluation: what BeanConqueror records,
 /// plus agitation, which it doesn't.
-public struct CupRecipe: Hashable, Sendable {
+public struct CupRecipe: Hashable, Sendable, Codable {
     public var brew: BrewRecipe
     public var agitation: Agitation?
 

@@ -18,17 +18,21 @@ public enum DialInAdvisor {
             for move in [rule.primary, rule.alternate] {
                 guard let planned = move.plan(for: latest.recipe, in: context) else { continue }
                 diagnosis.insert("\(rule.pattern).", at: 0)
-                return DialInAdvice(diagnosis: diagnosis, next: .experiment(experiment(move, planned, rule: rule, cup: latest)))
+                let experiment = experiment(move, planned, rule: rule, cup: latest, grinder: context.grinder)
+                return DialInAdvice(diagnosis: diagnosis, next: .experiment(experiment))
             }
         }
         return DialInAdvice(diagnosis: diagnosis, next: .noSuggestion)
     }
 
-    private static func experiment(_ move: DialInMove, _ planned: PlannedMove, rule: DialInRule, cup: CupEvaluation) -> DialInExperiment {
+    private static func experiment(
+        _ move: DialInMove, _ planned: PlannedMove, rule: DialInRule, cup: CupEvaluation, grinder: GrinderSetting?
+    ) -> DialInExperiment {
         var targets: [SensoryAttribute: Int] = [:]
         for attribute in rule.targets { targets[attribute] = cup.ratings[attribute] }
         return DialInExperiment(
             move: move, from: planned.from, to: planned.to, toValue: planned.toValue, targets: targets,
+            targetTags: rule.targetTags.filter { cup.character[$0] != nil }, numberDirection: move.numberDirection(grinder: grinder),
             expectedEffect: rule.effect, criteria: criteria(move, rule: rule))
     }
 

@@ -15,6 +15,8 @@ struct CupEvaluationForm: View {
     @State private var usedFlavours: [String] = []
     /// Set once a new cup is saved, to show what to try next.
     @State private var advice: DialInAdvice?
+    @State private var decided: SavedExperiment?
+    @State private var stillOpen: SavedExperiment?
     @State private var confirmingDelete = false
     @State private var error: String?
 
@@ -28,7 +30,7 @@ struct CupEvaluationForm: View {
     var body: some View {
         ScrollView {
             if let advice {
-                DialInAdviceView(evaluation: evaluation, advice: advice)
+                DialInAdviceView(evaluation: evaluation, advice: advice, decided: decided, stillOpen: stillOpen)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
             } else {
@@ -108,6 +110,8 @@ struct CupEvaluationForm: View {
         error = model.saveEvaluation(evaluation)
         guard error == nil else { return }
         if isNew {
+            decided = model.decideExperiment(with: evaluation)
+            stillOpen = model.experiments(forBean: evaluation.beanID).first { $0.status == .open }
             withAnimation(.snappy) { advice = model.advice(for: evaluation) }
         } else {
             dismiss()

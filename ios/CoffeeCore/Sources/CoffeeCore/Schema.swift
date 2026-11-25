@@ -142,7 +142,23 @@ enum Schema {
           higher_is_coarser INTEGER NOT NULL DEFAULT 1
         );
 
+        -- Experiments kept with a bag (SavedExperiment). The recipe it
+        -- started from and the experiment are JSON; status is open,
+        -- dismissed, superseded or decided, with the outcome once decided.
+        CREATE TABLE IF NOT EXISTS dial_in_experiments (
+          id TEXT PRIMARY KEY,
+          bean_id TEXT NOT NULL REFERENCES beans(id),
+          created_from TEXT NOT NULL,
+          created_at REAL NOT NULL,
+          start_recipe TEXT NOT NULL,
+          experiment TEXT NOT NULL,
+          status TEXT NOT NULL,
+          outcome TEXT,
+          decided_by TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
+        CREATE INDEX IF NOT EXISTS idx_dial_in_experiments_bean_id ON dial_in_experiments(bean_id);
         CREATE INDEX IF NOT EXISTS idx_cup_evaluations_bean_id ON cup_evaluations(bean_id);
         CREATE INDEX IF NOT EXISTS idx_breaks_bean_id ON breaks(bean_id);
         CREATE INDEX IF NOT EXISTS idx_freeze_events_bean_id ON freeze_events(bean_id);

@@ -88,9 +88,11 @@ struct BeanDetailView: View {
                 }
                 DialInSection(
                     evaluations: model.evaluations(forBean: beanID),
+                    experiments: model.experiments(forBean: beanID),
                     isAvailable: model.bagUsesDialInMethod(beanID),
                     start: { evaluating = EvaluationDraft(evaluation: model.newEvaluation(forBean: beanID), isNew: true) },
-                    edit: { evaluating = EvaluationDraft(evaluation: $0, isNew: false) })
+                    edit: { evaluating = EvaluationDraft(evaluation: $0, isNew: false) },
+                    dismissExperiment: { _ = model.dismissExperiment(id: $0.id) })
                 BagHistory(history: model.history(forBean: beanID))
             }
             .padding(.horizontal, 20)

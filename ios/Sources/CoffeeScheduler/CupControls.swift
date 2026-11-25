@@ -38,6 +38,7 @@ struct RatingRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(attribute.name)
         .accessibilityValue(CupRating.label(value))
+        .accessibilityIdentifier("rating-\(attribute.rawValue)")
         .accessibilityHint("Swipe up for too much, down for too little. Double-tap to clear.")
         .accessibilityAction { value = nil }
         .accessibilityAdjustableAction { direction in
@@ -61,6 +62,7 @@ struct RatingRow: View {
 }
 
 /// A row of chips for an optional choice; tapping the chosen one clears it.
+/// An empty title leaves the chips the whole width.
 struct ChoiceRow<Choice: Hashable>: View {
     let title: String
     let choices: [Choice]
@@ -69,7 +71,9 @@ struct ChoiceRow<Choice: Hashable>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(title).font(.subheadline.weight(.semibold)).frame(minWidth: 84, alignment: .leading)
+            if !title.isEmpty {
+                Text(title).font(.subheadline.weight(.semibold)).frame(minWidth: 84, alignment: .leading)
+            }
             ForEach(choices, id: \.self) { choice in
                 let chosen = selection == choice
                 Button {
@@ -84,7 +88,7 @@ struct ChoiceRow<Choice: Hashable>: View {
                         .background(chosen ? Theme.accent : Theme.raised, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(title): \(name(choice))")
+                .accessibilityLabel(title.isEmpty ? name(choice) : "\(title): \(name(choice))")
                 .accessibilityAddTraits(chosen ? .isSelected : [])
             }
         }

@@ -18,7 +18,7 @@ import Foundation
             try brews("brazil", from: "2026-10-02", to: "2026-10-06", rating: 3.5, into: db)
             try brews("guji", from: "2026-10-07", to: "2026-10-11", rating: 4.5, into: db)
 
-            for evaluation in evaluations { try store.saveEvaluation(evaluation) }
+            try dialIn(store)
 
             try event("huila", "freeze", "2026-09-12", into: db)
             try event("huila", "thaw", "2026-09-19", into: db)
@@ -36,8 +36,29 @@ import Foundation
             return store
         }
 
-        /// Two cups of the Guji evaluated a day apart, with a coarser grind
-        /// and less agitation on the second.
+        /// The Guji's dial-in: the first cup, the advisor's experiment after
+        /// it (grind coarser), the second cup deciding it, and a change of
+        /// the drinker's own left open for the next.
+        private static func dialIn(_ store: CoffeeStore) throws {
+            let first = evaluations[0]
+            try store.saveEvaluation(first)
+            let context = DialInContext(grinder: try store.grinderSetting("Femobook A4Z"))
+            if let experiment = DialInAdvisor.advise([first], context: context).experiment {
+                try store.saveExperiment(
+                    SavedExperiment(
+                        id: "sample-x1", beanID: "guji", createdFrom: first.id, createdAt: first.timestamp, start: first.recipe,
+                        experiment: experiment))
+            }
+            let second = evaluations[1]
+            try store.saveEvaluation(second)
+            try store.decideOpenExperiment(with: second)
+            try store.saveExperiment(
+                SavedExperiment(
+                    id: "sample-x2", beanID: "guji", createdFrom: second.id, createdAt: second.timestamp, start: second.recipe,
+                    experiment: DialInExperiment.custom(DialInMove(.agitation, .down), to: "low", after: second, grinder: nil)))
+        }
+
+        /// Two cups of the Guji evaluated a day apart, the second a step coarser.
         static let evaluations: [CupEvaluation] = {
             let recipe = BrewRecipe(
                 grinder: "Femobook A4Z", grindSetting: "1.6", temperatureC: 93, doseGrams: 15, waterGrams: 240, method: "Hario Alpha")
@@ -52,8 +73,8 @@ import Foundation
                     character: [.muddy: .user], flavours: ["Blueberry"], notes: "Last pour drained very slowly. Short linger."),
                 CupEvaluation(
                     id: "sample-2", beanID: "guji", timestamp: day("2026-10-11"), date: "2026-10-11",
-                    recipe: CupRecipe(brew: coarser, agitation: .low),
-                    ratings: [.acidity: 0, .sweetness: -1, .clarity: 0, .body: 0, .finish: -1], drawdown: .normal, verdict: .better,
+                    recipe: CupRecipe(brew: coarser, agitation: .medium),
+                    ratings: [.acidity: 0, .sweetness: 0, .clarity: 0, .body: 0, .finish: -1], drawdown: .normal, verdict: .better,
                     flavours: ["Blueberry", "Jasmine"]),
             ]
         }()

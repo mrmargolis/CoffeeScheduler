@@ -6,17 +6,22 @@ import SwiftUI
 /// before. Tapping a cup edits it.
 struct DialInSection: View {
     let evaluations: [CupEvaluation]
+    var experiments: [SavedExperiment] = []
     /// False when the bag was brewed lately only with methods turned off
     /// for dial-in in Settings.
     var isAvailable = true
     let start: () -> Void
     let edit: (CupEvaluation) -> Void
+    var dismissExperiment: (SavedExperiment) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel(title: "Dial-in", detail: evaluations.isEmpty ? nil : cupCount)
                 .padding(.horizontal, 4)
                 .padding(.top, 2)
+            if let open = experiments.first(where: { $0.status == .open }) {
+                OpenExperimentCard(experiment: open) { dismissExperiment(open) }
+            }
             if isAvailable {
                 evaluateButton
             } else {
@@ -31,7 +36,9 @@ struct DialInSection: View {
                 Button {
                     edit(evaluation)
                 } label: {
-                    EvaluationRow(evaluation: evaluation, changes: previous.map { evaluation.recipe.changes(from: $0.recipe) } ?? [])
+                    EvaluationRow(
+                        evaluation: evaluation, changes: previous.map { evaluation.recipe.changes(from: $0.recipe) } ?? [],
+                        decided: experiments.first { $0.decidedBy == evaluation.id })
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Edits this evaluation")
@@ -56,11 +63,34 @@ struct DialInSection: View {
     }
 }
 
+/// The bag's open experiment: what to try on the next cup, until a cup
+/// tests it or it's dismissed.
+private struct OpenExperimentCard: View {
+    let experiment: SavedExperiment
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Next cup").font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundStyle(Theme.accent)
+                Spacer()
+                Button("Dismiss", action: dismiss).font(.footnote.weight(.semibold)).foregroundStyle(Theme.text2)
+                    .accessibilityHint("Drops this experiment")
+            }
+            Text(experiment.experiment.instruction).font(.headline)
+            Text("Taste for: \(experiment.experiment.expectedEffect.lowercased()).").font(.footnote).foregroundStyle(Theme.text2)
+        }
+        .cardBackground(Theme.card)
+    }
+}
+
 /// One evaluated cup: when, the verdict, what changed, its chart and the
 /// drawdown.
 private struct EvaluationRow: View {
     let evaluation: CupEvaluation
     let changes: [String]
+    /// The experiment this cup decided.
+    var decided: SavedExperiment?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -73,6 +103,13 @@ private struct EvaluationRow: View {
             }
             if !changes.isEmpty {
                 Text(changes.joined(separator: " · ")).font(.footnote).foregroundStyle(Theme.accent)
+            }
+            if let decided, let outcome = decided.outcome {
+                HStack(spacing: 6) {
+                    Text("\(decided.experiment.move.name):").foregroundStyle(Theme.text2)
+                    Text(outcome.name).fontWeight(.semibold).foregroundStyle(outcome.color)
+                }
+                .font(.footnote)
             }
             CupChartView(ratings: evaluation.ratings)
             tags
