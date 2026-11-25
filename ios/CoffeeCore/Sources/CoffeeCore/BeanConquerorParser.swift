@@ -27,6 +27,36 @@ public enum BeanConquerorParser {
         public var creationDate: String
         public var beanAgeDays: Int?
         public var rating: Double?
+        /// BeanConqueror's own ID for the brew, which stays the same across
+        /// exports (the database's row ID doesn't).
+        public var brewID: String?
+        /// When the brew was logged, in seconds since 1970.
+        public var timestamp: Double = 0
+        public var recipe = BrewRecipe()
+        public var notes: String?
+    }
+
+    /// Names of the grinders, preparation methods and waters, by ID.
+    struct Names {
+        var mills: [String: String] = [:]
+        var preparations: [String: String] = [:]
+        var waters: [String: String] = [:]
+
+        init(_ main: JSONValue) {
+            mills = Self.byID(main["MILL"])
+            preparations = Self.byID(main["PREPARATION"])
+            waters = Self.byID(main["WATER"])
+        }
+
+        private static func byID(_ list: JSONValue) -> [String: String] {
+            var names: [String: String] = [:]
+            for item in list.array ?? [] {
+                if let id = item["config"]["uuid"].nonEmptyString, let name = item["name"].nonEmptyString {
+                    names[id] = name
+                }
+            }
+            return names
+        }
     }
 
     public struct FreezeInfo: Equatable, Sendable {
@@ -74,7 +104,8 @@ public enum BeanConquerorParser {
             rawBrews += split.array ?? []
         }
 
-        parseBrews(rawBrews, roastDates: roastDates, timeZone: timeZone, into: &result)
+        let context = BrewContext(roastDates: roastDates, names: Names(main), timeZone: timeZone)
+        parseBrews(rawBrews, context: context, into: &result)
         return result
     }
 
@@ -123,10 +154,15 @@ public enum BeanConquerorParser {
         )
     }
 
+    /// What reading a brew needs from the rest of the export.
+    private struct BrewContext {
+        var roastDates: [String: String]
+        var names: Names
+        var timeZone: TimeZone
+    }
+
     /// Adds the brews to `result`, deduplicating by config.uuid.
-    private static func parseBrews(
-        _ brews: [JSONValue], roastDates: [String: String], timeZone: TimeZone, into result: inout ParseResult
-    ) {
+    private static func parseBrews(_ brews: [JSONValue], context: BrewContext, into result: inout ParseResult) {
         var seenBrewIDs = Set<String>()
         for (i, br) in brews.enumerated() {
             if let brewID = br["config"]["uuid"].string, !brewID.isEmpty {
@@ -143,17 +179,25 @@ public enum BeanConquerorParser {
                 result.errors.append("Brew index \(i): invalid creation date, skipping")
                 continue
             }
-            let creationDate = DateUtils.isoString(Date(timeIntervalSince1970: ts), timeZone: timeZone)
-
-            result.brews.append(
-                RawBrew(
-                    beanID: beanID,
-                    groundCoffeeGrams: br["grind_weight"].number ?? 0,
-                    creationDate: creationDate,
-                    beanAgeDays: roastDates[beanID].map { DateUtils.daysBetween($0, creationDate) },
-                    rating: br["rating"].number.flatMap { $0 == 0 ? nil : $0 }
-                ))
+            result.brews.append(rawBrew(br, beanID: beanID, timestamp: ts, context: context))
         }
+    }
+
+    private static func rawBrew(_ br: JSONValue, beanID: String, timestamp: Double, context: BrewContext) -> RawBrew {
+        let creationDate = DateUtils.isoString(Date(timeIntervalSince1970: timestamp), timeZone: context.timeZone)
+        return RawBrew(
+            beanID: beanID,
+            groundCoffeeGrams: br["grind_weight"].number ?? 0,
+            creationDate: creationDate,
+            beanAgeDays: context.roastDates[beanID].map { DateUtils.daysBetween($0, creationDate) },
+            // Unrated is 0; below 1 is a slip. The top of the scale is the
+            // owner's choice in BeanConqueror, so it isn't capped.
+            rating: br["rating"].number.flatMap { $0 < 1 ? nil : $0 },
+            brewID: br["config"]["uuid"].nonEmptyString,
+            timestamp: timestamp,
+            recipe: BrewRecipe.fromExport(br, names: context.names),
+            notes: br["note"].string.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.flatMap { $0.isEmpty ? nil : $0 }
+        )
     }
 
     /// An entry's contents as JSON, or nil when it can't be read or parsed.

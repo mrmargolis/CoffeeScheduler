@@ -113,7 +113,8 @@ func bcBrew(_ overrides: [String: Any] = [:]) -> [String: Any] {
         #expect(
             result.brews == [
                 .init(
-                    beanID: "uuid-1", groundCoffeeGrams: 15, creationDate: "2024-02-01", beanAgeDays: 17, rating: 4
+                    beanID: "uuid-1", groundCoffeeGrams: 15, creationDate: "2024-02-01", beanAgeDays: 17, rating: 4,
+                    brewID: "brew-1", timestamp: 1_706_788_800, recipe: BrewRecipe(doseGrams: 15)
                 )
             ])
     }

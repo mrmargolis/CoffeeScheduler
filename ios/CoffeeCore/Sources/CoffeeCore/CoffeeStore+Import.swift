@@ -87,14 +87,20 @@ extension CoffeeStore {
             try db.run("DELETE FROM brews WHERE bean_id = ?", [.text(beanID)])
         }
         for brew in brews {
+            let recipe = brew.recipe
             try db.run(
                 """
-                INSERT INTO brews (bean_id, ground_coffee_grams, creation_date, bean_age_days, rating)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO brews (
+                  bean_id, ground_coffee_grams, creation_date, bean_age_days, rating, bc_uuid, logged_at,
+                  grinder, grind_setting, temperature_c, water_grams, brew_seconds, method, water, profile, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     .text(brew.beanID), .double(brew.groundCoffeeGrams), .text(brew.creationDate),
-                    SQLValue(brew.beanAgeDays), SQLValue(brew.rating),
+                    SQLValue(brew.beanAgeDays), SQLValue(brew.rating), SQLValue(brew.brewID), .double(brew.timestamp),
+                    SQLValue(recipe.grinder), SQLValue(recipe.grindSetting), SQLValue(recipe.temperatureC),
+                    SQLValue(recipe.waterGrams), SQLValue(recipe.brewSeconds), SQLValue(recipe.method),
+                    SQLValue(recipe.water), SQLValue(recipe.profile), SQLValue(brew.notes),
                 ])
         }
     }

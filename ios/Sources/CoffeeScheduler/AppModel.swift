@@ -176,6 +176,7 @@ final class AppModel {
     // MARK: - Bean detail
 
     struct BeanHistory {
+        var lastRecipe: BrewRecipe?
         var recentBrews: [BrewRecord] = []
         var freezeEvents: [FreezeEvent] = []
     }
@@ -184,7 +185,10 @@ final class AppModel {
     func history(forBean id: String) -> BeanHistory {
         guard let store else { return BeanHistory() }
         do {
-            return BeanHistory(recentBrews: try store.recentBrews(beanID: id), freezeEvents: try store.freezeEvents(beanID: id))
+            return BeanHistory(
+                lastRecipe: try store.latestBrewRecipe(beanID: id),
+                recentBrews: try store.recentBrews(beanID: id),
+                freezeEvents: try store.freezeEvents(beanID: id))
         } catch {
             Log.store.error("Couldn't read the history of \(id, privacy: .public): \(String(describing: error), privacy: .public)")
             return BeanHistory()
