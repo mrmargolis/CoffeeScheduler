@@ -122,6 +122,7 @@ final class ScreenshotTests: XCTestCase {
             ("23-evaluate-cup-recipe", form(true, false), model),
             ("24-evaluate-cup-tags", form(false, true), model),
             ("25-dial-in-settings", AnyView(NavigationStack { DialInSettingsView() }), model),
+            ("26-dial-in-advice", AnyView(advice(model)), model),
         ])
     }
 
@@ -150,6 +151,18 @@ final class ScreenshotTests: XCTestCase {
         rated.character = [.sharp: .user]
         rated.flavours = ["Blueberry"]
         return rated
+    }
+
+    /// What the advisor says about a cup with a slow drawdown and a short finish.
+    private func advice(_ model: AppModel) -> some View {
+        var cup = model.newEvaluation(forBean: "guji")
+        cup.ratings = [.acidity: 0, .sweetness: -1, .clarity: 0, .finish: -2]
+        cup.drawdown = .slow
+        return ScrollView {
+            DialInAdviceView(evaluation: cup, advice: model.advice(for: cup)).padding(20)
+        }
+        .background(Theme.ground)
+        .foregroundStyle(Theme.text)
     }
 
     /// The Guji's dial-in section on its own: on the bag's screen it's

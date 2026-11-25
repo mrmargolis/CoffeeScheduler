@@ -13,6 +13,8 @@ struct CupEvaluationForm: View {
     @State private var editsRecipe = false
     @State private var editsTags = false
     @State private var usedFlavours: [String] = []
+    /// Set once a new cup is saved, to show what to try next.
+    @State private var advice: DialInAdvice?
     @State private var confirmingDelete = false
     @State private var error: String?
 
@@ -25,44 +27,60 @@ struct CupEvaluationForm: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                ChoiceRow(title: "Vs last cup", choices: Verdict.allCases, name: \.name, selection: $evaluation.verdict)
-                ratings
-                ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $evaluation.drawdown)
-                Toggle("Stalled or channelled", isOn: $evaluation.flowProblem)
-                    .font(.subheadline)
-                    .tint(Theme.accent)
-                RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
-                TagsEditor(evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags)
-                if let error {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
-                }
-                if !isNew {
-                    Button("Delete evaluation", role: .destructive) { confirmingDelete = true }
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
+            if let advice {
+                DialInAdviceView(evaluation: evaluation, advice: advice)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            } else {
+                fields
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
         }
         .scrollDismissesKeyboard(.interactively)
         .selectsNumbersOnTap()
         .background(Theme.ground)
         .foregroundStyle(Theme.text)
-        .navigationTitle(isNew ? "Evaluate a cup" : "Edit evaluation")
+        .navigationTitle(advice != nil ? "Next cup" : isNew ? "Evaluate a cup" : "Edit evaluation")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save", action: save)
+            if advice != nil {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            } else {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                }
             }
         }
         .task { usedFlavours = model.usedFlavours() }
         .confirmationDialog("Delete this evaluation?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive, action: delete)
         }
+    }
+
+    private var fields: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ChoiceRow(title: "Vs last cup", choices: Verdict.allCases, name: \.name, selection: $evaluation.verdict)
+            ratings
+            ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $evaluation.drawdown)
+            Toggle("Stalled or channelled", isOn: $evaluation.flowProblem)
+                .font(.subheadline)
+                .tint(Theme.accent)
+            RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
+            TagsEditor(evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags)
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
+            }
+            if !isNew {
+                Button("Delete evaluation", role: .destructive) { confirmingDelete = true }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
     }
 
     private var ratings: some View {
@@ -85,9 +103,15 @@ struct CupEvaluationForm: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
     }
 
+    /// A new cup shows its advice; an edited one just closes.
     private func save() {
         error = model.saveEvaluation(evaluation)
-        if error == nil { dismiss() }
+        guard error == nil else { return }
+        if isNew {
+            withAnimation(.snappy) { advice = model.advice(for: evaluation) }
+        } else {
+            dismiss()
+        }
     }
 
     private func delete() {
