@@ -5,6 +5,8 @@ import SwiftUI
 struct DialInSettingsView: View {
     @Environment(AppModel.self) private var model
     @State private var methods: [DialInMethod] = []
+    @State private var grinders: [GrinderSetting] = []
+    @State private var temperatureStep = CoffeeStore.defaultTemperatureStep
     @State private var error: String?
 
     var body: some View {
@@ -34,11 +36,63 @@ struct DialInSettingsView: View {
             }
             .listRowBackground(Theme.card)
             .listRowSeparatorTint(Theme.hairline)
+
+            Group {
+                grindersSection
+                temperatureSection
+            }
+            .listRowBackground(Theme.card)
+            .listRowSeparatorTint(Theme.hairline)
         }
         .themedList()
         .navigationTitle("Dial-in")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { methods = model.dialInMethods() }
+        .onAppear(perform: reload)
+    }
+
+    private var grindersSection: some View {
+        Section {
+            if grinders.isEmpty {
+                Text("Import a BeanConqueror export to list your grinders.").foregroundStyle(Theme.text2)
+            }
+            ForEach(grinders, id: \.name) { grinder in
+                NavigationLink {
+                    GrinderForm(grinder: grinder)
+                } label: {
+                    SettingRow(title: grinder.name, subtitle: GrinderForm.summary(grinder)) { EmptyView() }
+                }
+            }
+        } header: {
+            SectionLabel(title: "Grinders").listRowInsets(Theme.labelInsets)
+        } footer: {
+            SectionFooter(
+                text: """
+                    A grind suggestion moves by the grinder's step. It starts as the change you make most often \
+                    between brews of a bag. Outside the grinder's usual range, suggestions give a direction instead.
+                    """)
+        }
+    }
+
+    private var temperatureSection: some View {
+        Section {
+            SettingRow(title: "Temperature step") {
+                StepperWell(
+                    text: "\(Format.grams(temperatureStep)) °C", subject: "temperature step",
+                    value: Binding(
+                        get: { Int(temperatureStep) },
+                        set: {
+                            error = model.setTemperatureStep(Double($0))
+                            temperatureStep = model.temperatureStep()
+                        }),
+                    range: 1...5)
+            }
+        }
+    }
+
+    private func reload() {
+        methods = model.dialInMethods()
+        grinders = model.grinderSettings()
+        temperatureStep = model.temperatureStep()
     }
 
     private func set(_ name: String, on: Bool) {
