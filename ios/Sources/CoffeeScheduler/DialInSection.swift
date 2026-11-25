@@ -6,6 +6,9 @@ import SwiftUI
 /// before. Tapping a cup edits it.
 struct DialInSection: View {
     let evaluations: [CupEvaluation]
+    /// False when the bag was brewed lately only with methods turned off
+    /// for dial-in in Settings.
+    var isAvailable = true
     let start: () -> Void
     let edit: (CupEvaluation) -> Void
 
@@ -14,15 +17,14 @@ struct DialInSection: View {
             SectionLabel(title: "Dial-in", detail: evaluations.isEmpty ? nil : cupCount)
                 .padding(.horizontal, 4)
                 .padding(.top, 2)
-            Button(action: start) {
-                Label("Evaluate a cup", systemImage: "cup.and.saucer")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Theme.ground)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+            if isAvailable {
+                evaluateButton
+            } else {
+                Text("Dial-in advice is for pour-over. This bag was brewed with methods turned off in Settings › Dial-in.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.text2)
+                    .cardBackground(Theme.card)
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Rates the cup you just drank against what you want from this coffee")
 
             ForEach(Array(evaluations.enumerated()), id: \.element.id) { index, evaluation in
                 let previous = index + 1 < evaluations.count ? evaluations[index + 1] : nil
@@ -35,6 +37,18 @@ struct DialInSection: View {
                 .accessibilityHint("Edits this evaluation")
             }
         }
+    }
+
+    private var evaluateButton: some View {
+        Button(action: start) {
+            Label("Evaluate a cup", systemImage: "cup.and.saucer")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Theme.ground)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Rates the cup you just drank against what you want from this coffee")
     }
 
     private var cupCount: String {

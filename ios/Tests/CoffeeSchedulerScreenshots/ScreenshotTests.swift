@@ -121,6 +121,7 @@ final class ScreenshotTests: XCTestCase {
             ("22-evaluate-cup", form(false, false), model),
             ("23-evaluate-cup-recipe", form(true, false), model),
             ("24-evaluate-cup-tags", form(false, true), model),
+            ("25-dial-in-settings", AnyView(NavigationStack { DialInSettingsView() }), model),
         ])
     }
 

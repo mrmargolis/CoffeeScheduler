@@ -23,6 +23,7 @@ struct SettingsView: View {
                     roasterSection
                     skipDaysSection
                     RemindersSection()
+                    dialInSection
                     dataSection
                 }
                 .listRowBackground(Theme.card)
@@ -113,6 +114,21 @@ struct SettingsView: View {
                     A bag rests for its own days if set, else its roaster's, else the default rest above. \
                     Swipe a roaster to remove it.
                     """)
+        }
+    }
+
+    private var dialInSection: some View {
+        Section {
+            NavigationLink {
+                DialInSettingsView()
+            } label: {
+                let methods = model.dialInMethods()
+                SettingRow(title: "Brew methods", subtitle: "\(methods.filter(\.isOn).count) of \(methods.count) get advice") {
+                    EmptyView()
+                }
+            }
+        } header: {
+            SectionLabel(title: "Dial-in").listRowInsets(Theme.labelInsets)
         }
     }
 

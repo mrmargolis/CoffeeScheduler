@@ -127,6 +127,13 @@ enum Schema {
           notes TEXT
         );
 
+        -- Brew methods the drinker has turned dial-in advice on or off for,
+        -- by name. A method not here uses DialInMethods.isOnByDefault.
+        CREATE TABLE IF NOT EXISTS method_settings (
+          method TEXT PRIMARY KEY,
+          dial_in INTEGER NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
         CREATE INDEX IF NOT EXISTS idx_cup_evaluations_bean_id ON cup_evaluations(bean_id);
         CREATE INDEX IF NOT EXISTS idx_breaks_bean_id ON breaks(bean_id);
