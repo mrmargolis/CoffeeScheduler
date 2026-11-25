@@ -1,12 +1,12 @@
 import Foundation
 
 /// What a dial-in experiment changes.
-public enum DialInVariable: String, CaseIterable, Sendable {
+public enum DialInVariable: String, CaseIterable, Sendable, Codable {
     case grind, temperature, ratio, agitation
 }
 
 /// Which way an experiment moves its variable.
-public enum DialInDirection: String, Sendable {
+public enum DialInDirection: String, Sendable, Codable {
     /// Grind finer, hotter water, a shorter ratio (less water), more agitation.
     case up
     /// Grind coarser, cooler water, a longer ratio (more water), less agitation.
@@ -14,7 +14,7 @@ public enum DialInDirection: String, Sendable {
 }
 
 /// One change to try on the next cup.
-public struct DialInMove: Hashable, Sendable {
+public struct DialInMove: Hashable, Sendable, Codable {
     public let variable: DialInVariable
     public let direction: DialInDirection
 
@@ -39,7 +39,7 @@ public struct DialInMove: Hashable, Sendable {
 }
 
 /// The next cup's one change, with what to expect and what to do after.
-public struct DialInExperiment: Hashable, Sendable {
+public struct DialInExperiment: Hashable, Sendable, Codable {
     public let move: DialInMove
     /// The value now and the value to try, as shown: "1.6" → "1.7". Nil
     /// when only the direction is known.
@@ -49,11 +49,16 @@ public struct DialInExperiment: Hashable, Sendable {
     public let toValue: Double?
     /// The attributes it's meant to move, with their ratings on this cup.
     public let targets: [SensoryAttribute: Int]
+    /// Character tags on this cup it's meant to take away.
+    public let targetTags: [CharacterTag]
+    /// Which way the variable's number should go: +1 up, −1 down. Grind is
+    /// its setting, temperature °C, ratio water per gram, agitation its level.
+    public let numberDirection: Int
     public let expectedEffect: String
     /// "If this happens, do that": the same four for every experiment.
     public let criteria: [Criterion]
 
-    public struct Criterion: Hashable, Sendable {
+    public struct Criterion: Hashable, Sendable, Codable {
         public let result: String
         public let next: String
     }

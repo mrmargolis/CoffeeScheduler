@@ -3,7 +3,7 @@ import Foundation
 /// How a cup was brewed, as far as BeanConqueror recorded it. Every field is
 /// optional: an export leaves out what wasn't entered, and a zero there means
 /// "not entered" rather than zero.
-public struct BrewRecipe: Hashable, Sendable {
+public struct BrewRecipe: Hashable, Sendable, Codable {
     public var grinder: String?
     /// The grinder's setting as typed, e.g. "1.6" or "4.4".
     public var grindSetting: String?

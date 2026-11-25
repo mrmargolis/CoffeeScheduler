@@ -29,6 +29,8 @@ struct DialInRule: Sendable {
     let primary: DialInMove
     let alternate: DialInMove
     let targets: [SensoryAttribute]
+    /// Character tags it should take away: gone on the next cup counts as better.
+    var targetTags: [CharacterTag] = []
     let effect: String
 
     static let all: [DialInRule] = [
@@ -53,20 +55,20 @@ struct DialInRule: Sendable {
         DialInRule(
             pattern: "Low sweetness with sharp acidity", matches: { $0.low(.sweetness) && $0.has(.sharp) },
             primary: .init(.grind, .up), alternate: .init(.temperature, .up),
-            targets: [.sweetness], effect: "Sweeter, and less sharp"),
+            targets: [.sweetness], targetTags: [.sharp], effect: "Sweeter, and less sharp"),
         DialInRule(
             pattern: "Bitterness", matches: { $0.has(.bitter) },
             primary: .init(.temperature, .down), alternate: .init(.grind, .down),
-            targets: [], effect: "Less bitter"),
+            targets: [], targetTags: [.bitter], effect: "Less bitter"),
         DialInRule(
             pattern: "Muddy, or low clarity with enough intensity",
             matches: { $0.has(.muddy) || ($0.low(.clarity) && $0.notLow(.intensity)) },
             primary: .init(.agitation, .down), alternate: .init(.grind, .down),
-            targets: [.clarity], effect: "Clearer"),
+            targets: [.clarity], targetTags: [.muddy], effect: "Clearer"),
         DialInRule(
             pattern: "Too much body", matches: { $0.high(.body) || $0.has(.heavy) },
             primary: .init(.agitation, .down), alternate: .init(.grind, .down),
-            targets: [.body, .clarity], effect: "Lighter and clearer"),
+            targets: [.body, .clarity], targetTags: [.heavy], effect: "Lighter and clearer"),
         DialInRule(
             pattern: "Low acidity with enough sweetness", matches: { $0.low(.acidity) && $0.notLow(.sweetness) },
             primary: .init(.grind, .down), alternate: .init(.temperature, .down),

@@ -87,10 +87,12 @@ extension AppModel {
             let earlier = try store.evaluations(beanID: evaluation.beanID)
                 .filter { $0.id != evaluation.id && $0.timestamp <= evaluation.timestamp }
                 .reversed()
+            let brew = evaluation.recipe.brew
             let context = DialInContext(
-                grinder: try evaluation.recipe.brew.grinder.flatMap { try store.grinderSetting($0) },
+                grinder: try brew.grinder.flatMap { try store.grinderSetting($0) },
                 temperatureStep: try store.temperatureStep(),
-                isDialInMethod: try store.isDialInMethod(evaluation.recipe.brew.method))
+                isDialInMethod: try store.isDialInMethod(brew.method),
+                blocked: try store.blockedVariables(beanID: evaluation.beanID, grinder: brew.grinder, method: brew.method))
             return DialInAdvisor.advise(earlier + [evaluation], context: context)
         } catch {
             Log.store.error("Couldn't advise on \(evaluation.id, privacy: .public): \(String(describing: error), privacy: .public)")

@@ -351,3 +351,42 @@ final class CoffeeE2ETests: XCTestCase {
         expectValue(today, "Skipped")
     }
 }
+
+// MARK: Dial-in
+
+extension CoffeeE2ETests {
+    /// Rate a cup of the Guji, get a suggestion, keep it, and find it on the
+    /// bag's page as the next cup to brew.
+    func testEvaluateACupAndKeepTheSuggestion() {
+        openTab("Beans")
+        let guji = element(containing: "Guji Hambela")
+        waitFor(guji)
+        guji.tap()
+        waitFor(app.navigationBars["Guji Hambela"])
+
+        let evaluate = app.buttons["Evaluate a cup"]
+        for _ in 0..<6 where !evaluate.isHittable { app.swipeUp() }
+        tap(evaluate, until: app.navigationBars["Evaluate a cup"])
+
+        // Finish length: the leftmost stop is "much too low"
+        let finish = app.descendants(matching: .any)["rating-finish"]
+        waitFor(finish)
+        finish.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.8)).tap()
+        expectValue(finish, "Much too low")
+        app.buttons["Drawdown: Slow"].tap()
+        app.navigationBars["Evaluate a cup"].buttons["Save"].tap()
+
+        waitFor(app.navigationBars["Next cup"])
+        waitFor(element(containing: "Grind coarser: Femobook A4Z 1.6 → 1.7"))
+        let keep = app.buttons["Try this next"]
+        for _ in 0..<4 where !keep.isHittable { app.swipeUp() }
+        keep.tap()
+        waitFor(element(containing: "Saved for the next cup"))
+        app.navigationBars["Next cup"].buttons["Done"].tap()
+
+        // The bag's page now leads its dial-in with the experiment
+        let next = element(containing: "Grind coarser: Femobook A4Z 1.6 → 1.7")
+        for _ in 0..<6 where !next.exists { app.swipeUp() }
+        waitFor(next)
+    }
+}
