@@ -7,7 +7,7 @@ extension AppModel {
 
     /// The bag's experiments, newest first.
     func experiments(forBean id: String) -> [SavedExperiment] {
-        (try? store?.experiments(beanID: id)) ?? []
+        (try? reading?.experiments(beanID: id)) ?? []
     }
 
     /// Let a newly saved cup decide the bag's open experiment. Returns the
