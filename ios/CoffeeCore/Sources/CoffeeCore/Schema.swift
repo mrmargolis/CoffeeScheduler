@@ -98,6 +98,9 @@ enum Schema {
         -- typed when evaluating; ratings are -2...2 against the cup wanted,
         -- NULL when not evaluated. evaluated_at is unix seconds, for order
         -- and for matching to a brew; evaluated_on is its local day.
+        -- brew_uuid is the BeanConqueror brew it describes (brews.bc_uuid),
+        -- linked on import (BrewLinker) unless linked by hand; linked by
+        -- hand with no brew means the drinker chose not to link it.
         CREATE TABLE IF NOT EXISTS cup_evaluations (
           id TEXT PRIMARY KEY,
           bean_id TEXT NOT NULL REFERENCES beans(id),
@@ -124,7 +127,9 @@ enum Schema {
           -- JSON: {"sharp": "user"} by who tagged it, and ["stone fruit"]
           character_tags TEXT,
           flavour_tags TEXT,
-          notes TEXT
+          notes TEXT,
+          brew_uuid TEXT,
+          brew_linked_by_hand INTEGER NOT NULL DEFAULT 0
         );
 
         -- Brew methods the drinker has turned dial-in advice on or off for,
@@ -181,6 +186,10 @@ enum Schema {
         "brew_seconds INTEGER", "method TEXT", "water TEXT", "profile TEXT", "notes TEXT",
     ]
 
+    /// The evaluation columns that link it to a brew, for a version 2 file
+    /// made before them. Nullable or defaulted, and nothing older reads them.
+    static let evaluationLinkColumns = ["brew_uuid TEXT", "brew_linked_by_hand INTEGER NOT NULL DEFAULT 0"]
+
     static func initialize(_ db: SQLiteDatabase) throws {
         // A file from the web app, or one not made yet, is at 0
         let found = try db.query("PRAGMA user_version").first?.int("user_version") ?? 0
@@ -202,7 +211,8 @@ enum Schema {
             try db.execute("ALTER TABLE beans ADD COLUMN url TEXT")
         }
         try moveDatedBreaks(db)
-        if found < 2 { try addBrewRecipeColumns(db) }
+        if found < 2 { try addColumns(brewRecipeColumns, to: "brews", db) }
+        try addColumns(evaluationLinkColumns, to: "cup_evaluations", db)
         if found != version {
             try db.execute("PRAGMA user_version = \(version)")
         }
@@ -210,10 +220,11 @@ enum Schema {
 }
 
 extension Schema {
-    fileprivate static func addBrewRecipeColumns(_ db: SQLiteDatabase) throws {
-        let columns = try Set(db.query("PRAGMA table_info(brews)").compactMap { $0.string("name") })
-        for column in brewRecipeColumns where !columns.contains(String(column.prefix { $0 != " " })) {
-            try db.execute("ALTER TABLE brews ADD COLUMN \(column)")
+    /// Add each of `columns` ("name TYPE ...") that `table` doesn't have yet.
+    fileprivate static func addColumns(_ columns: [String], to table: String, _ db: SQLiteDatabase) throws {
+        let existing = try Set(db.query("PRAGMA table_info(\(table))").compactMap { $0.string("name") })
+        for column in columns where !existing.contains(String(column.prefix { $0 != " " })) {
+            try db.execute("ALTER TABLE \(table) ADD COLUMN \(column)")
         }
     }
 

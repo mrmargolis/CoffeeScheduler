@@ -17,7 +17,13 @@ extension CoffeeStore {
                 [.text(beanID)]
             ).first
         else { return nil }
-        let recipe = BrewRecipe(
+        let day = row.string("creation_date").flatMap(DateUtils.dayNumber) ?? 0
+        return (Self.brewRecipe(row), row.double("logged_at") ?? Double(day) * 86_400 + 43_200)
+    }
+
+    /// The recipe of a `brews` row.
+    static func brewRecipe(_ row: SQLRow) -> BrewRecipe {
+        BrewRecipe(
             grinder: row.string("grinder"),
             grindSetting: row.string("grind_setting"),
             temperatureC: row.double("temperature_c"),
@@ -28,7 +34,5 @@ extension CoffeeStore {
             water: row.string("water"),
             profile: row.string("profile")
         )
-        let day = row.string("creation_date").flatMap(DateUtils.dayNumber) ?? 0
-        return (recipe, row.double("logged_at") ?? Double(day) * 86_400 + 43_200)
     }
 }
