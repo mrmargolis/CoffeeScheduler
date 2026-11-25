@@ -42,8 +42,8 @@ struct DialInSection: View {
     }
 }
 
-/// One evaluated cup: when, the verdict, the rated attributes, the drawdown
-/// and what changed.
+/// One evaluated cup: when, the verdict, what changed, its chart and the
+/// drawdown.
 private struct EvaluationRow: View {
     let evaluation: CupEvaluation
     let changes: [String]
@@ -60,7 +60,7 @@ private struct EvaluationRow: View {
             if !changes.isEmpty {
                 Text(changes.joined(separator: " · ")).font(.footnote).foregroundStyle(Theme.accent)
             }
-            ratingLines
+            CupChartView(ratings: evaluation.ratings)
             if let flow = flowText {
                 Text(flow).font(.footnote).foregroundStyle(Theme.text2)
             }
@@ -68,25 +68,6 @@ private struct EvaluationRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground(Theme.card)
         .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var ratingLines: some View {
-        let rated = SensoryAttribute.allCases.compactMap { attribute in evaluation.ratings[attribute].map { (attribute, $0) } }
-        if rated.isEmpty {
-            Text("Nothing rated").font(.footnote).foregroundStyle(Theme.text3)
-        } else {
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(rated, id: \.0) { attribute, value in
-                    HStack {
-                        Text(attribute.name).foregroundStyle(Theme.text2)
-                        Spacer()
-                        Text(CupRating.label(value)).foregroundStyle(value == 0 ? Theme.ready : Theme.text)
-                    }
-                    .font(.footnote)
-                }
-            }
-        }
     }
 
     private var flowText: String? {
