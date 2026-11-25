@@ -30,6 +30,11 @@ final class AppModel {
     private(set) var runway: Runway?
     private(set) var lastImportDate: String?
     private(set) var today = DateUtils.today()
+    /// Bumped on every refresh, for views that read the store directly (a
+    /// bag's evaluations, experiments and history) through `reading`.
+    /// `@Observable` skips assigning a value equal to the old one, so a
+    /// change none of the properties above shows wouldn't redraw them.
+    private(set) var revision = 0
 
     /// Shown as an alert: import results and errors.
     var message: Message?
@@ -47,6 +52,12 @@ final class AppModel {
     @ObservationIgnored private let fixedFolderName: String?
     /// The iCloud Drive work asked for so far: see `enqueue`.
     @ObservationIgnored private var syncWork: Task<Void, Never>?
+
+    /// The store, for a read a view should redraw after any change.
+    var reading: CoffeeStore? {
+        _ = revision
+        return store
+    }
 
     var hasFolder: Bool { folderName != nil }
     var folderName: String? { fixedFolderName ?? location?.folder?.lastPathComponent }
@@ -150,6 +161,7 @@ final class AppModel {
         ageRanges = Scheduler.ageRanges(schedule, beans: activeBeans + archivedBeans, today: today)
         runway = activeBeans.isEmpty ? nil : Scheduler.runway(schedule, restDays: settings.defaultRestDays, today: today)
         lastImportDate = try store.lastImportDate()
+        revision += 1
         // Sample data stays out of the real widget
         if location != nil {
             WidgetBridge.publish(WidgetSnapshot(schedule: schedule, skipRanges: skipRanges, roasterColors: roasterColors))
@@ -183,7 +195,7 @@ final class AppModel {
 
     /// Read from the database on demand; small enough to query per view update.
     func history(forBean id: String) -> BeanHistory {
-        guard let store else { return BeanHistory() }
+        guard let store = reading else { return BeanHistory() }
         do {
             return BeanHistory(
                 lastRecipe: try store.latestBrewRecipe(beanID: id),
