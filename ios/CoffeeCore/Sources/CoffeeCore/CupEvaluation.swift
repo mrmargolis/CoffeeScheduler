@@ -48,6 +48,18 @@ public enum Agitation: String, CaseIterable, Sendable {
     case low, medium, high
 }
 
+/// What's wrong with a cup's character, as opposed to how much of an
+/// attribute it has: acidity can be on target and still sharp.
+public enum CharacterTag: String, CaseIterable, Sendable {
+    case sharp, muddy, bitter, heavy
+}
+
+/// Who put a tag on a cup: the drinker, or the on-device model reading the
+/// notes (a proposal until accepted).
+public enum TagSource: String, Sendable {
+    case user, model
+}
+
 /// How a cup compares with the last evaluated cup of the same bag.
 public enum Verdict: String, CaseIterable, Sendable {
     case better, same, worse
@@ -81,10 +93,15 @@ public struct CupEvaluation: Hashable, Sendable, Identifiable {
     /// The bed stalled or channelled.
     public var flowProblem: Bool
     public var verdict: Verdict?
+    public var character: [CharacterTag: TagSource]
+    /// Recognisable flavours, as typed: "stone fruit", "jasmine".
+    public var flavours: [String]
+    public var notes: String?
 
     public init(
         id: String = UUID().uuidString, beanID: String, timestamp: Double, date: String, recipe: CupRecipe = CupRecipe(),
-        ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, flowProblem: Bool = false, verdict: Verdict? = nil
+        ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, flowProblem: Bool = false, verdict: Verdict? = nil,
+        character: [CharacterTag: TagSource] = [:], flavours: [String] = [], notes: String? = nil
     ) {
         self.id = id
         self.beanID = beanID
@@ -95,6 +112,9 @@ public struct CupEvaluation: Hashable, Sendable, Identifiable {
         self.drawdown = drawdown
         self.flowProblem = flowProblem
         self.verdict = verdict
+        self.character = character
+        self.flavours = flavours
+        self.notes = notes
     }
 
     /// A new evaluation of a bag at `time`, starting from `recipe` with

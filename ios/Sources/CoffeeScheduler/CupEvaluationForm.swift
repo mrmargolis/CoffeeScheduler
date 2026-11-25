@@ -11,13 +11,16 @@ struct CupEvaluationForm: View {
     let isNew: Bool
     @State private var evaluation: CupEvaluation
     @State private var editsRecipe = false
+    @State private var editsTags = false
+    @State private var usedFlavours: [String] = []
     @State private var confirmingDelete = false
     @State private var error: String?
 
-    init(evaluation: CupEvaluation, isNew: Bool, editsRecipe: Bool = false) {
+    init(evaluation: CupEvaluation, isNew: Bool, editsRecipe: Bool = false, editsTags: Bool = false) {
         self.isNew = isNew
         _evaluation = State(initialValue: evaluation)
         _editsRecipe = State(initialValue: editsRecipe)
+        _editsTags = State(initialValue: editsTags)
     }
 
     var body: some View {
@@ -30,6 +33,7 @@ struct CupEvaluationForm: View {
                     .font(.subheadline)
                     .tint(Theme.accent)
                 RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
+                TagsEditor(evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags)
                 if let error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
                 }
@@ -55,6 +59,7 @@ struct CupEvaluationForm: View {
                 Button("Save", action: save)
             }
         }
+        .task { usedFlavours = model.usedFlavours() }
         .confirmationDialog("Delete this evaluation?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive, action: delete)
         }
@@ -97,31 +102,7 @@ private struct RecipeEditor: View {
     @Binding var isExpanded: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.snappy) { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Recipe").font(.subheadline.weight(.semibold))
-                        Text(summary).font(.footnote).foregroundStyle(Theme.text2).lineLimit(2).multilineTextAlignment(.leading)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        .foregroundStyle(Theme.text3)
-                }
-                .frame(minHeight: 48)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(isExpanded ? "Hides the recipe fields" : "Shows the recipe fields to change")
-
-            if isExpanded { fields.padding(.top, 6) }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
+        FoldedCard(title: "Recipe", summary: summary, isExpanded: $isExpanded) { fields }
     }
 
     private var summary: String {

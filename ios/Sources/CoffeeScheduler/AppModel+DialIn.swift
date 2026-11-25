@@ -32,3 +32,10 @@ extension AppModel {
         saveFromForm { try $0.deleteEvaluation(id: id) }
     }
 }
+
+extension AppModel {
+    /// Flavours used on any evaluation, most used first, for quick reuse.
+    func usedFlavours() -> [String] {
+        (try? store?.usedFlavours()) ?? []
+    }
+}

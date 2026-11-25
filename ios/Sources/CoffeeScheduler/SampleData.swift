@@ -48,11 +48,13 @@ import Foundation
                 CupEvaluation(
                     id: "sample-1", beanID: "guji", timestamp: day("2026-10-10"), date: "2026-10-10",
                     recipe: CupRecipe(brew: recipe, agitation: .medium),
-                    ratings: [.acidity: -1, .sweetness: -1, .clarity: -1, .finish: -2], drawdown: .slow),
+                    ratings: [.acidity: -1, .sweetness: -1, .clarity: -1, .finish: -2], drawdown: .slow,
+                    character: [.muddy: .user], flavours: ["Blueberry"], notes: "Last pour drained very slowly. Short linger."),
                 CupEvaluation(
                     id: "sample-2", beanID: "guji", timestamp: day("2026-10-11"), date: "2026-10-11",
                     recipe: CupRecipe(brew: coarser, agitation: .low),
-                    ratings: [.acidity: 0, .sweetness: -1, .clarity: 0, .body: 0, .finish: -1], drawdown: .normal, verdict: .better),
+                    ratings: [.acidity: 0, .sweetness: -1, .clarity: 0, .body: 0, .finish: -1], drawdown: .normal, verdict: .better,
+                    flavours: ["Blueberry", "Jasmine"]),
             ]
         }()
 

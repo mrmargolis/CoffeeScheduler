@@ -61,6 +61,10 @@ private struct EvaluationRow: View {
                 Text(changes.joined(separator: " · ")).font(.footnote).foregroundStyle(Theme.accent)
             }
             CupChartView(ratings: evaluation.ratings)
+            tags
+            if let notes = evaluation.notes {
+                Text(notes).font(.footnote).foregroundStyle(Theme.text2).lineLimit(4)
+            }
             if let flow = flowText {
                 Text(flow).font(.footnote).foregroundStyle(Theme.text2)
             }
@@ -68,6 +72,22 @@ private struct EvaluationRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground(Theme.card)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Character tags in amber, since they're problems; flavours plain.
+    @ViewBuilder
+    private var tags: some View {
+        let character = CharacterTag.allCases.filter { evaluation.character[$0] != nil }
+        if !character.isEmpty || !evaluation.flavours.isEmpty {
+            FlowLayout(spacing: 6) {
+                ForEach(character, id: \.self) { tag in
+                    Badge(text: tag.name, color: Palette.offTarget, background: Palette.offTarget.opacity(0.16))
+                }
+                ForEach(evaluation.flavours, id: \.self) { flavour in
+                    Badge(text: flavour, color: Theme.text, background: Theme.raised)
+                }
+            }
+        }
     }
 
     private var flowText: String? {
