@@ -134,6 +134,14 @@ enum Schema {
           dial_in INTEGER NOT NULL
         );
 
+        -- A grinder's step for dial-in suggestions, by name. A NULL step
+        -- uses the one learned from the brews (GrinderHistory).
+        CREATE TABLE IF NOT EXISTS grinder_settings (
+          grinder TEXT PRIMARY KEY,
+          step REAL,
+          higher_is_coarser INTEGER NOT NULL DEFAULT 1
+        );
+
         CREATE INDEX IF NOT EXISTS idx_brews_bean_id ON brews(bean_id);
         CREATE INDEX IF NOT EXISTS idx_cup_evaluations_bean_id ON cup_evaluations(bean_id);
         CREATE INDEX IF NOT EXISTS idx_breaks_bean_id ON breaks(bean_id);

@@ -56,3 +56,24 @@ extension AppModel {
         (try? store?.bagUsesDialInMethod(beanID: id)) ?? true
     }
 }
+
+extension AppModel {
+    /// Every grinder from the imports, with its step, direction and usual range.
+    func grinderSettings() -> [GrinderSetting] {
+        (try? store?.grinderSettings()) ?? []
+    }
+
+    /// Save a grinder's step (nil for the usual one) and direction. Returns an error message, or nil once saved.
+    func setGrinder(_ name: String, step: Double?, higherIsCoarser: Bool) -> String? {
+        saveFromForm { try $0.setGrinder(name, step: step, higherIsCoarser: higherIsCoarser) }
+    }
+
+    func temperatureStep() -> Double {
+        (try? store?.temperatureStep()) ?? CoffeeStore.defaultTemperatureStep
+    }
+
+    /// Returns an error message, or nil once saved.
+    func setTemperatureStep(_ step: Double) -> String? {
+        saveFromForm { try $0.setTemperatureStep(step) }
+    }
+}
