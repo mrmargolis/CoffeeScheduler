@@ -99,11 +99,17 @@ public struct CupEvaluation: Hashable, Sendable, Identifiable {
     /// Recognisable flavours, as typed: "stone fruit", "jasmine".
     public var flavours: [String]
     public var notes: String?
+    /// The BeanConqueror brew it describes, once imported: linked by the
+    /// store on import, or by hand.
+    public var brewID: String?
+    /// Linked, or left unlinked, by hand: imports keep it as it is.
+    public var linkedByHand: Bool
 
     public init(
         id: String = UUID().uuidString, beanID: String, timestamp: Double, date: String, recipe: CupRecipe = CupRecipe(),
         ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, flowProblem: Bool = false, verdict: Verdict? = nil,
-        character: [CharacterTag: TagSource] = [:], flavours: [String] = [], notes: String? = nil
+        character: [CharacterTag: TagSource] = [:], flavours: [String] = [], notes: String? = nil, brewID: String? = nil,
+        linkedByHand: Bool = false
     ) {
         self.id = id
         self.beanID = beanID
@@ -117,6 +123,8 @@ public struct CupEvaluation: Hashable, Sendable, Identifiable {
         self.character = character
         self.flavours = flavours
         self.notes = notes
+        self.brewID = brewID
+        self.linkedByHand = linkedByHand
     }
 
     /// A new evaluation of a bag at `time`, starting from `recipe` with

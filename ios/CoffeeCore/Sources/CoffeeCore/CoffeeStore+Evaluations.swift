@@ -6,8 +6,17 @@ extension CoffeeStore {
     /// Save an evaluation, new or edited. Text is trimmed, and blank is
     /// unknown. Marking the bag's newest cup dialed in closes its open
     /// experiment as superseded: let the cup decide it first.
+    ///
+    /// A link made by hand takes its brew from any other cup; links not
+    /// made by hand are worked out again (BrewLinker).
     public func saveEvaluation(_ evaluation: CupEvaluation) throws {
         try writeEvaluation(evaluation)
+        if evaluation.linkedByHand, let brewID = evaluation.brewID {
+            try db.run(
+                "UPDATE cup_evaluations SET brew_uuid = NULL, brew_linked_by_hand = 0 WHERE brew_uuid = ? AND id != ?",
+                [.text(brewID), .text(evaluation.id)])
+        }
+        try relinkEvaluations(beanID: evaluation.beanID)
         if try dialedInCup(beanID: evaluation.beanID)?.id == evaluation.id {
             try db.run(
                 "UPDATE dial_in_experiments SET status = 'superseded' WHERE bean_id = ? AND status = 'open'",
@@ -23,8 +32,8 @@ extension CoffeeStore {
             INSERT OR REPLACE INTO cup_evaluations (
               id, bean_id, evaluated_at, evaluated_on, grinder, grind_setting, temperature_c, dose_grams, water_grams,
               method, water, profile, agitation, acidity, sweetness, intensity, clarity, body, finish,
-              drawdown, flow_problem, verdict, character_tags, flavour_tags, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              drawdown, flow_problem, verdict, character_tags, flavour_tags, notes, brew_uuid, brew_linked_by_hand)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 .text(evaluation.id), .text(evaluation.beanID), .double(evaluation.timestamp), .text(evaluation.date),
@@ -35,7 +44,7 @@ extension CoffeeStore {
                 SQLValue(evaluation.drawdown?.rawValue), SQLValue(evaluation.flowProblem), SQLValue(evaluation.verdict?.rawValue),
                 SQLValue(EvaluationTags.characterJSON(evaluation.character)),
                 SQLValue(EvaluationTags.flavoursJSON(evaluation.flavours)),
-                SQLValue(EvaluationTags.clean(evaluation.notes)),
+                SQLValue(EvaluationTags.clean(evaluation.notes)), SQLValue(evaluation.brewID), SQLValue(evaluation.linkedByHand),
             ])
     }
 
@@ -45,8 +54,11 @@ extension CoffeeStore {
         try evaluations(beanID: beanID).first.flatMap { $0.verdict == .dialedIn ? $0 : nil }
     }
 
+    /// Delete an evaluation; its brew is free for another cup of the bag.
     public func deleteEvaluation(id: String) throws {
+        let beanID = try db.query("SELECT bean_id FROM cup_evaluations WHERE id = ?", [.text(id)]).first?.string("bean_id")
         try db.run("DELETE FROM cup_evaluations WHERE id = ?", [.text(id)])
+        if let beanID { try relinkEvaluations(beanID: beanID) }
     }
 
     /// The bag's evaluations, newest first.
@@ -109,6 +121,6 @@ extension CoffeeStore {
             verdict: row.string("verdict").flatMap(Verdict.init(rawValue:)),
             character: EvaluationTags.character(fromJSON: row.string("character_tags")),
             flavours: EvaluationTags.flavours(fromJSON: row.string("flavour_tags")),
-            notes: row.string("notes"))
+            notes: row.string("notes"), brewID: row.string("brew_uuid"), linkedByHand: row.int("brew_linked_by_hand") == 1)
     }
 }

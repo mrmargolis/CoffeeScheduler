@@ -85,7 +85,7 @@ public struct BrewRecipe: Hashable, Sendable, Codable {
     }
 
     /// At most one decimal, and none for a whole number.
-    static func number(_ value: Double) -> String {
+    public static func number(_ value: Double) -> String {
         let rounded = (value * 10).rounded() / 10
         return rounded == rounded.rounded() ? String(Int(rounded)) : String(format: "%.1f", rounded)
     }

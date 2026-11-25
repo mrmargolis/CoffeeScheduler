@@ -107,3 +107,15 @@ extension AppModel {
         try? store?.dialedInCup(beanID: id)
     }
 }
+
+extension AppModel {
+    /// The imported brew an evaluation is linked to.
+    func linkedBrew(for evaluation: CupEvaluation) -> LoggedBrew? {
+        try? store?.linkedBrew(for: evaluation)
+    }
+
+    /// The bag's brews around an evaluation's time, newest first, to link it to by hand.
+    func brews(near evaluation: CupEvaluation) -> [LoggedBrew] {
+        (try? store?.brews(near: evaluation)) ?? []
+    }
+}

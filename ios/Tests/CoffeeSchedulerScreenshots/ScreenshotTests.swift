@@ -125,6 +125,7 @@ final class ScreenshotTests: XCTestCase {
             ("25-dial-in-settings", AnyView(NavigationStack { DialInSettingsView() }), model),
             ("26-dial-in-advice", AnyView(advice(model)), model),
             ("27-dial-in-dialed-in", AnyView(dialIn(dialed)), dialed),
+            ("28-evaluation-brew-link", AnyView(brewLink(model)), model),
         ])
     }
 
@@ -153,6 +154,19 @@ final class ScreenshotTests: XCTestCase {
         rated.character = [.sharp: .user]
         rated.flavours = ["Blueberry"]
         return rated
+    }
+
+    /// The second Guji cup's link to its brew, which recorded a step finer
+    /// than typed.
+    private func brewLink(_ model: AppModel) -> some View {
+        let cup = model.evaluations(forBean: "guji").first { $0.id == "sample-2" } ?? ratedCup(model)
+        return VStack {
+            BrewLinkCard(evaluation: .constant(cup), brews: model.brews(near: cup))
+            Spacer()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(Theme.ground)
     }
 
     /// The sample data with a third Guji cup marked dialed in.

@@ -17,12 +17,15 @@ extension CoffeeStore {
     /// one already stored, so a date entered
     /// in the app for a bag BeanConqueror has none for survives a re-import.
     ///
+    /// Evaluations are then linked to the brews they describe.
+    ///
     /// `date` is kept as the day of the last import.
     public func importExport(_ parsed: BeanConquerorParser.ParseResult, on date: String = DateUtils.today()) throws -> ImportSummary {
         try db.transaction { () throws -> ImportSummary in
             for bean in parsed.beans { try upsert(bean) }
             for event in parsed.freezeEvents { try recordFreeze(event) }
             try replaceBrews(parsed.brews)
+            try relinkAllEvaluations()
             try db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_import_date', ?)", [.text(date)])
 
             return ImportSummary(

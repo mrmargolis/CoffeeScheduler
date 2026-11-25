@@ -13,6 +13,8 @@ struct CupEvaluationForm: View {
     @State private var editsRecipe = false
     @State private var editsTags = false
     @State private var usedFlavours: [String] = []
+    /// The bag's brews around this cup, to link it to; only when editing.
+    @State private var brews: [LoggedBrew] = []
     /// Set once a new cup is saved, to show what to try next.
     @State private var advice: DialInAdvice?
     @State private var decided: SavedExperiment?
@@ -57,7 +59,10 @@ struct CupEvaluationForm: View {
                 }
             }
         }
-        .task { usedFlavours = model.usedFlavours() }
+        .task {
+            usedFlavours = model.usedFlavours()
+            if !isNew { brews = nearbyBrews() }
+        }
         .confirmationDialog("Delete this evaluation?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive, action: delete)
         }
@@ -75,6 +80,7 @@ struct CupEvaluationForm: View {
                 .font(.subheadline)
                 .tint(Theme.accent)
             RecipeEditor(recipe: $evaluation.recipe, isExpanded: $editsRecipe)
+            if !isNew { BrewLinkCard(evaluation: $evaluation, brews: brews) }
             TagsEditor(evaluation: $evaluation, usedFlavours: usedFlavours, isExpanded: $editsTags)
             if let error {
                 Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.gapText)
@@ -121,6 +127,13 @@ struct CupEvaluationForm: View {
         } else {
             dismiss()
         }
+    }
+
+    /// Brews around the cup's time, and the one it's linked to wherever it is.
+    private func nearbyBrews() -> [LoggedBrew] {
+        let near = model.brews(near: evaluation)
+        guard let linked = model.linkedBrew(for: evaluation), !near.contains(linked) else { return near }
+        return (near + [linked]).sorted { $0.timestamp > $1.timestamp }
     }
 
     private func delete() {
