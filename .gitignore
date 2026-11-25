@@ -8,3 +8,6 @@ coffee.db
 *.xlsx:*
 *.zip
 /tmp/
+
+# editor tooling (sourcekit-lsp index)
+.build/
