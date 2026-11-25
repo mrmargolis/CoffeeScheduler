@@ -184,8 +184,11 @@ final class ScreenshotTests: XCTestCase {
     /// below the fold.
     private func dialIn(_ model: AppModel) -> some View {
         ScrollView {
-            DialInSection(evaluations: model.evaluations(forBean: "guji"), start: {}, edit: { _ in })
-                .padding(20)
+            DialInSection(
+                evaluations: model.evaluations(forBean: "guji"), experiments: model.experiments(forBean: "guji"),
+                dialedIn: model.dialedInCup(forBean: "guji"), start: {}, edit: { _ in }
+            )
+            .padding(20)
         }
         .background(Theme.ground)
         .foregroundStyle(Theme.text)
