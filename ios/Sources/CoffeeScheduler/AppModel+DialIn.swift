@@ -102,6 +102,11 @@ extension AppModel {
 }
 
 extension AppModel {
+    /// The recipe another bag from the roaster was last dialed in at.
+    func roasterStartingPoint(forBean id: String) -> RoasterStartingPoint? {
+        try? reading?.roasterStartingPoint(beanID: id)
+    }
+
     /// The bag's newest cup, when it was marked dialed in.
     func dialedInCup(forBean id: String) -> CupEvaluation? {
         try? reading?.dialedInCup(beanID: id)

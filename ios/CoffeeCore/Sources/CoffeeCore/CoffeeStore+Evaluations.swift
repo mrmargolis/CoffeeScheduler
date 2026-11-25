@@ -100,7 +100,7 @@ extension CoffeeStore {
             .map(\.name)
     }
 
-    private static func evaluation(_ row: SQLRow) -> CupEvaluation? {
+    static func evaluation(_ row: SQLRow) -> CupEvaluation? {
         guard let id = row.string("id"), let beanID = row.string("bean_id"), let timestamp = row.double("evaluated_at"),
             let date = row.string("evaluated_on")
         else { return nil }

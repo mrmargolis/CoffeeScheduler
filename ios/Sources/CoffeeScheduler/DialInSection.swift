@@ -9,6 +9,9 @@ struct DialInSection: View {
     var experiments: [SavedExperiment] = []
     /// The newest cup, when it was marked dialed in.
     var dialedIn: CupEvaluation?
+    /// Another bag from the roaster's dialed-in recipe, shown until this
+    /// bag's first evaluation.
+    var startingPoint: RoasterStartingPoint?
     /// False when the bag was brewed lately only with methods turned off
     /// for dial-in in Settings.
     var isAvailable = true
@@ -23,6 +26,8 @@ struct DialInSection: View {
                 .padding(.top, 2)
             if let dialedIn {
                 DialedInCard(cup: dialedIn)
+            } else if evaluations.isEmpty, let startingPoint {
+                StartingPointCard(start: startingPoint)
             } else if let open = experiments.first(where: { $0.status == .open }) {
                 OpenExperimentCard(experiment: open) { dismissExperiment(open) }
             }
@@ -74,7 +79,7 @@ private struct DialedInCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Dialed in").font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundStyle(Palette.onTarget)
-            Text(summary).font(.headline)
+            Text(cup.recipe.summaryLine).font(.headline)
             Text("Since \(Format.shortDay(cup.date)). Evaluate a cup with another verdict to start dialing again.")
                 .font(.footnote)
                 .foregroundStyle(Theme.text2)
@@ -82,9 +87,31 @@ private struct DialedInCard: View {
         .cardBackground(Theme.card)
         .accessibilityElement(children: .combine)
     }
+}
 
-    private var summary: String {
-        let parts = cup.recipe.brew.summaryParts + [cup.recipe.agitation.map { "\($0.name.lowercased()) agitation" }].compactMap { $0 }
+/// Where another bag from the roaster ended up, to start this one from.
+private struct StartingPointCard: View {
+    let start: RoasterStartingPoint
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Starting point").font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundStyle(Theme.text2)
+            Text(start.cup.recipe.summaryLine).font(.headline)
+            Text(
+                "Where \(start.beanName), from the same roaster, was dialed in on \(Format.shortDay(start.cup.date)). Rate a cup of this bag for advice on it."
+            )
+            .font(.footnote)
+            .foregroundStyle(Theme.text2)
+        }
+        .cardBackground(Theme.card)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension CupRecipe {
+    /// "Femobook A4Z 1.6 · 93 °C · … · low agitation"
+    var summaryLine: String {
+        let parts = brew.summaryParts + [agitation.map { "\($0.name.lowercased()) agitation" }].compactMap { $0 }
         return parts.isEmpty ? "Recipe not recorded" : parts.joined(separator: " · ")
     }
 }

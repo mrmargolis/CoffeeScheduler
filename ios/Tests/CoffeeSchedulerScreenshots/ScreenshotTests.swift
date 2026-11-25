@@ -114,6 +114,7 @@ final class ScreenshotTests: XCTestCase {
         let model = AppModel(store: try SampleData.store(), today: SampleData.today, folderName: "Coffee")
         let rated = ratedCup(model)
         let dialed = try dialedIn()
+        let roasterStart = try roasterStartingPoint()
         let form = { (recipe: Bool, tags: Bool) in
             AnyView(NavigationStack { CupEvaluationForm(evaluation: rated, isNew: true, editsRecipe: recipe, editsTags: tags) })
         }
@@ -126,6 +127,7 @@ final class ScreenshotTests: XCTestCase {
             ("26-dial-in-advice", AnyView(advice(model)), model),
             ("27-dial-in-dialed-in", AnyView(dialIn(dialed)), dialed),
             ("28-evaluation-brew-link", AnyView(brewLink(model)), model),
+            ("29-dial-in-roaster-start", AnyView(dialIn(roasterStart, bean: "kenya")), roasterStart),
         ])
     }
 
@@ -169,6 +171,18 @@ final class ScreenshotTests: XCTestCase {
         .background(Theme.ground)
     }
 
+    /// The sample data with the archived Brazil dialed in, for the Kenya
+    /// from the same roaster to start from.
+    private func roasterStartingPoint() throws -> AppModel {
+        let store = try SampleData.store()
+        var cup = try XCTUnwrap(store.evaluations(beanID: "guji").first)
+        cup.id = "brazil-1"
+        cup.beanID = "brazil"
+        cup.verdict = .dialedIn
+        try store.saveEvaluation(cup)
+        return AppModel(store: store, today: SampleData.today, folderName: "Coffee")
+    }
+
     /// The sample data with a third Guji cup marked dialed in.
     private func dialedIn() throws -> AppModel {
         let store = try SampleData.store()
@@ -196,11 +210,12 @@ final class ScreenshotTests: XCTestCase {
 
     /// The Guji's dial-in section on its own: on the bag's screen it's
     /// below the fold.
-    private func dialIn(_ model: AppModel) -> some View {
+    private func dialIn(_ model: AppModel, bean: String = "guji") -> some View {
         ScrollView {
             DialInSection(
-                evaluations: model.evaluations(forBean: "guji"), experiments: model.experiments(forBean: "guji"),
-                dialedIn: model.dialedInCup(forBean: "guji"), start: {}, edit: { _ in }
+                evaluations: model.evaluations(forBean: bean), experiments: model.experiments(forBean: bean),
+                dialedIn: model.dialedInCup(forBean: bean), startingPoint: model.roasterStartingPoint(forBean: bean), start: {},
+                edit: { _ in }
             )
             .padding(20)
         }

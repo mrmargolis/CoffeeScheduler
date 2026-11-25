@@ -90,6 +90,7 @@ struct BeanDetailView: View {
                     evaluations: model.evaluations(forBean: beanID),
                     experiments: model.experiments(forBean: beanID),
                     dialedIn: model.dialedInCup(forBean: beanID),
+                    startingPoint: model.roasterStartingPoint(forBean: beanID),
                     isAvailable: model.bagUsesDialInMethod(beanID),
                     start: { evaluating = EvaluationDraft(evaluation: model.newEvaluation(forBean: beanID), isNew: true) },
                     edit: { evaluating = EvaluationDraft(evaluation: $0, isNew: false) },
