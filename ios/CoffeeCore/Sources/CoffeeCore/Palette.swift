@@ -23,6 +23,12 @@
         public static let accent = Color(hex: "#E0AA45")
         public static let gap = Color(hex: "#E5766A")
         public static let gapText = Color(hex: "#F0A096")
+        /// Cup charts: an attribute off target, one on target, and one not
+        /// evaluated. Amber rather than the gold accent, so a deviation
+        /// doesn't read as a link or today.
+        public static let offTarget = Color(hex: "#EE8A2E")
+        public static let onTarget = Color(hex: "#9AD493")
+        public static let notEvaluated = Color(hex: "#6E5F4C")
     }
 
     extension Color {
