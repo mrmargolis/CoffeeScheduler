@@ -107,6 +107,9 @@ final class ScreenshotTests: XCTestCase {
             ("18-add-bag-pick-text", AnyView(AddBagSamples.picker()), model),
             ("19-beans-break", AnyView(BeansView()), withBreak),
             ("20-detail-break", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), withBreak),
+            ("21-dial-in", AnyView(DialInView(cup: Self.slowCup)), model),
+            ("22-dial-in-empty", AnyView(DialInView()), model),
+            ("23-dial-in-exploratory", AnyView(DialInView(cup: Self.flatFruitCup)), model),
         ]
 
         for (name, view, model) in screens {
@@ -121,6 +124,14 @@ final class ScreenshotTests: XCTestCase {
             add(attachment)
         }
     }
+
+    /// Not sweet after trying grind both ways, at high agitation: an exploratory suggestion.
+    private static let flatFruitCup = CupTasting(ratings: [.sweetness: -2], agitation: .high, tried: [.grind])
+
+    /// A cup with a slow drawdown and a short, muddy finish, at medium agitation.
+    private static let slowCup = CupTasting(
+        ratings: [.acidity: 0, .sweetness: -1, .clarity: -1, .finish: -2], drawdown: .slow, character: [.muddy],
+        agitation: .medium)
 
     private func render(_ view: some View, style: UIUserInterfaceStyle) -> UIImage {
         // A window attached to the simulator's scene, when the test host has

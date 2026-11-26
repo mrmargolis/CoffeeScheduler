@@ -1,0 +1,110 @@
+import Foundation
+
+/// What a dial-in suggestion changes.
+public enum DialInVariable: String, CaseIterable, Sendable {
+    case grind, temperature, ratio, agitation
+
+    public var name: String { rawValue.capitalized }
+}
+
+/// Which way a suggestion moves its variable.
+public enum DialInDirection: String, Sendable {
+    /// Grind finer, hotter water, a shorter ratio (less water), more agitation.
+    case up
+    /// Grind coarser, cooler water, a longer ratio (more water), less agitation.
+    case down
+}
+
+/// One change to try on the next cup.
+public struct DialInMove: Hashable, Sendable {
+    public let variable: DialInVariable
+    public let direction: DialInDirection
+
+    public init(_ variable: DialInVariable, _ direction: DialInDirection) {
+        self.variable = variable
+        self.direction = direction
+    }
+
+    /// "Grind finer", "Cooler water", "Shorter ratio", "Less agitation".
+    public var name: String {
+        switch (variable, direction) {
+        case (.grind, .up): "Grind finer"
+        case (.grind, .down): "Grind coarser"
+        case (.temperature, .up): "Hotter water"
+        case (.temperature, .down): "Cooler water"
+        case (.ratio, .up): "Shorter ratio (less water)"
+        case (.ratio, .down): "Longer ratio (more water)"
+        case (.agitation, .up): "More agitation"
+        case (.agitation, .down): "Less agitation"
+        }
+    }
+
+    /// Whether it can be made from `agitation`: not less than low, or more
+    /// than high. Every other move can always be made by a step.
+    func isPossible(from agitation: Agitation?) -> Bool {
+        guard variable == .agitation, let agitation else { return true }
+        return direction == .up ? agitation != .high : agitation != .low
+    }
+
+    /// Whether to suggest it for `cup`: possible, and its variable not
+    /// already tried.
+    func isOpen(for cup: CupTasting) -> Bool {
+        isPossible(from: cup.agitation) && !cup.tried.contains(variable)
+    }
+}
+
+/// How well-founded a suggestion is: whether it's worth trying, not how
+/// likely it is to fix the cup.
+public enum DialInConfidence: String, Sendable {
+    /// Sound physical or sensory reasoning.
+    case high
+    /// A reasonable hypothesis, with real uncertainty.
+    case medium
+    /// Exploratory: several explanations remain.
+    case low
+}
+
+/// The change to try next, what it should do, and what to do after.
+public struct DialInSuggestion: Hashable, Sendable {
+    public let move: DialInMove
+    /// The move, with agitation's next level where the current one is known:
+    /// "Grind coarser", "Less agitation: medium → low".
+    public let instruction: String
+    public let expectedEffect: String
+    /// One line on why this change, for this cup.
+    public let why: String
+    public let confidence: DialInConfidence
+    /// The rule it came from, for tests.
+    public let rule: Int
+    /// "If this happens, do that": the same four for every suggestion.
+    public let criteria: [Criterion]
+
+    public struct Criterion: Hashable, Sendable {
+        public let result: String
+        public let next: String
+    }
+}
+
+/// What the advisor says about a cup.
+public struct DialInAdvice: Hashable, Sendable {
+    public enum Next: Hashable, Sendable {
+        case change(DialInSuggestion)
+        /// Everything rated is on target, with no character tags, whatever
+        /// the drawdown.
+        case nothingToChange
+        /// Something is off, but no rule matched, or its moves were ruled out
+        /// or already tried.
+        case noSuggestion
+        /// Nothing was judged.
+        case nothingRated
+    }
+
+    /// Short lines on what's off and why.
+    public let diagnosis: [String]
+    public let next: Next
+
+    public var suggestion: DialInSuggestion? {
+        if case .change(let suggestion) = next { return suggestion }
+        return nil
+    }
+}

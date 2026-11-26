@@ -312,6 +312,10 @@ final class CoffeeE2ETests: XCTestCase {
         waitFor(app.navigationBars["Janson Gesha"])
         try audit("bag detail")
 
+        openTab("Dial-in")
+        waitFor(app.descendants(matching: .any)["rating-finish"])
+        try audit("dial-in")
+
         openTab("Settings")
         waitFor(app.buttons["Add a roaster"])
         try audit("settings")
@@ -353,5 +357,27 @@ final class CoffeeE2ETests: XCTestCase {
         let today = day("2026-10-12")
         waitFor(today)
         expectValue(today, "Skipped")
+    }
+}
+
+// MARK: Dial-in
+
+extension CoffeeE2ETests {
+    /// Rate a cup on the Dial-in tab and get a suggestion, then clear it.
+    func testRateACupForAdvice() {
+        openTab("Dial-in")
+        let finish = app.descendants(matching: .any)["rating-finish"]
+        waitFor(finish)
+        // Finish length: the leftmost stop, just right of the name column, is "much too low"
+        finish.coordinate(withNormalizedOffset: CGVector(dx: 0.42, dy: 0.5)).tap()
+        expectValue(finish, "Much too low")
+        app.buttons["Drawdown: Slow"].tap()
+
+        let suggestion = element(containing: "Grind coarser")
+        for _ in 0..<4 where !suggestion.exists { app.swipeUp() }
+        waitFor(suggestion)
+
+        app.navigationBars["Dial-in"].buttons["Clear"].tap()
+        expectValue(finish, "Not rated")
     }
 }
