@@ -32,13 +32,15 @@ struct NotesReaderCheckView: View {
                 Picker("Model", selection: $readerModel) {
                     ForEach(NotesModelReader.Model.allCases) { model in
                         Text(model.isAvailable ? model.name : "\(model.name) (unavailable)").tag(model)
+                            .selectionDisabled(!model.isAvailable)
                     }
                 }
             } footer: {
                 SectionFooter(
                     text: """
                         Private Cloud Compute is Apple's larger model, on iOS 27: the notes go to Apple's servers, \
-                        which keep nothing. On this phone, nothing leaves it.
+                        which keep nothing. It needs an entitlement Apple grants on request. On this phone, nothing \
+                        leaves it.
                         """)
             }
             Section {

@@ -13,6 +13,12 @@ struct NotesModelReader: NotesReader {
     /// always has, and Settings › Dial-in shows the check.
     static let isEnabled = false
 
+    /// Whether the app is signed with Private Cloud Compute's entitlement
+    /// (com.apple.developer.private-cloud-compute), which Apple grants on
+    /// request. Without it, a session on that model stops the app rather
+    /// than throwing, so the model is offered only once it's set up.
+    static let hasCloudEntitlement = false
+
     /// Which of Apple's models reads the notes.
     enum Model: String, CaseIterable, Identifiable {
         /// Apple's larger model on Private Cloud Compute (iOS 27): the notes
@@ -34,6 +40,7 @@ struct NotesModelReader: NotesReader {
             #if canImport(FoundationModels)
                 switch self {
                 case .cloud:
+                    guard NotesModelReader.hasCloudEntitlement else { return false }
                     if #available(iOS 27, *) { return PrivateCloudComputeLanguageModel().isAvailable }
                 case .onDevice:
                     if #available(iOS 26, *), case .available = SystemLanguageModel.default.availability { return true }
@@ -71,6 +78,7 @@ struct NotesModelReader: NotesReader {
         #if canImport(FoundationModels)
             switch model {
             case .cloud:
+                guard Self.hasCloudEntitlement else { throw NotesReaderError("Private Cloud Compute needs an entitlement from Apple first.") }
                 if #available(iOS 27, *) {
                     return try await LanguageModelSession(model: PrivateCloudComputeLanguageModel()).respond(to: prompt).content
                 }
