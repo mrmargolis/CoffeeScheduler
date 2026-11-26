@@ -46,7 +46,7 @@ struct CoffeeSchedulerApp: App {
 }
 
 struct RootView: View {
-    enum Tab: Hashable { case schedule, beans, settings }
+    enum Tab: Hashable { case schedule, beans, dialIn, settings }
 
     @State private var tab = Tab.schedule
     /// Counts taps on the tab already showing, which take it back to its top.
@@ -66,6 +66,9 @@ struct RootView: View {
             BeansView(retaps: retaps[.beans, default: 0])
                 .tabItem { Label("Beans", systemImage: "list.bullet") }
                 .tag(Tab.beans)
+            DialInView()
+                .tabItem { Label("Dial-in", systemImage: "cup.and.saucer") }
+                .tag(Tab.dialIn)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(Tab.settings)
