@@ -158,6 +158,24 @@ import Testing
         #expect(try db.query("PRAGMA user_version").first?.int("user_version") == Schema.version)
     }
 
+    @Test func aVersionTwoFileFromTheDialInBuildOpensWithItsExtrasLeftAlone() throws {
+        let db = try SQLiteDatabase(path: ":memory:")
+        _ = try CoffeeStore(db: db)
+        try db.execute(
+            """
+            ALTER TABLE brews ADD COLUMN grind_setting TEXT;
+            CREATE TABLE cup_evaluations (id TEXT PRIMARY KEY, notes TEXT);
+            INSERT INTO cup_evaluations (id, notes) VALUES ('e1', 'Sour.');
+            PRAGMA user_version = 2;
+            """)
+
+        let store = try CoffeeStore(db: db)
+        _ = try importSample(into: store)
+        #expect(try store.beans(archived: false).count == 1)
+        #expect(try db.query("SELECT notes FROM cup_evaluations").first?.string("notes") == "Sour.")
+        #expect(try db.query("PRAGMA user_version").first?.int("user_version") == 2)
+    }
+
     @Test func aDatabaseFromANewerBuildIsRefusedAndLeftAlone() throws {
         let db = try SQLiteDatabase(path: ":memory:")
         try db.execute("PRAGMA user_version = 99")

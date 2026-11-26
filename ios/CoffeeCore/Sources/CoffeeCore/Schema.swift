@@ -87,7 +87,12 @@ enum Schema {
     /// `user_version`. Raise it with any change an older build would get
     /// wrong, and add the migration below: the file is shared between
     /// devices, which may not all run the same build.
-    static let version = 1
+    ///
+    /// 2 was written by a per-bag dial-in build that never shipped. It added
+    /// recipe columns to `brews` and its own tables, which this build
+    /// neither reads nor removes. The version stays at 2 so this build
+    /// opens a file that build touched, and nothing new is needed for it.
+    static let version = 2
 
     static func initialize(_ db: SQLiteDatabase) throws {
         // A file from the web app, or one not made yet, is at 0

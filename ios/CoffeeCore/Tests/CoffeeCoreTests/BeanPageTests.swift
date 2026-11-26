@@ -48,7 +48,7 @@ import Testing
 
         let store = try CoffeeStore(db: db)
         #expect(try store.bean(id: "old")?.url == nil)
-        #expect(try db.query("PRAGMA user_version").first?.int("user_version") == 1)
+        #expect(try db.query("PRAGMA user_version").first?.int("user_version") == Schema.version)
     }
 
     @Test func linksToAPageTypedWithOrWithoutHttps() {
