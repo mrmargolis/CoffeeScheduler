@@ -67,7 +67,8 @@ struct DialInView: View {
             .font(.caption2)
             .foregroundStyle(Theme.text3)
             .padding(.bottom, 4)
-            .accessibilityHidden(true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Rate each against the cup you want: too little, ideal, or too much")
             ForEach(SensoryAttribute.allCases, id: \.self) { attribute in
                 if attribute != SensoryAttribute.allCases.first { Divider().overlay(Theme.hairline) }
                 RatingRow(attribute: attribute, value: $cup.ratings[attribute])

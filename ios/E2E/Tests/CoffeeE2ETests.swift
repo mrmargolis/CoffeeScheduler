@@ -364,8 +364,8 @@ extension CoffeeE2ETests {
         openTab("Dial-in")
         let finish = app.descendants(matching: .any)["rating-finish"]
         waitFor(finish)
-        // Finish length: the leftmost stop is "much too low"
-        finish.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.8)).tap()
+        // Finish length: the leftmost stop, just right of the name column, is "much too low"
+        finish.coordinate(withNormalizedOffset: CGVector(dx: 0.42, dy: 0.5)).tap()
         expectValue(finish, "Much too low")
         app.buttons["Drawdown: Slow"].tap()
 
