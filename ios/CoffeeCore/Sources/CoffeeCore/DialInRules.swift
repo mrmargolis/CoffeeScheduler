@@ -1,17 +1,25 @@
 import Foundation
 
-/// The cup a rule looks at: its ratings, character and flow, with "low" and
-/// "high" meaning a rating of at least one step off. An unrated attribute
-/// is neither low, high, nor "not low".
+/// The cup a rule looks at. "Low" and "high" mean a rating at least one step
+/// off; an unrated attribute is unknown, and never low, high, "not low" or
+/// "not high".
 struct RatedCup: Sendable {
     let tasting: CupTasting
 
     func low(_ attribute: SensoryAttribute) -> Bool { (tasting.ratings[attribute] ?? 0) <= -1 }
     func high(_ attribute: SensoryAttribute) -> Bool { (tasting.ratings[attribute] ?? 0) >= 1 }
-    /// Rated, and not below target.
-    func notLow(_ attribute: SensoryAttribute) -> Bool { tasting.ratings[attribute].map { $0 > -1 } ?? false }
+    /// Rated, and on target or above.
+    func notLow(_ attribute: SensoryAttribute) -> Bool { tasting.ratings[attribute].map { $0 >= 0 } ?? false }
+    /// Rated, and on target or below.
+    func notHigh(_ attribute: SensoryAttribute) -> Bool { tasting.ratings[attribute].map { $0 <= 0 } ?? false }
+    func unknown(_ attribute: SensoryAttribute) -> Bool { tasting.ratings[attribute] == nil }
     func has(_ tag: CharacterTag) -> Bool { tasting.character.contains(tag) }
-    var drawdown: Drawdown? { tasting.drawdown }
+    /// No character tags: nothing tasted wrong, only too much or too little.
+    var clean: Bool { tasting.character.isEmpty }
+    var slow: Bool { tasting.drawdown == .slow }
+    var fast: Bool { tasting.drawdown == .fast }
+    /// Grind has been tried on this coffee and didn't help.
+    var grindTried: Bool { tasting.tried.contains(.grind) }
 
     /// Every rated attribute other than `attribute` is on target.
     func othersOnTarget(_ attribute: SensoryAttribute) -> Bool {
@@ -19,55 +27,39 @@ struct RatedCup: Sendable {
     }
 }
 
-/// A diagnostic heuristic: a pattern in the cup, the change to try first,
-/// a fallback, and what it should do. Hypotheses from the prototype, in
-/// priority order; tune them here without touching the UI.
+/// A heuristic: when it applies, the change to try first, the one to try if
+/// that's ruled out, what it should do, why, and how sure it is. Judgment
+/// calls, not measured findings: tune them in DialInRuleTable, with a test.
 struct DialInRule: Sendable {
-    /// What it saw, as a line of the diagnosis; nil when that would only
-    /// repeat a single rating ("Low sweetness" after "Sweetness much too low").
-    let pattern: String?
-    let matches: @Sendable (RatedCup) -> Bool
+    let id: Int
+    let confidence: DialInConfidence
     let primary: DialInMove
     let alternate: DialInMove
     let effect: String
+    let why: String
+    let matches: @Sendable (RatedCup) -> Bool
 
-    static let all: [DialInRule] = [
-        DialInRule(
-            pattern: "A slow drawdown with low clarity, finish or sweetness",
-            matches: { $0.drawdown == .slow && ($0.low(.clarity) || $0.low(.finish) || $0.low(.sweetness)) },
-            primary: .init(.grind, .down), alternate: .init(.agitation, .down), effect: "A faster drawdown; clearer and sweeter, with a longer finish"
-        ),
-        DialInRule(
-            pattern: "A fast drawdown with low intensity", matches: { $0.drawdown == .fast && $0.low(.intensity) },
-            primary: .init(.grind, .up), alternate: .init(.ratio, .up), effect: "More intensity"),
-        DialInRule(
-            pattern: "Intensity, sweetness and acidity all low",
-            matches: { $0.low(.intensity) && $0.low(.sweetness) && $0.low(.acidity) },
-            primary: .init(.grind, .up), alternate: .init(.temperature, .up), effect: "More extraction: more intensity, sweetness and acidity"),
-        DialInRule(
-            pattern: "Low sweetness with sharp acidity", matches: { $0.low(.sweetness) && $0.has(.sharp) },
-            primary: .init(.grind, .up), alternate: .init(.temperature, .up), effect: "Sweeter, and less sharp"),
-        DialInRule(
-            pattern: nil, matches: { $0.has(.bitter) },
-            primary: .init(.temperature, .down), alternate: .init(.grind, .down), effect: "Less bitter"),
-        DialInRule(
-            pattern: "Muddy, or low clarity with enough intensity",
-            matches: { $0.has(.muddy) || ($0.low(.clarity) && $0.notLow(.intensity)) },
-            primary: .init(.agitation, .down), alternate: .init(.grind, .down), effect: "Clearer"),
-        DialInRule(
-            pattern: nil, matches: { $0.high(.body) || $0.has(.heavy) },
-            primary: .init(.agitation, .down), alternate: .init(.grind, .down), effect: "Lighter and clearer"),
-        DialInRule(
-            pattern: "Low acidity with enough sweetness", matches: { $0.low(.acidity) && $0.notLow(.sweetness) },
-            primary: .init(.grind, .down), alternate: .init(.temperature, .down), effect: "Brighter"),
-        DialInRule(
-            pattern: "Low intensity in an otherwise good cup", matches: { $0.low(.intensity) && $0.othersOnTarget(.intensity) },
-            primary: .init(.ratio, .up), alternate: .init(.grind, .up), effect: "More intensity, the profile kept"),
-        DialInRule(
-            pattern: nil, matches: { $0.high(.intensity) },
-            primary: .init(.ratio, .down), alternate: .init(.grind, .down), effect: "Less intense"),
-        DialInRule(
-            pattern: nil, matches: { $0.low(.sweetness) },
-            primary: .init(.temperature, .up), alternate: .init(.grind, .up), effect: "Sweeter"),
-    ]
+    init(
+        _ id: Int, _ confidence: DialInConfidence, _ primary: DialInMove, else alternate: DialInMove, effect: String, why: String,
+        when matches: @escaping @Sendable (RatedCup) -> Bool
+    ) {
+        self.id = id
+        self.confidence = confidence
+        self.primary = primary
+        self.alternate = alternate
+        self.effect = effect
+        self.why = why
+        self.matches = matches
+    }
+}
+
+extension DialInMove {
+    static let finer = DialInMove(.grind, .up)
+    static let coarser = DialInMove(.grind, .down)
+    static let hotter = DialInMove(.temperature, .up)
+    static let cooler = DialInMove(.temperature, .down)
+    static let shorterRatio = DialInMove(.ratio, .up)
+    static let longerRatio = DialInMove(.ratio, .down)
+    static let moreAgitation = DialInMove(.agitation, .up)
+    static let lessAgitation = DialInMove(.agitation, .down)
 }

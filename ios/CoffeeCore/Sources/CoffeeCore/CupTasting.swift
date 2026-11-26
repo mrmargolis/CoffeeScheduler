@@ -47,6 +47,17 @@ public enum Agitation: String, CaseIterable, Sendable {
 /// attribute it has: acidity can be on target and still sharp.
 public enum CharacterTag: String, CaseIterable, Sendable {
     case sharp, muddy, bitter, heavy
+    /// Astringent: a dry, rough or dusty feel.
+    case drying
+    /// Fruit that's there but not distinct: "fruity" rather than plum.
+    case genericFruit = "generic_fruit"
+
+    public var name: String {
+        switch self {
+        case .genericFruit: "Generic fruit"
+        default: rawValue.capitalized
+        }
+    }
 }
 
 /// One cup as the drinker judged it, to advise on. Nothing is kept: the
@@ -73,8 +84,9 @@ public struct CupTasting: Hashable, Sendable {
         self.tried = tried
     }
 
-    /// Nothing judged yet: no rating, drawdown or tag.
+    /// Nothing judged about the taste: no rating or tag. A drawdown alone
+    /// isn't enough to advise on.
     public var isEmpty: Bool {
-        ratings.isEmpty && drawdown == nil && character.isEmpty
+        ratings.isEmpty && character.isEmpty
     }
 }

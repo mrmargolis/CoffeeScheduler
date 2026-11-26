@@ -5,16 +5,22 @@ import Foundation
 public enum DialInAdvisor {
     public static func advise(_ cup: CupTasting) -> DialInAdvice {
         guard !cup.isEmpty else { return DialInAdvice(diagnosis: [], next: .nothingRated) }
-        var diagnosis = offTarget(cup) + drawdown(cup)
-        if diagnosis.isEmpty { return DialInAdvice(diagnosis: ["Everything you rated is on target."], next: .nothingToChange) }
+        let diagnosis = offTarget(cup) + drawdown(cup)
+        // On target with nothing tasting wrong: the drawdown doesn't matter
+        if cup.character.isEmpty && cup.ratings.values.allSatisfy({ $0 == 0 }) {
+            var lines = ["Everything you rated is on target."]
+            if let drawdown = cup.drawdown, drawdown != .normal {
+                lines.append("The drawdown was \(drawdown.rawValue), but that's fine when the cup tastes right.")
+            }
+            return DialInAdvice(diagnosis: lines, next: .nothingToChange)
+        }
 
         let rated = RatedCup(tasting: cup)
         for rule in DialInRule.all where rule.matches(rated) {
             for move in [rule.primary, rule.alternate] where move.isOpen(for: cup) {
-                if let pattern = rule.pattern { diagnosis.insert("\(pattern).", at: 0) }
                 let suggestion = DialInSuggestion(
                     move: move, instruction: instruction(move, agitation: cup.agitation), expectedEffect: rule.effect,
-                    criteria: criteria(move, rule: rule, cup: cup))
+                    why: rule.why, confidence: rule.confidence, rule: rule.id, criteria: criteria(move, rule: rule, cup: cup))
                 return DialInAdvice(diagnosis: diagnosis, next: .change(suggestion))
             }
         }
@@ -51,7 +57,7 @@ public enum DialInAdvisor {
         let off = SensoryAttribute.allCases.compactMap { attribute in
             cup.ratings[attribute].flatMap { $0 == 0 ? nil : "\(attribute.name.lowercased()) \(CupRating.label($0).lowercased())" }
         }
-        let character = CharacterTag.allCases.filter(cup.character.contains).map(\.rawValue)
+        let character = CharacterTag.allCases.filter(cup.character.contains).map { $0.name.lowercased() }
         var lines: [String] = []
         if !off.isEmpty { lines.append(sentence(off.joined(separator: ", "))) }
         if !character.isEmpty { lines.append(sentence("Tasted " + character.joined(separator: ", "))) }

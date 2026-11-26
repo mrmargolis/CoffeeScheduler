@@ -110,7 +110,3 @@ extension Drawdown {
 extension Agitation {
     var name: String { rawValue.capitalized }
 }
-
-extension CharacterTag {
-    var name: String { rawValue.capitalized }
-}

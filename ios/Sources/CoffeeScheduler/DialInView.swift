@@ -64,7 +64,7 @@ struct DialInView: View {
     private var tags: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Tasted").font(.subheadline.weight(.semibold))
-            HStack(spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(CharacterTag.allCases, id: \.self) { tag in
                     let on = cup.character.contains(tag)
                     Chip(text: tag.name, isOn: on, fills: true) {
@@ -132,6 +132,12 @@ struct DialInAdviceCard: View {
                 Text("Next cup").font(.caption.weight(.semibold)).textCase(.uppercase).foregroundStyle(Theme.text3)
                 Text(suggestion.instruction).font(.title3.weight(.semibold))
                 Text("Taste for: \(suggestion.expectedEffect.lowercased()).").font(.subheadline)
+                if suggestion.confidence == .low {
+                    Label("Exploratory: a guess worth testing, not a diagnosis", systemImage: "flask")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                }
+                Text("Why: \(suggestion.why)").font(.footnote).foregroundStyle(Theme.text2)
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(suggestion.criteria, id: \.result) { criterion in
                         (Text("\(criterion.result): ").fontWeight(.semibold) + Text(criterion.next))

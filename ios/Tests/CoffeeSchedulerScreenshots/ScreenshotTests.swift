@@ -109,6 +109,7 @@ final class ScreenshotTests: XCTestCase {
             ("20-detail-break", AnyView(NavigationStack { BeanDetailView(beanID: "huila") }), withBreak),
             ("21-dial-in", AnyView(DialInView(cup: Self.slowCup)), model),
             ("22-dial-in-empty", AnyView(DialInView()), model),
+            ("23-dial-in-exploratory", AnyView(DialInView(cup: Self.flatFruitCup)), model),
         ]
 
         for (name, view, model) in screens {
@@ -123,6 +124,9 @@ final class ScreenshotTests: XCTestCase {
             add(attachment)
         }
     }
+
+    /// Not sweet after trying grind both ways, at high agitation: an exploratory suggestion.
+    private static let flatFruitCup = CupTasting(ratings: [.sweetness: -2], agitation: .high, tried: [.grind])
 
     /// A cup with a slow drawdown and a short, muddy finish, at medium agitation.
     private static let slowCup = CupTasting(

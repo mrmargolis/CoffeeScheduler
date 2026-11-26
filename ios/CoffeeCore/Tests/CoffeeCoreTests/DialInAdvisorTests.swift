@@ -3,145 +3,180 @@ import Testing
 
 @testable import CoffeeCore
 
-/// A cup with only what's given judged, at medium agitation unless said.
+/// A cup from ratings in the order acidity, sweetness, intensity, clarity,
+/// body, finish; nil is unrated.
 private func cup(
-    _ ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, character: Set<CharacterTag> = [],
-    agitation: Agitation? = .medium, tried: Set<DialInVariable> = []
+    _ values: [Int?], drawdown: Drawdown? = nil, tags: Set<CharacterTag> = [], agitation: Agitation? = .medium,
+    tried: Set<DialInVariable> = []
 ) -> CupTasting {
-    CupTasting(ratings: ratings, drawdown: drawdown, character: character, agitation: agitation, tried: tried)
+    let attributes: [SensoryAttribute] = [.acidity, .sweetness, .intensity, .clarity, .body, .finish]
+    var ratings: [SensoryAttribute: Int] = [:]
+    for (attribute, value) in zip(attributes, values) { ratings[attribute] = value }
+    return CupTasting(ratings: ratings, drawdown: drawdown, character: tags, agitation: agitation, tried: tried)
 }
 
-private func instruction(_ cup: CupTasting) -> String? {
-    DialInAdvisor.advise(cup).suggestion?.instruction
+private let none: [Int?] = [nil, nil, nil, nil, nil, nil]
+
+/// What the advisor said, in the cases' terms: a move and its rule, or
+/// "keep", "none" (no suggestion) or "ask" (nothing rated).
+private func outcome(_ cup: CupTasting) -> String {
+    let advice = DialInAdvisor.advise(cup)
+    switch advice.next {
+    case .change(let suggestion): return "\(suggestion.move.name) #\(suggestion.rule)"
+    case .nothingToChange: return "keep"
+    case .noSuggestion: return "none"
+    case .nothingRated: return "ask"
+    }
 }
 
-@Suite struct DialInRuleTests {
+/// The reviewed rule set's own cases (1–30), with its expected move and rule.
+@Suite struct DialInRuleCaseTests {
     @Test(arguments: [
-        (cup([.finish: -2], drawdown: .slow), "A slow drawdown with low clarity, finish or sweetness.", "Grind coarser"),
-        (cup([.intensity: -1], drawdown: .fast), "A fast drawdown with low intensity.", "Grind finer"),
-        (cup([.intensity: -1, .sweetness: -1, .acidity: -1]), "Intensity, sweetness and acidity all low.", "Grind finer"),
-        (cup([.sweetness: -1], character: [.sharp]), "Low sweetness with sharp acidity.", "Grind finer"),
-        (cup([.acidity: 0], character: [.bitter]), "Tasted bitter.", "Cooler water"),
-        (cup([.clarity: -1, .intensity: 0]), "Muddy, or low clarity with enough intensity.", "Less agitation: medium → low"),
-        (cup([.body: 1]), "Body slightly high.", "Less agitation: medium → low"),
-        (cup([.acidity: -1, .sweetness: 0]), "Low acidity with enough sweetness.", "Grind coarser"),
-        (cup([.intensity: -1, .sweetness: 0, .body: 0]), "Low intensity in an otherwise good cup.", "Shorter ratio (less water)"),
-        (cup([.intensity: 2]), "Flavour intensity much too high.", "Longer ratio (more water)"),
-        (cup([.sweetness: -1, .finish: -1]), "Sweetness slightly low, finish length slightly low.", "Hotter water"),
+        (1, cup(none, agitation: nil), "ask"),
+        (2, cup([0, 0, 0, 0, 0, 0], drawdown: .slow, agitation: .high), "keep"),
+        (3, cup([0, nil, 0, nil, nil, nil], drawdown: .fast, agitation: .low), "keep"),
+        (4, cup([0, -1, 0, -1, 0, -2], drawdown: .slow), "Grind coarser #2"),
+        (5, cup([0, -1, 0, -1, 0, -2], drawdown: .slow, tried: [.grind]), "Less agitation #2"),
+        (6, cup([-1, -2, -2, nil, nil, nil], drawdown: .normal), "Grind finer #23"),
+        (7, cup([0, -2, 0, 0, 0, 0], drawdown: .normal, tags: [.bitter]), "Cooler water #5"),
+        (8, cup([0, -1, 0, 0, 2, 0], drawdown: .normal, tags: [.sharp, .heavy], agitation: .high), "Less agitation #3"),
+        (9, cup([0, -1, 0, 0, 2, 0], drawdown: .normal, tags: [.sharp, .heavy], agitation: .low), "Grind coarser #3"),
+        (10, cup([nil, nil, -2, -2, nil, nil], drawdown: .normal, tags: [.muddy], agitation: .high), "Less agitation #4"),
+        (11, cup([1, -2, 0, nil, 0, nil], drawdown: .fast, tags: [.sharp]), "Grind finer #8"),
+        (12, cup([1, -2, 0, nil, 0, nil], drawdown: .slow, tags: [.sharp]), "Less agitation #1"),
+        (13, cup([0, 0, -2, 0, 0, 0], drawdown: .normal), "Shorter ratio (less water) #15"),
+        (14, cup([0, 0, 2, 0, 0, 0], drawdown: .normal), "Longer ratio (more water) #16"),
+        (15, cup([nil, nil, nil, -2, nil, nil]), "Less agitation #29"),
+        (16, cup([nil, nil, nil, nil, -2, nil], drawdown: .normal), "Shorter ratio (less water) #21"),
+        (17, cup([0, 0, 0, 0, 0, -2], drawdown: .normal), "Shorter ratio (less water) #41"),
+        (18, cup([0, 0, 0, 0, 0, 2], drawdown: .normal), "Longer ratio (more water) #43"),
+        (19, cup([2, 0, 0, 0, 0, 0], drawdown: .normal), "Longer ratio (more water) #34"),
+        (20, cup([0, 0, 0, 0, 0, 0], drawdown: .normal, tags: [.sharp]), "Cooler water #13"),
+        (21, cup([nil, -2, nil, nil, nil, nil], drawdown: .normal), "Hotter water #46"),
+        (22, cup([nil, -2, nil, nil, nil, nil], drawdown: .normal, agitation: .high, tried: [.grind]), "Cooler water #22"),
+        (23, cup([nil, -2, nil, nil, nil, nil], drawdown: .normal, agitation: .high, tried: [.grind, .temperature]), "Less agitation #22"),
+        (24, cup([nil, -2, nil, nil, nil, nil], drawdown: .normal, agitation: .low, tried: [.grind, .temperature]), "none"),
+        (25, cup([0, 0, -2, 0, 0, 0], drawdown: .normal, tried: [.ratio]), "Grind finer #15"),
+        (26, cup([0, -2, 0, 0, 0, 0], drawdown: .normal, tags: [.bitter], tried: [.temperature, .grind]), "none"),
+        (27, cup([0, 0, 0, 0, 0, 0], drawdown: .normal, tags: [.muddy], agitation: .low, tried: [.grind]), "none"),
+        (28, cup([-2, 0, 0, 0, 0, 0], drawdown: .normal), "Grind coarser #27"),
+        (29, cup([nil, nil, -2, nil, nil, nil], drawdown: .fast, agitation: .high, tried: [.grind]), "Shorter ratio (less water) #15"),
+        (30, cup([-2, -2, -2, -2, -2, -2], drawdown: .normal, tried: [.grind, .temperature, .ratio, .agitation]), "none"),
     ])
-    func eachRuleFiresOnItsPattern(cup: CupTasting, pattern: String, expected: String) {
-        let advice = DialInAdvisor.advise(cup)
-        #expect(advice.diagnosis.first == pattern)
-        #expect(advice.suggestion?.instruction == expected)
+    func reviewedCase(number: Int, cup: CupTasting, expected: String) {
+        #expect(outcome(cup) == expected, "case \(number)")
     }
 
-    @Test func anEarlierRuleWinsWhenSeveralMatch() {
-        // Slow drawdown (rule 2) and all three low (rule 4)
-        let advice = DialInAdvisor.advise(cup([.intensity: -1, .sweetness: -1, .acidity: -1], drawdown: .slow))
-        #expect(advice.diagnosis.first == "A slow drawdown with low clarity, finish or sweetness.")
-    }
-
-    @Test func unratedAttributesDontCountAsNotLow() {
-        // Low clarity, but intensity unrated: not rule 7, and nothing else matches
-        #expect(DialInAdvisor.advise(cup([.clarity: -1])).next == .noSuggestion)
-    }
-
-    @Test func characterRulesNeedTheirTags() {
-        // Low sweetness alone is the last rule, not "with sharp acidity"
-        #expect(DialInAdvisor.advise(cup([.sweetness: -1])).diagnosis == ["Sweetness slightly low."])
-    }
-
-    @Test func aRuleThatOnlyRestatesARatingAddsNoLine() {
-        #expect(DialInAdvisor.advise(cup([.sweetness: -2])).diagnosis == ["Sweetness much too low."])
-    }
-
-    @Test func theSuggestionCarriesItsEffectAndCriteria() throws {
-        let suggestion = try #require(DialInAdvisor.advise(cup([.finish: -2, .sweetness: -1], drawdown: .slow)).suggestion)
-        #expect(suggestion.move == DialInMove(.grind, .down))
-        #expect(suggestion.expectedEffect == "A faster drawdown; clearer and sweeter, with a longer finish")
-        #expect(suggestion.criteria.map(\.result) == ["Better", "Overshot: too far the other way", "No change", "Worse"])
+    /// The real coffee: plum and grape, not sweet or juicy, coarser was too
+    /// delicate, finer didn't help; high agitation, grind ticked as tried.
+    @Test func flatFruitAfterTryingGrindBothWays() throws {
+        let advice = DialInAdvisor.advise(cup([nil, -2, nil, nil, nil, nil], agitation: .high, tried: [.grind]))
+        let suggestion = try #require(advice.suggestion)
+        #expect(suggestion.move == .cooler)
+        #expect(suggestion.rule == 22)
+        #expect(suggestion.confidence == .low)
+        #expect(suggestion.expectedEffect == "More expressive fruit, and more apparent sweetness")
         #expect(suggestion.criteria[2].next == "Go back, and try: less agitation")
     }
 }
 
-@Suite struct DialInAgitationTests {
-    @Test func withoutAgitationGivenItsADirection() {
-        #expect(instruction(cup([.body: 1], agitation: nil)) == "Less agitation")
+@Suite struct DialInNewTagTests {
+    @Test func dryingWithASlowDrawdownMeansLessAgitation() {
+        #expect(outcome(cup([0, 0, 0, 0, 0, 0], drawdown: .slow, tags: [.drying])) == "Less agitation #101")
     }
 
-    @Test func alreadyLowFallsBackToTheAlternate() {
-        #expect(instruction(cup([.body: 1], agitation: .low)) == "Grind coarser")
+    @Test func dryingAloneMeansCoarser() {
+        #expect(outcome(cup([0, 0, 0, 0, 0, 0], tags: [.drying])) == "Grind coarser #102")
     }
 
-    @Test func alreadyHighCantGoHigher() {
-        #expect(DialInMove(.agitation, .up).isPossible(from: .high) == false)
-        #expect(DialInMove(.agitation, .up).isPossible(from: .medium))
+    @Test func dryingIsAnsweredBeforeAFastDrawdownCallsForMoreExtraction() {
+        #expect(outcome(cup([nil, -1, -1, nil, nil, nil], drawdown: .fast, tags: [.drying])) == "Grind coarser #102")
     }
 
-    @Test func otherMovesAreAlwaysPossible() {
-        #expect(DialInMove(.grind, .down).isPossible(from: .low))
-        #expect(DialInMove(.temperature, .up).isPossible(from: .high))
-    }
-}
-
-@Suite struct DialInTriedTests {
-    /// Not sweet, not juicy, not punchy, after grind went both ways.
-    private let flatFruit: [SensoryAttribute: Int] = [.sweetness: -2, .acidity: -1, .intensity: -1]
-
-    @Test func aTriedChangeIsSkippedForTheRulesOtherMove() {
-        #expect(instruction(cup(flatFruit)) == "Grind finer")
-        #expect(instruction(cup(flatFruit, tried: [.grind])) == "Hotter water")
+    @Test func genericFruitAfterGrindMeansCooler() {
+        #expect(outcome(cup([nil, -1, nil, nil, nil, nil], tags: [.genericFruit], tried: [.grind])) == "Cooler water #111")
     }
 
-    @Test func withTheOtherMoveTriedTooTheNoChangeStepSaysSo() throws {
-        let suggestion = try #require(DialInAdvisor.advise(cup(flatFruit, tried: [.grind])).suggestion)
-        #expect(suggestion.criteria[2].next == "Go back, tick temperature as tried, and rate the cup again")
+    @Test func genericFruitWithEnoughIntensityMeansLessAgitation() {
+        #expect(outcome(cup([nil, nil, 0, nil, nil, nil], tags: [.genericFruit])) == "Less agitation #112")
     }
 
-    @Test func bothMovesTriedLeavesADiagnosisWithoutASuggestion() {
-        let advice = DialInAdvisor.advise(cup(flatFruit, tried: [.grind, .temperature]))
-        #expect(advice.next == .noSuggestion)
-        #expect(advice.diagnosis == ["Acidity slightly low, sweetness much too low, flavour intensity slightly low."])
-    }
-
-    @Test func triedAloneIsntAJudgementOfTheCup() {
-        #expect(DialInAdvisor.advise(CupTasting(tried: [.grind])).next == .nothingRated)
+    @Test func genericFruitAloneMeansCooler() {
+        #expect(outcome(cup(none, tags: [.genericFruit])) == "Cooler water #113")
     }
 }
 
-@Suite struct DialInAdviceOutcomeTests {
-    @Test func everythingOnTargetIsNothingToChange() {
-        let advice = DialInAdvisor.advise(cup([.acidity: 0, .sweetness: 0, .body: 0], drawdown: .normal))
-        #expect(advice.next == .nothingToChange)
-        #expect(advice.diagnosis == ["Everything you rated is on target."])
+@Suite struct DialInEngineTests {
+    @Test func aTriedVariableIsNeverSuggested() {
+        for variable in DialInVariable.allCases {
+            for values in [[0, -2, 0, 0, 0, 0], [nil, nil, -2, -1, nil, nil], [2, nil, 1, nil, 2, nil]] as [[Int?]] {
+                let suggestion = DialInAdvisor.advise(cup(values, tried: [variable])).suggestion
+                #expect(suggestion?.move.variable != variable)
+            }
+        }
     }
 
-    @Test func nothingJudgedSaysSo() {
-        #expect(DialInAdvisor.advise(CupTasting()).next == .nothingRated)
-        // Agitation alone isn't a judgement of the cup
-        #expect(DialInAdvisor.advise(CupTasting(agitation: .high)).next == .nothingRated)
+    @Test func agitationLimits() {
+        #expect(DialInMove.lessAgitation.isPossible(from: .low) == false)
+        #expect(DialInMove.moreAgitation.isPossible(from: .high) == false)
+        #expect(DialInMove.lessAgitation.isPossible(from: nil))
+        #expect(DialInMove.moreAgitation.isPossible(from: nil))
     }
 
-    @Test func theDiagnosisNamesWhatsOffAndAnOddDrawdown() {
-        let advice = DialInAdvisor.advise(cup([.sweetness: -1, .finish: -2, .acidity: 0], drawdown: .slow, character: [.muddy]))
+    @Test func aKnownAgitationNamesTheNextLevel() {
+        #expect(DialInAdvisor.advise(cup(none, tags: [.muddy], agitation: .medium)).suggestion?.instruction == "Less agitation: medium → low")
+        #expect(DialInAdvisor.advise(cup(none, tags: [.muddy], agitation: nil)).suggestion?.instruction == "Less agitation")
+    }
+
+    @Test func aTagStopsKeepThisRecipe() {
+        #expect(outcome(cup([0, 0, 0, 0, 0, 0], tags: [.heavy])) != "keep")
+    }
+
+    @Test func drawdownAloneIsNothingToAdviseOn() {
+        #expect(outcome(cup(none, drawdown: .slow)) == "ask")
+    }
+
+    @Test func triedAloneIsNothingToAdviseOn() {
+        #expect(outcome(cup(none, tried: [.grind])) == "ask")
+    }
+
+    @Test func aDefectWithItsChangesRuledOutDoesntFallThroughToMoreExtraction() {
+        // Bitter and not sweet, cooler and coarser ruled out: not "hotter"
+        #expect(outcome(cup([0, -2, 0, 0, 0, 0], tags: [.bitter], tried: [.temperature, .grind])) == "none")
+    }
+
+    @Test func everyRuleHasADistinctIdAndTwoVariables() {
+        let ids = DialInRule.all.map(\.id)
+        #expect(Set(ids).count == ids.count)
+        #expect(DialInRule.all.allSatisfy { $0.primary.variable != $0.alternate.variable })
+    }
+}
+
+@Suite struct DialInWordingTests {
+    @Test func theDiagnosisNamesWhatsOffTheTagsAndAnOddDrawdown() {
+        let advice = DialInAdvisor.advise(cup([0, -1, nil, nil, nil, -2], drawdown: .slow, tags: [.muddy, .genericFruit]))
         #expect(
             advice.diagnosis == [
-                "A slow drawdown with low clarity, finish or sweetness.",
-                "Sweetness slightly low, finish length much too low.",
-                "Tasted muddy.",
-                "The drawdown was slow.",
+                "Sweetness slightly low, finish length much too low.", "Tasted muddy, generic fruit.", "The drawdown was slow.",
             ])
     }
 
-    @Test func aProblemWithNoRuleGivesADiagnosisWithoutASuggestion() {
-        let advice = DialInAdvisor.advise(cup([.acidity: 1]))
-        #expect(advice.next == .noSuggestion)
-        #expect(advice.diagnosis == ["Acidity slightly high."])
+    @Test func onTargetWithAnOddDrawdownSaysItsFine() {
+        let advice = DialInAdvisor.advise(cup([0, 0, nil, nil, nil, nil], drawdown: .fast))
+        #expect(
+            advice.diagnosis == ["Everything you rated is on target.", "The drawdown was fast, but that's fine when the cup tastes right."])
     }
 
-    @Test func aSlowDrawdownAloneIsNamedButNotActedOn() {
-        let advice = DialInAdvisor.advise(cup(drawdown: .slow))
-        #expect(advice.next == .noSuggestion)
-        #expect(advice.diagnosis == ["The drawdown was slow."])
+    @Test func theSuggestionCarriesWhyAndConfidence() throws {
+        let suggestion = try #require(DialInAdvisor.advise(cup([0, 0, -2, 0, 0, 0])).suggestion)
+        #expect(suggestion.confidence == .high)
+        #expect(suggestion.why == "Less water makes a stronger cup without changing how it's extracted.")
+        #expect(suggestion.criteria.map(\.result) == ["Better", "Overshot: too far the other way", "No change", "Worse"])
+        #expect(suggestion.criteria[2].next == "Go back, and try: grind finer")
+    }
+
+    @Test func withTheAlternateRuledOutTheNoChangeStepSaysToTickIt() throws {
+        let suggestion = try #require(DialInAdvisor.advise(cup([0, 0, -2, 0, 0, 0], tried: [.grind])).suggestion)
+        #expect(suggestion.criteria[2].next == "Go back, tick ratio as tried, and rate the cup again")
     }
 }

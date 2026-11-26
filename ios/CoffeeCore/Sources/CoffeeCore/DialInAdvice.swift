@@ -53,6 +53,17 @@ public struct DialInMove: Hashable, Sendable {
     }
 }
 
+/// How well-founded a suggestion is: whether it's worth trying, not how
+/// likely it is to fix the cup.
+public enum DialInConfidence: String, Sendable {
+    /// Sound physical or sensory reasoning.
+    case high
+    /// A reasonable hypothesis, with real uncertainty.
+    case medium
+    /// Exploratory: several explanations remain.
+    case low
+}
+
 /// The change to try next, what it should do, and what to do after.
 public struct DialInSuggestion: Hashable, Sendable {
     public let move: DialInMove
@@ -60,6 +71,11 @@ public struct DialInSuggestion: Hashable, Sendable {
     /// "Grind coarser", "Less agitation: medium → low".
     public let instruction: String
     public let expectedEffect: String
+    /// One line on why this change, for this cup.
+    public let why: String
+    public let confidence: DialInConfidence
+    /// The rule it came from, for tests.
+    public let rule: Int
     /// "If this happens, do that": the same four for every suggestion.
     public let criteria: [Criterion]
 
@@ -73,7 +89,8 @@ public struct DialInSuggestion: Hashable, Sendable {
 public struct DialInAdvice: Hashable, Sendable {
     public enum Next: Hashable, Sendable {
         case change(DialInSuggestion)
-        /// Everything rated is on target, with no character or flow problems.
+        /// Everything rated is on target, with no character tags, whatever
+        /// the drawdown.
         case nothingToChange
         /// Something is off, but no rule matched, or its moves were ruled out
         /// or already tried.
