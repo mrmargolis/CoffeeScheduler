@@ -11,6 +11,7 @@ struct NotesReaderCheckView: View {
     @State private var typed = ""
     @State private var typedSample: Sample?
     @State private var isReading = false
+    @State private var readerModel = NotesModelReader.Model.preferred ?? .onDevice
 
     /// How many brews' notes to check.
     static let sampleCount = 12
@@ -19,6 +20,7 @@ struct NotesReaderCheckView: View {
         let id: String
         let notes: String
         var answer: String?
+        var error: String?
         var isRead = false
 
         var reading: NotesReading? { answer.map { NotesPrompt.reading(fromAnswer: $0, notes: notes) } }
@@ -26,8 +28,18 @@ struct NotesReaderCheckView: View {
 
     var body: some View {
         List {
-            if !NotesModelReader.isAvailable {
-                Text("The notes reader needs Apple Intelligence, on iOS 26 or later.").foregroundStyle(Theme.text2)
+            Section {
+                Picker("Model", selection: $readerModel) {
+                    ForEach(NotesModelReader.Model.allCases) { model in
+                        Text(model.isAvailable ? model.name : "\(model.name) (unavailable)").tag(model)
+                    }
+                }
+            } footer: {
+                SectionFooter(
+                    text: """
+                        Private Cloud Compute is Apple's larger model, on iOS 27: the notes go to Apple's servers, \
+                        which keep nothing. On this phone, nothing leaves it.
+                        """)
             }
             Section {
                 TextField("Notes to try", text: $typed, axis: .vertical).lineLimit(3...8)
@@ -59,7 +71,7 @@ struct NotesReaderCheckView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(isReading ? "Reading…" : "Read all") { Task { await readAll() } }
-                    .disabled(isReading || samples.isEmpty || !NotesModelReader.isAvailable)
+                    .disabled(isReading || samples.isEmpty)
             }
         }
         .onAppear {
@@ -74,19 +86,27 @@ struct NotesReaderCheckView: View {
         isReading = true
         defer { isReading = false }
         for index in samples.indices {
-            let answer = await NotesModelReader().answer(for: samples[index].notes)
-            samples[index].answer = answer
-            samples[index].isRead = true
+            samples[index] = await read(samples[index])
         }
+    }
+
+    private func read(_ sample: Sample) async -> Sample {
+        var sample = sample
+        do {
+            sample.answer = try await NotesModelReader(model: readerModel).answer(for: sample.notes)
+            sample.error = nil
+        } catch {
+            sample.answer = nil
+            sample.error = error.localizedDescription
+        }
+        sample.isRead = true
+        return sample
     }
 
     private func readTyped() async {
         isReading = true
         defer { isReading = false }
-        var sample = Sample(id: "typed", notes: typed)
-        sample.answer = await NotesModelReader().answer(for: typed)
-        sample.isRead = true
-        typedSample = sample
+        typedSample = await read(Sample(id: "typed", notes: typed))
     }
 }
 
@@ -105,7 +125,7 @@ private struct SampleRow: View {
                     Text(answer).font(.caption.monospaced()).foregroundStyle(Theme.text3)
                 }
             } else if sample.isRead {
-                Text("No answer from the model.").font(.subheadline).foregroundStyle(Theme.gapText)
+                Text(sample.error ?? "No answer from the model.").font(.subheadline).foregroundStyle(Theme.gapText)
             }
         }
         .padding(.vertical, 4)
