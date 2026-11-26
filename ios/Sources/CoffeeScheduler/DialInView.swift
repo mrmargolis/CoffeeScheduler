@@ -19,9 +19,10 @@ struct DialInView: View {
                         .font(.footnote)
                         .foregroundStyle(Theme.text2)
                     ratings
-                    flow
+                    ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $cup.drawdown)
                     tags
                     agitation
+                    tried
                     DialInAdviceCard(advice: DialInAdvisor.advise(cup))
                 }
                 .padding(.horizontal, 20)
@@ -60,15 +61,6 @@ struct DialInView: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.tileRadius))
     }
 
-    private var flow: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ChoiceRow(title: "Drawdown", choices: Drawdown.allCases, name: \.name, selection: $cup.drawdown)
-            Toggle("Stalled or channelled", isOn: $cup.flowProblem)
-                .font(.subheadline)
-                .tint(Theme.accent)
-        }
-    }
-
     private var tags: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Tasted").font(.subheadline.weight(.semibold))
@@ -87,6 +79,25 @@ struct DialInView: View {
         VStack(alignment: .leading, spacing: 6) {
             ChoiceRow(title: "Agitation", choices: Agitation.allCases, name: \.name, selection: $cup.agitation)
             Text("Optional: how much you used, so it won't suggest less than low or more than high.")
+                .font(.caption)
+                .foregroundStyle(Theme.text3)
+        }
+    }
+
+    /// Changes that haven't helped this coffee, so the advice moves on.
+    private var tried: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Already tried").font(.subheadline.weight(.semibold))
+            HStack(spacing: 8) {
+                ForEach(DialInVariable.allCases, id: \.self) { variable in
+                    let on = cup.tried.contains(variable)
+                    Chip(text: variable.name, isOn: on, fills: true) {
+                        if on { cup.tried.remove(variable) } else { cup.tried.insert(variable) }
+                    }
+                    .accessibilityLabel("Already tried: \(variable.name)")
+                }
+            }
+            Text("Changes that didn't help this coffee, in either direction. They won't be suggested.")
                 .font(.caption)
                 .foregroundStyle(Theme.text3)
         }
@@ -133,7 +144,7 @@ struct DialInAdviceCard: View {
         case .nothingToChange:
             Text("Keep this recipe.").font(.title3.weight(.semibold)).foregroundStyle(Theme.ready)
         case .noSuggestion:
-            Text("No single change stands out. Rate more of the cup, or trust your taste on this one.")
+            Text("No single change stands out. Rate more of the cup, or untick a change you've tried.")
                 .font(.subheadline)
         case .nothingRated:
             Text("Rate the cup above to get a suggestion.").font(.subheadline).foregroundStyle(Theme.text3)

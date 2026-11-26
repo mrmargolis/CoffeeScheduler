@@ -5,16 +5,16 @@ import Foundation
 public enum DialInAdvisor {
     public static func advise(_ cup: CupTasting) -> DialInAdvice {
         guard !cup.isEmpty else { return DialInAdvice(diagnosis: [], next: .nothingRated) }
-        var diagnosis = offTarget(cup) + flow(cup)
+        var diagnosis = offTarget(cup) + drawdown(cup)
         if diagnosis.isEmpty { return DialInAdvice(diagnosis: ["Everything you rated is on target."], next: .nothingToChange) }
 
         let rated = RatedCup(tasting: cup)
         for rule in DialInRule.all where rule.matches(rated) {
-            for move in [rule.primary, rule.alternate] where move.isPossible(from: cup.agitation) {
-                diagnosis.insert("\(rule.pattern).", at: 0)
+            for move in [rule.primary, rule.alternate] where move.isOpen(for: cup) {
+                if let pattern = rule.pattern { diagnosis.insert("\(pattern).", at: 0) }
                 let suggestion = DialInSuggestion(
                     move: move, instruction: instruction(move, agitation: cup.agitation), expectedEffect: rule.effect,
-                    criteria: criteria(move, rule: rule))
+                    criteria: criteria(move, rule: rule, cup: cup))
                 return DialInAdvice(diagnosis: diagnosis, next: .change(suggestion))
             }
         }
@@ -30,14 +30,19 @@ public enum DialInAdvisor {
         return "\(move.name): \(agitation.rawValue) → \(next.rawValue)"
     }
 
-    /// The same four outcomes for every suggestion, naming its moves.
-    private static func criteria(_ move: DialInMove, rule: DialInRule) -> [DialInSuggestion.Criterion] {
+    /// The same four outcomes for every suggestion, naming its moves. With
+    /// the rule's other move ruled out, a dead end sends the cup back here.
+    private static func criteria(_ move: DialInMove, rule: DialInRule, cup: CupTasting) -> [DialInSuggestion.Criterion] {
         let alternate = rule.alternate == move ? rule.primary : rule.alternate
+        let fallback =
+            alternate.isOpen(for: cup)
+            ? "Go back, and try: \(alternate.name.lowercased())"
+            : "Go back, tick \(move.variable.name.lowercased()) as tried, and rate the cup again"
         return [
             .init(result: "Better", next: "\(move.name) by one more step"),
             .init(result: "Overshot: too far the other way", next: "Go halfway back and stay there"),
-            .init(result: "No change", next: "Go back, and try: \(alternate.name.lowercased())"),
-            .init(result: "Worse", next: "Go back, and try: \(alternate.name.lowercased())"),
+            .init(result: "No change", next: fallback),
+            .init(result: "Worse", next: fallback),
         ]
     }
 
@@ -53,12 +58,10 @@ public enum DialInAdvisor {
         return lines
     }
 
-    /// An abnormal drawdown or bed, called out so it isn't hidden behind taste.
-    private static func flow(_ cup: CupTasting) -> [String] {
-        var lines: [String] = []
-        if cup.flowProblem { lines.append("The bed stalled or channelled.") }
-        if let drawdown = cup.drawdown, drawdown != .normal { lines.append("The drawdown was \(drawdown.rawValue).") }
-        return lines
+    /// An abnormal drawdown, called out so it isn't hidden behind taste.
+    private static func drawdown(_ cup: CupTasting) -> [String] {
+        guard let drawdown = cup.drawdown, drawdown != .normal else { return [] }
+        return ["The drawdown was \(drawdown.rawValue)."]
     }
 
     private static func sentence(_ text: String) -> String {

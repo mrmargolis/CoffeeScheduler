@@ -12,7 +12,6 @@ struct RatedCup: Sendable {
     func notLow(_ attribute: SensoryAttribute) -> Bool { tasting.ratings[attribute].map { $0 > -1 } ?? false }
     func has(_ tag: CharacterTag) -> Bool { tasting.character.contains(tag) }
     var drawdown: Drawdown? { tasting.drawdown }
-    var flowProblem: Bool { tasting.flowProblem }
 
     /// Every rated attribute other than `attribute` is on target.
     func othersOnTarget(_ attribute: SensoryAttribute) -> Bool {
@@ -24,16 +23,15 @@ struct RatedCup: Sendable {
 /// a fallback, and what it should do. Hypotheses from the prototype, in
 /// priority order; tune them here without touching the UI.
 struct DialInRule: Sendable {
-    let pattern: String
+    /// What it saw, as a line of the diagnosis; nil when that would only
+    /// repeat a single rating ("Low sweetness" after "Sweetness much too low").
+    let pattern: String?
     let matches: @Sendable (RatedCup) -> Bool
     let primary: DialInMove
     let alternate: DialInMove
     let effect: String
 
     static let all: [DialInRule] = [
-        DialInRule(
-            pattern: "The bed stalled or channelled", matches: { $0.flowProblem },
-            primary: .init(.agitation, .down), alternate: .init(.grind, .down), effect: "A more even extraction: clearer, with a longer finish"),
         DialInRule(
             pattern: "A slow drawdown with low clarity, finish or sweetness",
             matches: { $0.drawdown == .slow && ($0.low(.clarity) || $0.low(.finish) || $0.low(.sweetness)) },
@@ -50,14 +48,14 @@ struct DialInRule: Sendable {
             pattern: "Low sweetness with sharp acidity", matches: { $0.low(.sweetness) && $0.has(.sharp) },
             primary: .init(.grind, .up), alternate: .init(.temperature, .up), effect: "Sweeter, and less sharp"),
         DialInRule(
-            pattern: "Bitterness", matches: { $0.has(.bitter) },
+            pattern: nil, matches: { $0.has(.bitter) },
             primary: .init(.temperature, .down), alternate: .init(.grind, .down), effect: "Less bitter"),
         DialInRule(
             pattern: "Muddy, or low clarity with enough intensity",
             matches: { $0.has(.muddy) || ($0.low(.clarity) && $0.notLow(.intensity)) },
             primary: .init(.agitation, .down), alternate: .init(.grind, .down), effect: "Clearer"),
         DialInRule(
-            pattern: "Too much body", matches: { $0.high(.body) || $0.has(.heavy) },
+            pattern: nil, matches: { $0.high(.body) || $0.has(.heavy) },
             primary: .init(.agitation, .down), alternate: .init(.grind, .down), effect: "Lighter and clearer"),
         DialInRule(
             pattern: "Low acidity with enough sweetness", matches: { $0.low(.acidity) && $0.notLow(.sweetness) },
@@ -66,10 +64,10 @@ struct DialInRule: Sendable {
             pattern: "Low intensity in an otherwise good cup", matches: { $0.low(.intensity) && $0.othersOnTarget(.intensity) },
             primary: .init(.ratio, .up), alternate: .init(.grind, .up), effect: "More intensity, the profile kept"),
         DialInRule(
-            pattern: "Too intense", matches: { $0.high(.intensity) },
+            pattern: nil, matches: { $0.high(.intensity) },
             primary: .init(.ratio, .down), alternate: .init(.grind, .down), effect: "Less intense"),
         DialInRule(
-            pattern: "Low sweetness", matches: { $0.low(.sweetness) },
+            pattern: nil, matches: { $0.low(.sweetness) },
             primary: .init(.temperature, .up), alternate: .init(.grind, .up), effect: "Sweeter"),
     ]
 }

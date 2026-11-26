@@ -3,6 +3,8 @@ import Foundation
 /// What a dial-in suggestion changes.
 public enum DialInVariable: String, CaseIterable, Sendable {
     case grind, temperature, ratio, agitation
+
+    public var name: String { rawValue.capitalized }
 }
 
 /// Which way a suggestion moves its variable.
@@ -43,6 +45,12 @@ public struct DialInMove: Hashable, Sendable {
         guard variable == .agitation, let agitation else { return true }
         return direction == .up ? agitation != .high : agitation != .low
     }
+
+    /// Whether to suggest it for `cup`: possible, and its variable not
+    /// already tried.
+    func isOpen(for cup: CupTasting) -> Bool {
+        isPossible(from: cup.agitation) && !cup.tried.contains(variable)
+    }
 }
 
 /// The change to try next, what it should do, and what to do after.
@@ -67,7 +75,8 @@ public struct DialInAdvice: Hashable, Sendable {
         case change(DialInSuggestion)
         /// Everything rated is on target, with no character or flow problems.
         case nothingToChange
-        /// Something is off, but no rule matched or its moves were ruled out.
+        /// Something is off, but no rule matched, or its moves were ruled out
+        /// or already tried.
         case noSuggestion
         /// Nothing was judged.
         case nothingRated

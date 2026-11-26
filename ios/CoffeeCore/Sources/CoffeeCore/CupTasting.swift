@@ -55,26 +55,26 @@ public struct CupTasting: Hashable, Sendable {
     /// Rated attributes only; one that's missing wasn't judged.
     public var ratings: [SensoryAttribute: Int]
     public var drawdown: Drawdown?
-    /// The bed stalled or channelled.
-    public var flowProblem: Bool
     public var character: Set<CharacterTag>
     /// How much agitation the cup had, if given: rules out suggesting less
     /// at low, or more at high.
     public var agitation: Agitation?
+    /// Changes already tried on this coffee that didn't help: not suggested.
+    public var tried: Set<DialInVariable>
 
     public init(
-        ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, flowProblem: Bool = false,
-        character: Set<CharacterTag> = [], agitation: Agitation? = nil
+        ratings: [SensoryAttribute: Int] = [:], drawdown: Drawdown? = nil, character: Set<CharacterTag> = [],
+        agitation: Agitation? = nil, tried: Set<DialInVariable> = []
     ) {
         self.ratings = ratings
         self.drawdown = drawdown
-        self.flowProblem = flowProblem
         self.character = character
         self.agitation = agitation
+        self.tried = tried
     }
 
-    /// Nothing judged yet: no rating, drawdown, flow problem or tag.
+    /// Nothing judged yet: no rating, drawdown or tag.
     public var isEmpty: Bool {
-        ratings.isEmpty && drawdown == nil && !flowProblem && character.isEmpty
+        ratings.isEmpty && drawdown == nil && character.isEmpty
     }
 }
