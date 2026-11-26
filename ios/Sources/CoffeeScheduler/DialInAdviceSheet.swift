@@ -2,10 +2,13 @@ import CoffeeCore
 import SwiftUI
 
 /// The whole advice, opened from the bar: the change and what to taste
-/// for, why, what the tool saw, and what to do after the next cup.
+/// for, why, what the tool saw, and what to do after the next cup. It opens
+/// just tall enough to show all of it, and scrolls at large text sizes.
 struct DialInAdviceSheet: View {
     @Environment(\.dismiss) private var dismiss
     let advice: DialInAdvice
+    /// The advice's measured height; 0 until it's laid out.
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -39,8 +42,16 @@ struct DialInAdviceSheet: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 24)
+            .onGeometryChange(for: CGFloat.self) {
+                $0.size.height
+            } action: {
+                contentHeight = $0
+            }
         }
         .foregroundStyle(Theme.text)
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight + 12), .large] : [.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Theme.card)
     }
 
     @ViewBuilder

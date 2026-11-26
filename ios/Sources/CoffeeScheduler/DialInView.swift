@@ -50,9 +50,6 @@ struct DialInView: View {
             }
             .sheet(isPresented: $showsAdvice) {
                 DialInAdviceSheet(advice: advice)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                    .presentationBackground(Theme.card)
             }
         }
     }
