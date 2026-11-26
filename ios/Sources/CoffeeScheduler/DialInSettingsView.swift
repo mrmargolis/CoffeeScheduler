@@ -79,7 +79,7 @@ struct DialInSettingsView: View {
             NavigationLink {
                 NotesReaderCheckView()
             } label: {
-                SettingRow(title: "Check the notes reader", subtitle: NotesModelReader.isEnabled ? "On" : "Off until checked") {
+                SettingRow(title: "Check the notes reader", subtitle: NotesModelReader.isEnabled ? "On" : "Off") {
                     EmptyView()
                 }
             }
@@ -88,8 +88,8 @@ struct DialInSettingsView: View {
         } footer: {
             SectionFooter(
                 text: """
-                    Reads the notes on the evaluation sheet on this phone and suggests character tags and flavours. \
-                    It stays off until its suggestions on your own notes look right.
+                    Reads the notes on the evaluation sheet and suggests character tags and flavours, marked until \
+                    you keep them. The check runs it over your newest brew notes.
                     """)
         }
     }

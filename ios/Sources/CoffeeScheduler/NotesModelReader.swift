@@ -8,10 +8,10 @@ import Foundation
 /// Reads the notes typed on the evaluation sheet with one of Apple's
 /// language models and proposes character tags and flavours.
 struct NotesModelReader: NotesReader {
-    /// Off until its output has been checked against real notes and the
-    /// prompt approved (#78). Until then the evaluation sheet works as it
-    /// always has, and Settings › Dial-in shows the check.
-    static let isEnabled = false
+    /// Whether the evaluation sheet reads notes. On, with the on-device
+    /// model, to see how much its suggestions help in practice (#78);
+    /// Settings › Dial-in › Check the notes reader runs it over real notes.
+    static let isEnabled = true
 
     /// Whether the app is signed with Private Cloud Compute's entitlement
     /// (com.apple.developer.private-cloud-compute), which Apple grants on
