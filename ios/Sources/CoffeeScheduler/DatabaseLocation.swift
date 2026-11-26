@@ -47,10 +47,18 @@ final class DatabaseLocation {
 
     var remoteFile: URL? { folder?.appendingPathComponent(Self.fileName) }
 
-    /// The defaults and the working copy are parameters for the tests.
-    init(defaults: UserDefaults = .standard, workingCopy: URL = DatabaseLocation.workingCopyURL) {
+    /// Fetches the iCloud file for a pull.
+    private let readRemote: @Sendable (URL) async throws -> Data
+
+    /// The defaults, the working copy and the fetch are parameters for the
+    /// tests: a test's fetch can wait while it changes the working copy.
+    init(
+        defaults: UserDefaults = .standard, workingCopy: URL = DatabaseLocation.workingCopyURL,
+        readRemote: @escaping @Sendable (URL) async throws -> Data = { try await CloudFile.read($0) }
+    ) {
         self.defaults = defaults
         self.workingCopy = workingCopy
+        self.readRemote = readRemote
         guard let data = defaults.data(forKey: bookmarkKey) else { return }
         do {
             var stale = false
@@ -102,7 +110,7 @@ final class DatabaseLocation {
         }
 
         let before = changes
-        let data = try await CloudFile.read(remote)
+        let data = try await readRemote(remote)
         guard changes == before else {
             Log.sync.notice("Kept a change made here over the newer copy in iCloud Drive")
             return false
